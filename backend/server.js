@@ -1,6 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+
+// Import auth routes
+import { authRoutes } from './src/features/auth/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +11,9 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 // Datos de ejemplo
 const games = [
