@@ -212,15 +212,18 @@ app.use((req, res) => {
   });
 });
 
+// Variable para almacenar el ID del interval de limpieza de sesiones
+let sessionCleanupInterval = null;
+
 // Iniciar servidor
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
   
   // Iniciar limpieza periódica de sesiones expiradas (cada hora)
   // C15: Gestión robusta de sesiones
   const SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hora
-  setInterval(async () => {
+  sessionCleanupInterval = setInterval(async () => {
     try {
       console.log('[CLEANUP] Iniciando limpieza de sesiones expiradas...');
       await sessionService.limpiarSesionesExpiradas();
@@ -232,3 +235,36 @@ app.listen(PORT, () => {
   
   console.log('🧹 Limpieza automática de sesiones configurada (cada hora)');
 });
+
+// Manejo de cierre graceful del servidor
+// Esto previene memory leaks y procesos huérfanos al detener/reiniciar el servidor
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} recibido. Cerrando servidor de forma graceful...`);
+  
+  // Limpiar el interval de sesiones
+  if (sessionCleanupInterval) {
+    clearInterval(sessionCleanupInterval);
+    console.log('✓ Interval de limpieza de sesiones detenido');
+  }
+  
+  // Forzar cierre después de 10 segundos si no se completa
+  const forceShutdownTimeout = setTimeout(() => {
+    console.error('⚠️ No se pudo cerrar el servidor de forma graceful, forzando cierre...');
+    process.exit(1);
+  }, 10000);
+  
+  // Cerrar el servidor HTTP
+  server.close((err) => {
+    if (err) {
+      console.error('✗ Error al cerrar servidor HTTP:', err);
+      process.exit(1);
+    }
+    clearTimeout(forceShutdownTimeout);
+    console.log('✓ Servidor HTTP cerrado');
+    process.exit(0);
+  });
+};
+
+// Escuchar señales de terminación
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
