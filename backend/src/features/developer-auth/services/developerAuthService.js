@@ -378,7 +378,11 @@ export const developerAuthService = {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
-        await sessionService.invalidarSesion(session.access_token);
+        // Primero buscar la sesión por token hash para obtener el session ID
+        const sesionActiva = await sessionService.validarSesion(session.access_token);
+        if (sesionActiva) {
+          await sessionService.invalidarSesion(sesionActiva.id, 'logout');
+        }
       }
     } catch (sessionError) {
       console.error('Error al invalidar sesión en BD:', sessionError);
