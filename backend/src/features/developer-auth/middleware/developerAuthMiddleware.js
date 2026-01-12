@@ -117,7 +117,13 @@ export const requireDesarrolladorAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    // El error ya fue manejado por requireDesarrollador
+    console.error('[MIDDLEWARE] Error en verificación de desarrollador admin:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        mensaje: 'Error interno de autenticación de administrador'
+      });
+    }
     return;
   }
 };
