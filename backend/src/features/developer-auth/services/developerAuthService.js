@@ -454,12 +454,6 @@ export const developerAuthService = {
    * Solicitar restablecimiento de contraseña
    */
   async solicitarRestablecimientoPassword(email) {
-    // Verificar que el email pertenece a un desarrollador (usando supabaseAdmin)
-    const { data: desarrolladores } = await supabaseAdmin
-      .from('desarrolladores')
-      .select('id')
-      .eq('cuenta_activa', true);
-
     // Enviar email de reset (Supabase maneja la validación del email)
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/steamworks/reset-password`
