@@ -34,15 +34,13 @@ app.use(express.json());
 // Sanitización de inputs (C3: Prevención de inyecciones)
 app.use(sanitizeBodyMiddleware);
 
-// Rate limiting global (C7: RNF-007)
-app.use(apiLimiter);
+// Rate limiting for auth routes only (C7: RNF-007)
 
 // Auth routes (usuarios normales)
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', developerAuthRoutes);
-
+app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
 // Datos de ejemplo
 const games = [
   { 
