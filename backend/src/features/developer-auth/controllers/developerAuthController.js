@@ -6,6 +6,16 @@
 
 import { developerAuthService } from '../services/developerAuthService.js';
 
+/**
+ * Extrae metadatos de la request para auditoría
+ */
+function extractRequestMetadata(req) {
+  return {
+    ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+    user_agent: req.get('user-agent') || 'unknown'
+  };
+}
+
 export const developerAuthController = {
   /**
    * POST /api/desarrolladores/auth/registro
@@ -45,10 +55,13 @@ export const developerAuthController = {
         });
       }
 
-      const resultado = await developerAuthService.registrarDesarrollador(datosRegistro);
+      // Extraer metadatos de la request para auditoría
+      const requestMetadata = extractRequestMetadata(req);
 
-      // Log de auditoría exitoso (RNF-008)
-      console.log(`[AUDIT] Registro desarrollador exitoso: ${datosRegistro.email}`);
+      const resultado = await developerAuthService.registrarDesarrollador(
+        datosRegistro,
+        requestMetadata
+      );
 
       res.status(201).json({
         success: true,
@@ -56,9 +69,6 @@ export const developerAuthController = {
         mensaje: 'Desarrollador registrado exitosamente'
       });
     } catch (error) {
-      // Log de auditoría fallido (RNF-008)
-      console.error(`[AUDIT] Registro desarrollador fallido: ${error.message}`);
-
       res.status(400).json({
         success: false,
         mensaje: error.message
@@ -81,10 +91,14 @@ export const developerAuthController = {
         });
       }
 
-      const resultado = await developerAuthService.iniciarSesion(email, password);
+      // Extraer metadatos de la request para auditoría
+      const requestMetadata = extractRequestMetadata(req);
 
-      // Log de auditoría exitoso (RNF-008)
-      console.log(`[AUDIT] Login desarrollador exitoso: ${email}`);
+      const resultado = await developerAuthService.iniciarSesion(
+        email, 
+        password,
+        requestMetadata
+      );
 
       res.status(200).json({
         success: true,
@@ -92,9 +106,6 @@ export const developerAuthController = {
         mensaje: 'Inicio de sesión exitoso'
       });
     } catch (error) {
-      // Log de auditoría fallido (RNF-008)
-      console.error(`[AUDIT] Login desarrollador fallido: ${error.message}`);
-
       res.status(401).json({
         success: false,
         mensaje: error.message
@@ -108,7 +119,11 @@ export const developerAuthController = {
    */
   async logout(req, res) {
     try {
-      await developerAuthService.cerrarSesion();
+      // Extraer userId y metadatos para auditoría
+      const userId = req.user?.id; // Asumiendo que viene del middleware de autenticación
+      const requestMetadata = extractRequestMetadata(req);
+
+      await developerAuthService.cerrarSesion(userId, requestMetadata);
 
       res.status(200).json({
         success: true,

@@ -1,13 +1,17 @@
 /**
  * Middleware de Autenticación para Desarrolladores
  * Verifica tokens y rol de desarrollador (C18, C15)
+ * Con gestión robusta de sesiones (RNF-008)
  */
 
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
+import { sessionService } from '../../../shared/services/sessionService.js';
+import { auditService } from '../../../shared/services/auditService.js';
 
 /**
  * Middleware: Requiere autenticación de desarrollador
  * Verifica que el usuario tenga sesión válida y sea desarrollador
+ * Con validación robusta de sesión en BD (C15)
  */
 export const requireDesarrollador = async (req, res, next) => {
   try {
@@ -33,6 +37,24 @@ export const requireDesarrollador = async (req, res, next) => {
       });
     }
 
+    // Validar sesión en BD (C15 - Gestión Robusta de Sesiones)
+    const sesionValida = await sessionService.validarSesion(token);
+    if (!sesionValida) {
+      // Registrar acceso con sesión inválida
+      await auditService.registrarAccesoNoAutorizado(
+        user.id,
+        user.email,
+        'Sesión inválida o expirada en BD',
+        req.ip || req.connection.remoteAddress,
+        req.get('user-agent')
+      );
+
+      return res.status(401).json({
+        success: false,
+        mensaje: 'Sesión inválida o expirada'
+      });
+    }
+
     // Verificar que sea desarrollador activo (C18) - usando supabaseAdmin
     const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')
@@ -42,6 +64,15 @@ export const requireDesarrollador = async (req, res, next) => {
       .single();
 
     if (devError || !desarrollador) {
+      // Registrar intento de acceso no autorizado
+      await auditService.registrarAccesoNoAutorizado(
+        user.id,
+        user.email,
+        'No es un desarrollador registrado o cuenta inactiva',
+        req.ip || req.connection.remoteAddress,
+        req.get('user-agent')
+      );
+
       return res.status(403).json({
         success: false,
         mensaje: 'Acceso denegado: No es un desarrollador registrado'
@@ -106,9 +137,43 @@ export const requireMfaVerificado = async (req, res, next) => {
 
     // Si MFA está habilitado, verificar que esté verificado en esta sesión
     if (req.desarrollador.mfa_habilitado) {
-      // TODO: Implementar verificación de sesión MFA
-      // Por ahora, solo verificamos que MFA esté configurado
-      console.log('[MFA] Verificación MFA requerida para operación de alto riesgo');
+      // Extraer token del header
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.split(' ')[1];
+
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Token no proporcionado'
+        });
+      }
+
+      // Verificar MFA en la sesión de BD
+      const { data: sesion } = await supabaseAdmin
+        .from('sesiones_desarrolladores')
+        .select('mfa_verificado')
+        .eq('token_hash', sessionService.hashToken(token))
+        .eq('activa', true)
+        .single();
+
+      if (!sesion || !sesion.mfa_verificado) {
+        // Registrar intento de acceso sin MFA verificado
+        await auditService.registrarEvento(
+          req.user.id,
+          'ACCESO_SIN_MFA',
+          'FALLO',
+          'Operación de alto riesgo requiere MFA verificado',
+          { operacion: req.path },
+          req.ip || req.connection.remoteAddress,
+          req.get('user-agent')
+        );
+
+        return res.status(403).json({
+          success: false,
+          mensaje: 'Esta operación requiere verificación MFA',
+          mfaRequired: true
+        });
+      }
     }
 
     next();

@@ -13,6 +13,9 @@ import { securityHeaders, additionalSecurityHeaders } from './src/shared/middlew
 import { apiLimiter } from './src/shared/middleware/rateLimiter.js';
 import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
 
+// Import session service for cleanup (Grupo 2 - Gestión de Sesiones)
+import { sessionService } from './src/shared/services/sessionService.js';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -215,4 +218,19 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
+  
+  // Iniciar limpieza periódica de sesiones expiradas (cada hora)
+  // C15: Gestión robusta de sesiones
+  const SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hora
+  setInterval(async () => {
+    try {
+      console.log('[CLEANUP] Iniciando limpieza de sesiones expiradas...');
+      await sessionService.limpiarSesionesExpiradas();
+      console.log('[CLEANUP] Limpieza de sesiones completada');
+    } catch (error) {
+      console.error('[CLEANUP] Error al limpiar sesiones:', error);
+    }
+  }, SESSION_CLEANUP_INTERVAL);
+  
+  console.log('🧹 Limpieza automática de sesiones configurada (cada hora)');
 });

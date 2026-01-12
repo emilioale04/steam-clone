@@ -6,6 +6,9 @@
  * Grupo 2 - Con seguridad mejorada:
  * - C3: Sanitización de inputs
  * - C2: Cifrado de datos bancarios
+ * - RNF-008: Auditoría de acciones
+ * - C15: Gestión robusta de sesiones
+ * - RNF-001: MFA automático
  */
 
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
@@ -16,13 +19,16 @@ import {
   containsSQLInjection 
 } from '../../../shared/utils/sanitization.js';
 import { encryptBankData, decryptBankData } from '../../../shared/utils/encryption.js';
+import { auditService } from '../../../shared/services/auditService.js';
+import { sessionService } from '../../../shared/services/sessionService.js';
 
 export const developerAuthService = {
   /**
    * Registro de nuevo desarrollador (RF-001)
-   * Crea usuario en Supabase Auth y registro en tabla desarrolladores
+   * Crea usuario en Supabase Auth + registro en tabla desarrolladores
+   * Con MFA automático (RNF-001) y logging de auditoría (RNF-008)
    */
-  async registrarDesarrollador(datosRegistro) {
+  async registrarDesarrollador(datosRegistro, requestMetadata = {}) {
     const {
       email,
       password,
@@ -49,6 +55,16 @@ export const developerAuthService = {
     
     // Validar email
     if (!isValidEmail(emailSanitizado)) {
+      // Registrar intento fallido de registro
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        'Email inválido',
+        { email: emailSanitizado },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
       throw new Error('Formato de email inválido');
     }
     
@@ -57,11 +73,30 @@ export const developerAuthService = {
         containsSQLInjection(paisSanitizado) ||
         containsSQLInjection(banco || '') ||
         containsSQLInjection(titular_cuenta || '')) {
+      // Registrar intento de inyección SQL
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        'Entrada inválida detectada - posible SQL injection',
+        { email: emailSanitizado, nombre_legal },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
       throw new Error('Entrada inválida detectada');
     }
 
     // Validar aceptación de términos (RF-001)
     if (!acepto_terminos) {
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        'Términos y condiciones no aceptados',
+        { email: emailSanitizado },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
       throw new Error('Debe aceptar los términos y condiciones para registrarse');
     }
 
@@ -86,10 +121,31 @@ export const developerAuthService = {
       }
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      // Registrar error de autenticación
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        `Error en Supabase Auth: ${authError.message}`,
+        { email: emailSanitizado, error: authError.code },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
+      throw authError;
+    }
 
     const userId = authData.user?.id;
     if (!userId) {
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        'Error al crear usuario: ID no generado',
+        { email: emailSanitizado },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
       throw new Error('Error al crear usuario: ID no generado');
     }
 
@@ -110,7 +166,7 @@ export const developerAuthService = {
         rol: 'desarrollador',
         acepto_terminos: true,
         fecha_aceptacion_terminos: new Date().toISOString(),
-        mfa_habilitado: false,
+        mfa_habilitado: true, // MFA AUTOMÁTICO (RNF-001)
         cuenta_activa: true
       })
       .select()
@@ -119,8 +175,61 @@ export const developerAuthService = {
     if (devError) {
       // Rollback: eliminar usuario de auth si falla la inserción
       await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
+      
+      await auditService.registrarEvento(
+        null,
+        'REGISTRO',
+        'FALLO',
+        `Error al crear perfil de desarrollador: ${devError.message}`,
+        { email: emailSanitizado, user_id: userId },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
       throw new Error(`Error al crear perfil de desarrollador: ${devError.message}`);
     }
+
+    // 3. Configurar MFA automáticamente (RNF-001)
+    try {
+      // Habilitar MFA para el usuario
+      const { data: mfaData, error: mfaError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { app_metadata: { mfa_enabled: true } }
+      );
+
+      if (mfaError) {
+        console.error('Error al configurar MFA automático:', mfaError);
+        // No lanzar error, solo registrar - el registro fue exitoso
+        await auditService.registrarEvento(
+          userId,
+          'CONFIGURACION_MFA',
+          'FALLO',
+          `Error al habilitar MFA automático: ${mfaError.message}`,
+          { email: emailSanitizado },
+          requestMetadata.ip_address,
+          requestMetadata.user_agent
+        );
+      } else {
+        await auditService.registrarEvento(
+          userId,
+          'CONFIGURACION_MFA',
+          'EXITO',
+          'MFA configurado automáticamente al registrarse',
+          { email: emailSanitizado },
+          requestMetadata.ip_address,
+          requestMetadata.user_agent
+        );
+      }
+    } catch (mfaConfigError) {
+      console.error('Error inesperado al configurar MFA:', mfaConfigError);
+    }
+
+    // 4. Registrar evento de registro exitoso (RNF-008)
+    await auditService.registrarRegistro(
+      userId,
+      emailSanitizado,
+      requestMetadata.ip_address,
+      requestMetadata.user_agent
+    );
 
     // Descifrar datos bancarios antes de retornar (para consistencia)
     const desarrolladorConDatosDescifrados = {
@@ -141,16 +250,29 @@ export const developerAuthService = {
 
   /**
    * Inicio de sesión de desarrollador (RF-002)
-   * Valida credenciales y verifica rol de desarrollador
+   * Valida credenciales, verifica rol de desarrollador y gestiona sesión robusta (C15)
+   * Con logging de auditoría (RNF-008)
    */
-  async iniciarSesion(email, password) {
+  async iniciarSesion(email, password, requestMetadata = {}) {
+    const emailSanitizado = sanitizeEmail(email);
+
     // 1. Autenticar con Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: emailSanitizado,
       password
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      // Registrar intento de login fallido (RNF-008)
+      await auditService.registrarLoginFallido(
+        null,
+        emailSanitizado,
+        `Error de autenticación: ${authError.message}`,
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
+      throw authError;
+    }
 
     const userId = authData.user?.id;
 
@@ -165,28 +287,92 @@ export const developerAuthService = {
     if (devError || !desarrollador) {
       // Si no es desarrollador, cerrar sesión
       await supabase.auth.signOut();
+      
+      // Registrar acceso no autorizado
+      await auditService.registrarAccesoNoAutorizado(
+        userId,
+        emailSanitizado,
+        'Usuario no registrado como desarrollador o cuenta inactiva',
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
+      
       throw new Error('Acceso denegado: Usuario no registrado como desarrollador');
     }
 
-    // 3. Actualizar última sesión
+    // 3. Crear sesión robusta en tabla sesiones_desarrolladores (C15)
+    try {
+      await sessionService.crearSesion({
+        desarrolladorId: userId,
+        accessToken: authData.session.access_token,
+        refreshToken: authData.session.refresh_token,
+        ipAddress: requestMetadata.ip_address,
+        userAgent: requestMetadata.user_agent,
+        mfaHabilitado: desarrollador.mfa_habilitado
+      });
+    } catch (sessionError) {
+      console.error('Error al crear sesión en BD:', sessionError);
+      // No lanzar error, la sesión de Supabase existe
+      await auditService.registrarEvento(
+        userId,
+        'LOGIN',
+        'FALLO',
+        `Error al registrar sesión en BD: ${sessionError.message}`,
+        { email: emailSanitizado },
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
+    }
+
+    // 4. Actualizar última sesión
     await supabaseAdmin
       .from('desarrolladores')
       .update({ ultima_sesion: new Date().toISOString() })
       .eq('id', userId);
 
+    // 5. Registrar login exitoso (RNF-008)
+    await auditService.registrarLogin(
+      userId,
+      emailSanitizado,
+      requestMetadata.ip_address,
+      requestMetadata.user_agent
+    );
+
     return {
       user: authData.user,
       session: authData.session,
-      desarrollador
+      desarrollador,
+      mfaRequired: desarrollador.mfa_habilitado && !authData.session.mfa_verified
     };
   },
 
   /**
    * Cerrar sesión de desarrollador
+   * Con invalidación de sesión en BD (C15) y logging (RNF-008)
    */
-  async cerrarSesion() {
+  async cerrarSesion(userId, requestMetadata = {}) {
+    // 1. Invalidar sesión en tabla sesiones_desarrolladores
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await sessionService.invalidarSesion(session.access_token);
+      }
+    } catch (sessionError) {
+      console.error('Error al invalidar sesión en BD:', sessionError);
+    }
+
+    // 2. Cerrar sesión en Supabase Auth
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
+    // 3. Registrar logout (RNF-008)
+    if (userId) {
+      await auditService.registrarLogout(
+        userId,
+        requestMetadata.ip_address,
+        requestMetadata.user_agent
+      );
+    }
   },
 
   /**
