@@ -31,15 +31,33 @@ export function sanitizeEmail(email) {
 }
 
 /**
- * Sanitiza un objeto completo recursivamente
+ * Lista de campos que NO deben ser sanitizados
+ * Incluye contraseñas, tokens y datos cifrados/sensibles
  */
-export function sanitizeObject(obj) {
+const FIELDS_TO_SKIP = [
+  'password',
+  'oldPassword',
+  'newPassword',
+  'accessToken',
+  'refreshToken',
+  'token',
+  'nif_cif',           // Dato fiscal cifrado
+  'numero_cuenta',     // Dato bancario cifrado
+  'cuenta_bancaria'    // Dato bancario cifrado
+];
+
+/**
+ * Sanitiza un objeto completo recursivamente
+ * @param {Object} obj - Objeto a sanitizar
+ * @param {Array} excludeFields - Campos a excluir de la sanitización
+ */
+export function sanitizeObject(obj, excludeFields = FIELDS_TO_SKIP) {
   if (typeof obj !== 'object' || obj === null) {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item));
+    return obj.map(item => sanitizeObject(item, excludeFields));
   }
 
   const sanitized = {};
@@ -47,10 +65,13 @@ export function sanitizeObject(obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const value = obj[key];
       
-      if (typeof value === 'string') {
+      // Si el campo está en la lista de exclusión, no sanitizar
+      if (excludeFields.includes(key)) {
+        sanitized[key] = value;
+      } else if (typeof value === 'string') {
         sanitized[key] = sanitizeString(value);
       } else if (typeof value === 'object') {
-        sanitized[key] = sanitizeObject(value);
+        sanitized[key] = sanitizeObject(value, excludeFields);
       } else {
         sanitized[key] = value;
       }
