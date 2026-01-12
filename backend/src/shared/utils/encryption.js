@@ -57,11 +57,22 @@ export function decrypt(encryptedData) {
     // Separar IV y datos cifrados
     const parts = encryptedData.split(':');
     if (parts.length !== 2) {
-      throw new Error('Invalid encrypted data format');
+      throw new Error('Unable to decrypt data');
     }
     
     const iv = Buffer.from(parts[0], 'hex');
+    
+    // Validar longitud del IV
+    if (iv.length !== IV_LENGTH) {
+      throw new Error('Unable to decrypt data');
+    }
+    
     const encrypted = parts[1];
+    
+    // Validar que los datos cifrados sean hexadecimales válidos
+    if (!/^[0-9a-fA-F]+$/.test(encrypted)) {
+      throw new Error('Unable to decrypt data');
+    }
     
     const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
     
