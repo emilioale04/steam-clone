@@ -103,29 +103,27 @@ export const requireDesarrolladorAdmin = async (req, res, next) => {
     await new Promise((resolve, reject) => {
       requireDesarrollador(req, res, (err) => {
         if (err) reject(err);
-        else resolve();
+export const requireDesarrolladorAdmin = (req, res, next) => {
+  // Primero verificar que sea desarrollador
+  requireDesarrollador(req, res, (err) => {
+    if (err) {
+      console.error('[MIDDLEWARE] Error en verificación de desarrollador (admin):', err);
+      return res.status(500).json({
+        success: false,
+        mensaje: 'Error interno de autenticación'
       });
-    });
+    }
 
-    // Verificar rol de admin
-    if (req.desarrollador.rol !== 'desarrollador_admin') {
+    // Verificar que el desarrollador esté presente y tenga rol de admin
+    if (!req.desarrollador || req.desarrollador.rol !== 'desarrollador_admin') {
       return res.status(403).json({
         success: false,
         mensaje: 'Acceso denegado: Requiere permisos de administrador'
       });
     }
 
-    next();
-  } catch (error) {
-    console.error('[MIDDLEWARE] Error en verificación de desarrollador admin:', error);
-    if (!res.headersSent) {
-      return res.status(500).json({
-        success: false,
-        mensaje: 'Error interno de autenticación de administrador'
-      });
-    }
-    return;
-  }
+    return next();
+  });
 };
 
 /**
