@@ -4,6 +4,15 @@ import { HomePage } from './pages/HomePage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { useAuth } from './shared/context/AuthContext';
 
+// Steamworks (Desarrolladores)
+import { 
+  LoginDesarrolladorPage, 
+  RegisterDesarrolladorPage,
+  SteamworksDashboardPage,
+  ProtectedDeveloperRoute,
+  DeveloperAuthProvider
+} from './features/developer-auth';
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -17,6 +26,9 @@ function App() {
 
   return (
     <Routes>
+      {/* ============================================ */}
+      {/* RUTAS DE USUARIOS NORMALES (Steam) */}
+      {/* ============================================ */}
       <Route 
         path="/login" 
         element={user ? <Navigate to="/" replace /> : <LoginPage />} 
@@ -41,6 +53,43 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* ============================================ */}
+      {/* RUTAS DE STEAMWORKS (Desarrolladores) */}
+      {/* URL separada: /steamworks/* */}
+      {/* ============================================ */}
+      <Route 
+        path="/steamworks/login" 
+        element={
+          <DeveloperAuthProvider>
+            <LoginDesarrolladorPage />
+          </DeveloperAuthProvider>
+        } 
+      />
+      <Route 
+        path="/steamworks/registro" 
+        element={
+          <DeveloperAuthProvider>
+            <RegisterDesarrolladorPage />
+          </DeveloperAuthProvider>
+        } 
+      />
+      <Route 
+        path="/steamworks/dashboard" 
+        element={
+          <DeveloperAuthProvider>
+            <ProtectedDeveloperRoute>
+              <SteamworksDashboardPage />
+            </ProtectedDeveloperRoute>
+          </DeveloperAuthProvider>
+        } 
+      />
+      {/* Redirigir /steamworks a login de desarrolladores */}
+      <Route 
+        path="/steamworks" 
+        element={<Navigate to="/steamworks/login" replace />} 
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

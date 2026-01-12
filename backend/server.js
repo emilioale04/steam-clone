@@ -5,16 +5,42 @@ import cors from 'cors';
 // Import auth routes
 import { authRoutes } from './src/features/auth/index.js';
 
+// Import developer auth routes (Steamworks)
+import { developerAuthRoutes } from './src/features/developer-auth/index.js';
+
+// Import security middleware (Grupo 2 - Seguridad)
+import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
+import { apiLimiter } from './src/shared/middleware/rateLimiter.js';
+import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
+
+// Import session service for cleanup (Grupo 2 - Gestión de Sesiones)
+import { sessionService } from './src/shared/services/sessionService.js';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Security Middleware (DEBE IR PRIMERO)
+// RNF-002: HTTPS/TLS headers
+// Security Headers: HSTS, CSP, X-Frame-Options, etc.
+app.use(securityHeaders);
+app.use(additionalSecurityHeaders);
+
+// CORS
 app.use(cors());
+
+// Body parsing
 app.use(express.json());
 
-// Auth routes
-app.use('/api/auth', authRoutes);
+// Sanitización de inputs (C3: Prevención de inyecciones)
+app.use(sanitizeBodyMiddleware);
 
+// Rate limiting for auth routes only (C7: RNF-007)
+
+// Auth routes (usuarios normales)
+app.use('/api/auth', apiLimiter, authRoutes);
+
+// Developer auth routes (Steamworks - desarrolladores)
+app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
 // Datos de ejemplo
 const games = [
   { 
@@ -186,8 +212,59 @@ app.use((req, res) => {
   });
 });
 
+// Variable para almacenar el ID del interval de limpieza de sesiones
+let sessionCleanupInterval = null;
+
 // Iniciar servidor
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
+  
+  // Iniciar limpieza periódica de sesiones expiradas (cada hora)
+  // C15: Gestión robusta de sesiones
+  const SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hora
+  sessionCleanupInterval = setInterval(async () => {
+    try {
+      console.log('[CLEANUP] Iniciando limpieza de sesiones expiradas...');
+      await sessionService.limpiarSesionesExpiradas();
+      console.log('[CLEANUP] Limpieza de sesiones completada');
+    } catch (error) {
+      console.error('[CLEANUP] Error al limpiar sesiones:', error);
+    }
+  }, SESSION_CLEANUP_INTERVAL);
+  
+  console.log('🧹 Limpieza automática de sesiones configurada (cada hora)');
 });
+
+// Manejo de cierre graceful del servidor
+// Esto previene memory leaks y procesos huérfanos al detener/reiniciar el servidor
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} recibido. Cerrando servidor de forma graceful...`);
+  
+  // Limpiar el interval de sesiones
+  if (sessionCleanupInterval) {
+    clearInterval(sessionCleanupInterval);
+    console.log('✓ Interval de limpieza de sesiones detenido');
+  }
+  
+  // Forzar cierre después de 10 segundos si no se completa
+  const forceShutdownTimeout = setTimeout(() => {
+    console.error('⚠️ No se pudo cerrar el servidor de forma graceful, forzando cierre...');
+    process.exit(1);
+  }, 10000);
+  
+  // Cerrar el servidor HTTP
+  server.close((err) => {
+    if (err) {
+      console.error('✗ Error al cerrar servidor HTTP:', err);
+      process.exit(1);
+    }
+    clearTimeout(forceShutdownTimeout);
+    console.log('✓ Servidor HTTP cerrado');
+    process.exit(0);
+  });
+};
+
+// Escuchar señales de terminación
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
