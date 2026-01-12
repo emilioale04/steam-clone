@@ -3,7 +3,7 @@
  * Verifica tokens y rol de desarrollador (C18, C15)
  */
 
-import supabase from '../../../shared/config/supabase.js';
+import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
 
 /**
  * Middleware: Requiere autenticación de desarrollador
@@ -33,8 +33,8 @@ export const requireDesarrollador = async (req, res, next) => {
       });
     }
 
-    // Verificar que sea desarrollador activo (C18)
-    const { data: desarrollador, error: devError } = await supabase
+    // Verificar que sea desarrollador activo (C18) - usando supabaseAdmin
+    const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')
       .select('id, rol, cuenta_activa, mfa_habilitado, nombre_legal')
       .eq('id', user.id)

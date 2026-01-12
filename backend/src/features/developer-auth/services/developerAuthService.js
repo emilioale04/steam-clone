@@ -4,7 +4,7 @@
  * Cumple con: RF-001, RF-002, RNF-001, C14, C15, C18
  */
 
-import supabase from '../../../shared/config/supabase.js';
+import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
 
 export const developerAuthService = {
   /**
@@ -55,8 +55,8 @@ export const developerAuthService = {
       throw new Error('Error al crear usuario: ID no generado');
     }
 
-    // 2. Crear registro en tabla desarrolladores
-    const { data: desarrollador, error: devError } = await supabase
+    // 2. Crear registro en tabla desarrolladores (usando supabaseAdmin para bypass RLS)
+    const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')
       .insert({
         id: userId,
@@ -80,7 +80,7 @@ export const developerAuthService = {
 
     if (devError) {
       // Rollback: eliminar usuario de auth si falla la inserción
-      await supabase.auth.admin.deleteUser(userId).catch(() => {});
+      await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
       throw new Error(`Error al crear perfil de desarrollador: ${devError.message}`);
     }
 
@@ -106,8 +106,8 @@ export const developerAuthService = {
 
     const userId = authData.user?.id;
 
-    // 2. Verificar que existe en tabla desarrolladores y obtener datos
-    const { data: desarrollador, error: devError } = await supabase
+    // 2. Verificar que existe en tabla desarrolladores y obtener datos (usando supabaseAdmin)
+    const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')
       .select('*')
       .eq('id', userId)
@@ -121,7 +121,7 @@ export const developerAuthService = {
     }
 
     // 3. Actualizar última sesión
-    await supabase
+    await supabaseAdmin
       .from('desarrolladores')
       .update({ ultima_sesion: new Date().toISOString() })
       .eq('id', userId);
@@ -151,7 +151,7 @@ export const developerAuthService = {
       throw new Error('No hay sesión activa');
     }
 
-    const { data: desarrollador, error: devError } = await supabase
+    const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')
       .select('*')
       .eq('id', user.id)
@@ -181,8 +181,8 @@ export const developerAuthService = {
    * Solicitar restablecimiento de contraseña
    */
   async solicitarRestablecimientoPassword(email) {
-    // Verificar que el email pertenece a un desarrollador
-    const { data: desarrolladores } = await supabase
+    // Verificar que el email pertenece a un desarrollador (usando supabaseAdmin)
+    const { data: desarrolladores } = await supabaseAdmin
       .from('desarrolladores')
       .select('id')
       .eq('cuenta_activa', true);
@@ -223,7 +223,7 @@ export const developerAuthService = {
    * Verificar si un usuario es desarrollador válido
    */
   async verificarRolDesarrollador(userId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('desarrolladores')
       .select('id, rol, cuenta_activa, mfa_habilitado')
       .eq('id', userId)
