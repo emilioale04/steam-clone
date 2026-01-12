@@ -298,10 +298,10 @@ export const developerAuthService = {
       // Registrar acceso no autorizado
       await auditService.registrarAccesoNoAutorizado(
         userId,
-        emailSanitizado,
-        'Usuario no registrado como desarrollador o cuenta inactiva',
+        `desarrollador:${userId}`,
         requestMetadata.ip_address,
-        requestMetadata.user_agent
+        requestMetadata.user_agent,
+        `Usuario no registrado como desarrollador o cuenta inactiva - Email: ${emailSanitizado}`
       );
       
       throw new Error('Acceso denegado: Usuario no registrado como desarrollador');
