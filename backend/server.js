@@ -249,17 +249,22 @@ const gracefulShutdown = (signal) => {
     console.log('✓ Interval de limpieza de sesiones detenido');
   }
   
-  // Cerrar el servidor HTTP
-  server.close(() => {
-    console.log('✓ Servidor HTTP cerrado');
-    process.exit(0);
-  });
-  
   // Forzar cierre después de 10 segundos si no se completa
-  setTimeout(() => {
+  const forceShutdownTimeout = setTimeout(() => {
     console.error('⚠️ No se pudo cerrar el servidor de forma graceful, forzando cierre...');
     process.exit(1);
   }, 10000);
+  
+  // Cerrar el servidor HTTP
+  server.close((err) => {
+    if (err) {
+      console.error('✗ Error al cerrar servidor HTTP:', err);
+      process.exit(1);
+    }
+    clearTimeout(forceShutdownTimeout);
+    console.log('✓ Servidor HTTP cerrado');
+    process.exit(0);
+  });
 };
 
 // Escuchar señales de terminación
