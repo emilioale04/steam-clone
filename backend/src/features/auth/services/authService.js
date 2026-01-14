@@ -13,6 +13,28 @@ export const authService = {
     });
     
     if (error) throw error;
+
+    // Create profile entry for the new user
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          username: userData.username || email.split('@')[0],
+          balance: 0,
+          is_limited: false,
+          country_code: null,
+          inventory_privacy: 'Public',
+          created_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        console.error('[AUTH] Error creating profile:', profileError);
+        // Don't throw - user is created, profile creation is secondary
+        // Could implement cleanup or retry logic here if needed
+      }
+    }
+
     return data;
   },
 
