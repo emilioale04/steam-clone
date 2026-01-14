@@ -2,10 +2,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const inventoryService = {
     /**
-     * Obtiene el inventario de un usuario
+     * Obtiene el inventario (items) de un usuario
+     * @param {string} userId - ID del usuario
+     * @returns {Promise<Array>} - Lista de items del inventario
      */
     async getInventory(userId) {
-        const token = localStorage.getItem('supabase.auth.token'); // O como se guarde el token
+        const token = localStorage.getItem('supabase.auth.token');
 
         const response = await fetch(`${API_URL}/inventory/${userId}`, {
             headers: {
@@ -19,7 +21,27 @@ export const inventoryService = {
     },
 
     /**
+     * Obtiene un item específico por ID
+     * @param {string} itemId - ID del item
+     * @returns {Promise<Object>} - Item
+     */
+    async getItem(itemId) {
+        const token = localStorage.getItem('supabase.auth.token');
+
+        const response = await fetch(`${API_URL}/inventory/item/${itemId}`, {
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            }
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    },
+
+    /**
      * Sincroniza el inventario con Steam
+     * @param {Array} steamItems - Items de Steam { steam_item_id, is_tradeable, is_marketable, is_locked }
      */
     async syncInventory(steamItems) {
         const token = localStorage.getItem('supabase.auth.token');
