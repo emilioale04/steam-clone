@@ -13,6 +13,9 @@ import {
   DeveloperAuthProvider
 } from './features/developer-auth';
 
+// Inventory & Profile
+import { ProfilePage, InventoryPage } from './features/inventory';
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -50,6 +53,22 @@ function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute>
+            <InventoryPage />
           </ProtectedRoute>
         }
       />

@@ -6,7 +6,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 // Cliente admin con Service Role para operaciones del servidor
 // Bypass RLS - usar solo en el backend para operaciones que requieren acceso a tablas
 const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
     auth: {

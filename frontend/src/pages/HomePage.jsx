@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, User, ShoppingCart, Gamepad2, Star, LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '../shared/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -121,10 +121,14 @@ export const HomePage = () => {
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
               </button>
 
-              <div className="flex items-center gap-2 bg-[#2a475e] px-3 py-2 rounded-lg">
+              <Link 
+                to="/profile" 
+                className="flex items-center gap-2 bg-[#2a475e] px-3 py-2 rounded-lg hover:bg-[#3a5a7e] transition-colors"
+                title="Ver perfil"
+              >
                 <User className="text-white" size={20} />
                 <span className="text-white text-sm max-w-[120px] truncate">{user?.email}</span>
-              </div>
+              </Link>
 
               <button 
                 onClick={handleLogout}
@@ -163,10 +167,10 @@ export const HomePage = () => {
                 <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</a>
               </nav>
               <div className="flex items-center justify-between pt-3 border-t border-[#2a475e]">
-                <div className="flex items-center gap-2">
+                <Link to="/profile" className="flex items-center gap-2 hover:text-blue-400 transition-colors">
                   <User className="text-white" size={20} />
                   <span className="text-white text-sm">{user?.email}</span>
-                </div>
+                </Link>
                 <button 
                   onClick={handleLogout}
                   className="text-red-400 hover:text-red-300"
