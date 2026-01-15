@@ -10,6 +10,7 @@ import { developerAuthRoutes } from './src/features/developer-auth/index.js';
 
 // Import inventory routes (Esteban - Gestión de Inventario)
 import { inventoryRoutes } from './src/features/inventory/index.js';
+import { tradeRoutes } from './src/features/inventory/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
@@ -117,6 +118,9 @@ const games = [
     discount: 10
   },
 ];
+
+// Trade items (Jeff - Gestión de Intercambios)
+app.use('/api/trade', tradeRoutes);
 
 const featuredGame = {
   id: 7,
