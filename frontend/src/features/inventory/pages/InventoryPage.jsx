@@ -493,7 +493,7 @@ export const InventoryPage = () => {
                      onClick={()=>(postTrade(selectedItem.id))}
                      className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <RefreshCw size={18} />
-                        Intercambiar
+                        Intercambiar {selectedItem.id}
                      </button>
                   )}
                    <button 
