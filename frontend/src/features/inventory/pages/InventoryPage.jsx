@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Gamepad2, ArrowLeft, Search, Filter, Grid, List, Lock, TrendingUp, RefreshCw } from 'lucide-react';
+import { Package, Gamepad2, ArrowLeft, Search, Filter, Grid, List, Lock, TrendingUp, RefreshCw, DollarSign, X } from 'lucide-react';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
+import { inventoryService } from '../services/inventoryService';
 
 export const InventoryPage = () => {
   const { user } = useAuth();
@@ -11,6 +12,56 @@ export const InventoryPage = () => {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('id'); // 'id', 'tradeable', 'marketable'
   const [filterBy, setFilterBy] = useState('all'); // 'all', 'tradeable', 'marketable', 'locked'
+
+  // Modal 
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showSellModal, setShowSellModal] = useState(false);
+  const [sellPrice, setSellPrice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSellClick = () => {
+     setShowSellModal(true);
+     setSellPrice('');
+  };
+
+  const handleConfirmSell = async () => {
+      if (!selectedItem || !sellPrice) return;
+      setIsSubmitting(true);
+      try {
+          await inventoryService.sellItem(user.id, selectedItem, sellPrice);
+          alert('Item puesto a la venta correctamente');
+          setShowSellModal(false);
+          setSelectedItem(null);
+          refetch();
+      } catch (err) {
+          alert('Error al vender: ' + err.message);
+      } finally {
+          setIsSubmitting(false);
+      }
+  };
+
+  const handleCancelSelling = async (listingId) => {
+      if (!confirm('¿Estás seguro de que deseas cancelar esta venta? El ítem volverá a tu inventario.')) return;
+      
+      setIsSubmitting(true);
+      try {
+          // Nota: El servicio frontend espera un objeto { listingId } o solo el ID según la implementación
+          // En inventoryService.js vi: async cancelListing(listingId)
+          await inventoryService.cancelListing(listingId);
+          await refetch();
+          setSelectedItem(null); 
+      } catch (err) {
+          console.error(err);
+          alert('Error al cancelar la venta: ' + err.message);
+      } finally {
+          setIsSubmitting(false);
+      }
+  };
+
+  const closeModal = () => {
+      setSelectedItem(null);
+      setShowSellModal(false);
+  };
 
   // Filter and sort inventory
   const filteredInventory = inventory
@@ -86,11 +137,19 @@ export const InventoryPage = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+            <Link 
+              to="/marketplace"
+              className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
+            >
+              <DollarSign size={16} />
+              Ir al Mercado
+            </Link>
             <button
               onClick={() => refetch()}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
             >
-              Actualizar
+               <RefreshCw size={16} />
+               Actualizar
             </button>
           </div>
         </div>
@@ -215,6 +274,7 @@ export const InventoryPage = () => {
             {filteredInventory.map((item) => (
               <div
                 key={item.id}
+                onClick={() => setSelectedItem(item)}
                 className="bg-[#16202d] rounded-xl overflow-hidden border border-gray-700 hover:border-blue-500 transition-all hover:transform hover:scale-[1.02] cursor-pointer group relative"
               >
                 <div className="relative aspect-square bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
@@ -271,6 +331,7 @@ export const InventoryPage = () => {
             <div className="divide-y divide-gray-700">
               {filteredInventory.map((item) => (
                 <div
+                  onClick={() => setSelectedItem(item)}
                   key={item.id}
                   className="grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 hover:bg-[#1b2838] transition-colors cursor-pointer items-center"
                 >
@@ -341,6 +402,192 @@ export const InventoryPage = () => {
                 <div className="text-gray-400 text-sm">Bloqueados</div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Item Details Modal */}
+        {selectedItem && !showSellModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-lg w-full border border-[#2a475e] overflow-hidden">
+              <div className="p-1 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+              
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-1">Item #{selectedItem.steam_item_id}</h2>
+                    <p className="text-gray-400 text-sm">Steam Inventory Item</p>
+                  </div>
+                  <button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-white transition-colors">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="bg-[#16202d] rounded-lg p-8 mb-6 flex items-center justify-center border border-gray-700">
+                   <Package size={80} className="text-blue-400" />
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="bg-[#16202d] p-4 rounded-lg border border-[#2a475e]">
+                     <h3 className="text-gray-400 text-xs uppercase tracking-wider mb-2 font-bold">Estado del Item</h3>
+                     <div className="flex flex-wrap gap-2">
+                        {selectedItem.is_locked ? (
+                          <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-md text-sm font-medium flex items-center gap-2">
+                            <Lock size={16} /> Bloqueado (En uso / Venta)
+                          </span>
+                        ) : (
+                          <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-md text-sm font-medium flex items-center gap-2">
+                             Disponible
+                          </span>
+                        )}
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className={`p-3 rounded-lg border ${selectedItem.is_tradeable && !selectedItem.is_locked ? 'bg-green-900/10 border-green-500/30' : 'bg-gray-800/50 border-gray-700'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                           <RefreshCw size={16} className={selectedItem.is_tradeable ? "text-green-400" : "text-gray-500"} />
+                           <span className={`text-sm font-medium ${selectedItem.is_tradeable ? "text-green-300" : "text-gray-500"}`}>Intercambiable</span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                           {selectedItem.is_tradeable ? "Puedes cambiar este item con amigos." : "No se puede intercambiar."}
+                        </p>
+                     </div>
+                     <div className={`p-3 rounded-lg border ${selectedItem.is_marketable && !selectedItem.is_locked ? 'bg-blue-900/10 border-blue-500/30' : 'bg-gray-800/50 border-gray-700'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                           <TrendingUp size={16} className={selectedItem.is_marketable ? "text-blue-400" : "text-gray-500"} />
+                           <span className={`text-sm font-medium ${selectedItem.is_marketable ? "text-blue-300" : "text-gray-500"}`}>Vendible</span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                           {selectedItem.is_marketable ? "Puedes vender este item." : "No se puede vender."}
+                        </p>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  {/* Botón cancelar venta si está activo */}
+                  {selectedItem.active_listing && (
+                    <button 
+                      onClick={() => handleCancelSelling(selectedItem.active_listing.id)}
+                      disabled={isSubmitting}
+                      className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <X size={18} />
+                      Cancelar Venta (${selectedItem.active_listing.price})
+                    </button>
+                  )}
+
+                  {selectedItem.is_marketable && !selectedItem.is_locked && (
+                    <button 
+                      onClick={handleSellClick}
+                      className="flex-1 bg-green-600 hover:bg-green-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-900/20"
+                    >
+                      <DollarSign size={18} />
+                      Vender
+                    </button>
+                  )}
+                  {selectedItem.is_tradeable && !selectedItem.is_locked && (
+                     <button className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <RefreshCw size={18} />
+                        Intercambiar
+                     </button>
+                  )}
+                   <button 
+                      onClick={() => setSelectedItem(null)}
+                      className="px-4 py-3 rounded-lg border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                   >
+                      Cerrar
+                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sell Form Modal */}
+        {showSellModal && selectedItem && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+             <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-md w-full border border-[#2a475e] overflow-hidden">
+                <div className="p-6 border-b border-[#2a475e] bg-[#171a21] flex justify-between items-center">
+                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <DollarSign className="text-green-500" />
+                      Vender Item
+                   </h3>
+                   <button onClick={closeModal} className="text-gray-400 hover:text-white">
+                      <X size={20} />
+                   </button>
+                </div>
+                
+                <div className="p-6">
+                   <div className="flex items-center gap-4 mb-6 bg-[#16202d] p-3 rounded-lg">
+                      <div className="w-12 h-12 bg-gray-800 rounded flex items-center justify-center">
+                         <Package className="text-blue-400" />
+                      </div>
+                      <div className="overflow-hidden">
+                         <div className="font-medium text-white truncate">Item #{selectedItem.steam_item_id}</div>
+                         <div className="text-xs text-gray-400">Steam Inventory</div>
+                      </div>
+                   </div>
+
+                   <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Precio de venta</label>
+                      <div className="relative">
+                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-500">$</span>
+                         </div>
+                         <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={sellPrice}
+                            onChange={(e) => setSellPrice(e.target.value)}
+                            className="bg-[#16202d] border border-gray-600 text-white text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-8 p-3 transition-colors"
+                            placeholder="0.00"
+                            autoFocus
+                         />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 flex justify-between">
+                         <span>Comisión de Steam (5%):</span>
+                         <span className="text-gray-300">
+                            ${sellPrice ? (parseFloat(sellPrice) * 0.05).toFixed(2) : '0.00'}
+                         </span>
+                      </p>
+                      <div className="mt-2 pt-2 border-t border-gray-700 flex justify-between items-center text-sm font-bold">
+                         <span className="text-green-400">Tú recibes:</span>
+                         <span className="text-green-400 text-lg">
+                            ${sellPrice ? (parseFloat(sellPrice) * 0.95).toFixed(2) : '0.00'}
+                         </span>
+                      </div>
+                   </div>
+
+                   <div className="flex gap-3">
+                      <button
+                         onClick={closeModal}
+                         className="flex-1 px-4 py-3 border border-gray-600 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition"
+                      >
+                         Cancelar
+                      </button>
+                      <button
+                         onClick={handleConfirmSell}
+                         disabled={isSubmitting || !sellPrice || parseFloat(sellPrice) <= 0}
+                         className={`flex-1 flex justify-center items-center gap-2 rounded-lg font-bold text-white py-3 transition-all
+                            ${isSubmitting || !sellPrice || parseFloat(sellPrice) <= 0
+                               ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                               : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-900/30'
+                            }`}
+                      >
+                         {isSubmitting ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                         ) : (
+                            <>
+                               <DollarSign size={18} />
+                               Publicar Venta
+                            </>
+                         )}
+                      </button>
+                   </div>
+                </div>
+             </div>
           </div>
         )}
       </div>

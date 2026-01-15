@@ -13,11 +13,23 @@ import {
   DeveloperAuthProvider
 } from './features/developer-auth';
 
-// Inventory & Profile
+// Inventory & Profile & Marketplace
 import { ProfilePage, InventoryPage } from './features/inventory';
+import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
+
+import { useState, useEffect } from 'react'
+import { Search, User, ShoppingCart, Gamepad2, Star } from 'lucide-react'
+
+const API_URL = 'http://localhost:3000/api';
 
 function App() {
   const { user, loading } = useAuth();
+  const [featuredGame, setFeaturedGame] = useState(null);
+
+  const calculateDiscountedPrice = (price, discount) => {
+    if (discount === 0) return price;
+    return (price - (price * discount / 100)).toFixed(2);
+  };
 
   if (loading) {
     return (
@@ -69,6 +81,15 @@ function App() {
         element={
           <ProtectedRoute>
             <InventoryPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/marketplace"
+        element={
+          <ProtectedRoute>
+            <MarketplacePage />
           </ProtectedRoute>
         }
       />

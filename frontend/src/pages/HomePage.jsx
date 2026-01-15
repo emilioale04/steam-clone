@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, User, ShoppingCart, Gamepad2, Star, LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '../shared/context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { inventoryService } from '../features/inventory/services/inventoryService';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -66,6 +67,26 @@ export const HomePage = () => {
     }
   };
 
+  const handleBuyGame = async (gameId, gameTitle) => {
+    if (!user) {
+      alert("Por favor, inicia sesión para comprar juegos.");
+      return;
+    }
+
+    try {
+      const result = await inventoryService.buyGame(user.id, gameId);
+      
+      if (result.success) {
+        alert(`¡Éxito! "${gameTitle}" ha sido agregado a tu biblioteca.`);
+      } else {
+        alert(`Información: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error buying game:", error);
+      alert("Hubo un error al procesar la compra.");
+    }
+  };
+
   const calculateDiscountedPrice = (price, discount) => {
     if (discount === 0) return price;
     return (price - (price * discount / 100)).toFixed(2);
@@ -99,8 +120,8 @@ export const HomePage = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
               <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Tienda</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Comunidad</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Biblioteca</a>
+              <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Marketplace</Link>
+              <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Biblioteca</Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -163,8 +184,8 @@ export const HomePage = () => {
               </form>
               <nav className="flex flex-col gap-3 mb-4">
                 <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Tienda</a>
-                <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Comunidad</a>
-                <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</a>
+                <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Comunidad</Link>
+                <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</Link>
               </nav>
               <div className="flex items-center justify-between pt-3 border-t border-[#2a475e]">
                 <Link to="/profile" className="flex items-center gap-2 hover:text-blue-400 transition-colors">
@@ -225,9 +246,12 @@ export const HomePage = () => {
                 )}
               </div>
 
-              <button className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2">
+              <button 
+                onClick={() => handleBuyGame(featuredGame.id, featuredGame.title)}
+                className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2"
+              >
                 <ShoppingCart size={20} />
-                Agregar al Carrito
+                {featuredGame.price === 0 ? "Jugar Gratis" : "Comprar Ahora"}
               </button>
             </div>
           </div>
@@ -284,7 +308,13 @@ export const HomePage = () => {
                     )}
                   </div>
                   
-                  <button className="bg-blue-600 hover:bg-blue-500 p-2 rounded-lg transition-colors group-hover:scale-110 transform duration-200">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBuyGame(game.id, game.title);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-500 p-2 rounded-lg transition-colors group-hover:scale-110 transform duration-200"
+                  >
                     <ShoppingCart className="text-white" size={18} />
                   </button>
                 </div>
