@@ -1,12 +1,20 @@
 /**
- * Componente de Configuración Inicial de MFA
- * Se muestra durante el login cuando el admin no tiene MFA configurado
+ * Componente de Configuración Inicial de MFA - Genérico para todos los módulos
+ * Se muestra durante el login cuando el usuario no tiene MFA configurado
  */
 
 import { useState } from 'react';
 import mfaService from '../services/mfaService';
+import { getUserTypeConfig } from '../config/userTypes';
 
-const MFASetupRequired = ({ adminId, email, tempToken, onSuccess, onError }) => {
+const MFASetupRequired = ({ 
+  userId, 
+  email, 
+  tempToken, 
+  userType = 'admin',
+  onSuccess, 
+  onError 
+}) => {
   const [step, setStep] = useState('intro'); // intro, qr, verify, complete
   const [qrCode, setQrCode] = useState('');
   const [manualKey, setManualKey] = useState('');
@@ -15,12 +23,14 @@ const MFASetupRequired = ({ adminId, email, tempToken, onSuccess, onError }) => 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const config = getUserTypeConfig(userType);
+
   const handleStartSetup = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const response = await mfaService.setupInitial(adminId, email, tempToken);
+      const response = await mfaService.setupInitial(userId, email, tempToken, userType);
       setQrCode(response.data.qrCode);
       setManualKey(response.data.manualEntryKey);
       setStep('qr');
@@ -38,15 +48,15 @@ const MFASetupRequired = ({ adminId, email, tempToken, onSuccess, onError }) => 
     setError('');
 
     try {
-      const response = await mfaService.verifyAndEnableInitial(adminId, verificationCode, tempToken);
+      const response = await mfaService.verifyAndEnableInitial(userId, verificationCode, tempToken, userType);
       
-      // Guardar token y datos del usuario
-      localStorage.setItem('adminToken', response.token);
+      // Guardar token y datos del usuario usando las claves configuradas
+      localStorage.setItem(config.tokenKey, response.token);
       if (response.refreshToken) {
-        localStorage.setItem('adminRefreshToken', response.refreshToken);
+        localStorage.setItem(config.refreshTokenKey, response.refreshToken);
       }
       if (response.user) {
-        localStorage.setItem('adminUser', JSON.stringify(response.user));
+        localStorage.setItem(config.userKey, JSON.stringify(response.user));
       }
 
       setBackupCodes(response.backupCodes);
@@ -64,14 +74,14 @@ const MFASetupRequired = ({ adminId, email, tempToken, onSuccess, onError }) => 
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'steam-admin-backup-codes.txt';
+    a.download = `steam-${userType}-backup-codes.txt`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
   const handleComplete = () => {
     // Obtener datos del usuario desde localStorage
-    const userData = JSON.parse(localStorage.getItem('adminUser'));
+    const userData = JSON.parse(localStorage.getItem(config.userKey));
     onSuccess(userData);
   };
 

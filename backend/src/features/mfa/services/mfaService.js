@@ -1,17 +1,23 @@
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { supabaseAdmin } from '../../../shared/config/supabase.js';
+import { getUserTypeConfig } from '../config/userTypes.js';
 
 const mfaService = {
   /**
    * Genera un secreto TOTP y un código QR para configurar MFA
+   * @param {string} userId - ID del usuario
+   * @param {string} email - Email del usuario
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  generateMFASecret: async (adminId, email) => {
+  generateMFASecret: async (userId, email, userType = 'admin') => {
     try {
+      const config = getUserTypeConfig(userType);
+      
       // Generar secreto TOTP
       const secret = speakeasy.generateSecret({
-        name: `Steam Admin (${email})`,
-        issuer: 'Steam Clone Admin',
+        name: `${config.namePrefix} (${email})`,
+        issuer: config.issuerName,
         length: 32
       });
 
@@ -20,13 +26,13 @@ const mfaService = {
 
       // Guardar el secreto temporalmente (sin activar aún)
       const { error } = await supabaseAdmin
-        .from('admins')
+        .from(config.table)
         .update({
           mfa_secret: secret.base32,
           mfa_habilitado: false, // No activar hasta verificar
           mfa_backup_codes: null
         })
-        .eq('id', adminId);
+        .eq('id', userId);
 
       if (error) {
         console.error('Error al guardar secreto MFA:', error);
@@ -46,27 +52,32 @@ const mfaService = {
 
   /**
    * Verifica un código TOTP y activa MFA si es correcto
+   * @param {string} userId - ID del usuario
+   * @param {string} token - Código TOTP a verificar
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  verifyAndEnableMFA: async (adminId, token) => {
+  verifyAndEnableMFA: async (userId, token, userType = 'admin') => {
     try {
-      // Obtener el secreto del admin
-      const { data: admin, error: adminError } = await supabaseAdmin
-        .from('admins')
+      const config = getUserTypeConfig(userType);
+      
+      // Obtener el secreto del usuario
+      const { data: user, error: userError } = await supabaseAdmin
+        .from(config.table)
         .select('mfa_secret, mfa_habilitado')
-        .eq('id', adminId)
+        .eq('id', userId)
         .single();
 
-      if (adminError || !admin) {
-        throw new Error('Administrador no encontrado');
+      if (userError || !user) {
+        throw new Error(`${config.displayName} no encontrado`);
       }
 
-      if (!admin.mfa_secret) {
+      if (!user.mfa_secret) {
         throw new Error('No hay secreto MFA configurado');
       }
 
       // Verificar el token TOTP
       const verified = speakeasy.totp.verify({
-        secret: admin.mfa_secret,
+        secret: user.mfa_secret,
         encoding: 'base32',
         token: token,
         window: 2 // Permite 2 intervalos antes y después (60 segundos de margen)
@@ -81,12 +92,12 @@ const mfaService = {
 
       // Activar MFA
       const { error: updateError } = await supabaseAdmin
-        .from('admins')
+        .from(config.table)
         .update({
           mfa_habilitado: true,
           mfa_backup_codes: JSON.stringify(backupCodes)
         })
-        .eq('id', adminId);
+        .eq('id', userId);
 
       if (updateError) {
         console.error('Error al activar MFA:', updateError);
@@ -105,38 +116,43 @@ const mfaService = {
 
   /**
    * Verifica un código TOTP para login
+   * @param {string} userId - ID del usuario
+   * @param {string} token - Código TOTP a verificar
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  verifyTOTP: async (adminId, token) => {
+  verifyTOTP: async (userId, token, userType = 'admin') => {
     try {
-      // Obtener el secreto del admin
-      const { data: admin, error: adminError } = await supabaseAdmin
-        .from('admins')
+      const config = getUserTypeConfig(userType);
+      
+      // Obtener el secreto del usuario
+      const { data: user, error: userError } = await supabaseAdmin
+        .from(config.table)
         .select('mfa_secret, mfa_habilitado, mfa_backup_codes')
-        .eq('id', adminId)
+        .eq('id', userId)
         .single();
 
-      if (adminError || !admin) {
-        throw new Error('Administrador no encontrado');
+      if (userError || !user) {
+        throw new Error(`${config.displayName} no encontrado`);
       }
 
-      if (!admin.mfa_habilitado || !admin.mfa_secret) {
+      if (!user.mfa_habilitado || !user.mfa_secret) {
         throw new Error('MFA no está habilitado');
       }
 
       // Verificar si es un código de respaldo
-      if (admin.mfa_backup_codes) {
-        const backupCodes = JSON.parse(admin.mfa_backup_codes);
+      if (user.mfa_backup_codes) {
+        const backupCodes = JSON.parse(user.mfa_backup_codes);
         const codeIndex = backupCodes.findIndex(code => code === token);
         
         if (codeIndex !== -1) {
           // Código de respaldo válido, eliminarlo
           backupCodes.splice(codeIndex, 1);
           await supabaseAdmin
-            .from('admins')
+            .from(config.table)
             .update({
               mfa_backup_codes: JSON.stringify(backupCodes)
             })
-            .eq('id', adminId);
+            .eq('id', userId);
           
           return true;
         }
@@ -144,7 +160,7 @@ const mfaService = {
 
       // Verificar el token TOTP
       const verified = speakeasy.totp.verify({
-        secret: admin.mfa_secret,
+        secret: user.mfa_secret,
         encoding: 'base32',
         token: token,
         window: 2
@@ -158,18 +174,22 @@ const mfaService = {
   },
 
   /**
-   * Deshabilita MFA para un admin
+   * Deshabilita MFA para un usuario
+   * @param {string} userId - ID del usuario
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  disableMFA: async (adminId) => {
+  disableMFA: async (userId, userType = 'admin') => {
     try {
+      const config = getUserTypeConfig(userType);
+      
       const { error } = await supabaseAdmin
-        .from('admins')
+        .from(config.table)
         .update({
           mfa_secret: null,
           mfa_habilitado: false,
           mfa_backup_codes: null
         })
-        .eq('id', adminId);
+        .eq('id', userId);
 
       if (error) {
         console.error('Error al deshabilitar MFA:', error);
@@ -184,14 +204,18 @@ const mfaService = {
   },
 
   /**
-   * Verifica si un admin tiene MFA habilitado
+   * Verifica si un usuario tiene MFA habilitado
+   * @param {string} userId - ID del usuario
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  checkMFAStatus: async (adminId) => {
+  checkMFAStatus: async (userId, userType = 'admin') => {
     try {
-      const { data: admin, error } = await supabaseAdmin
-        .from('admins')
+      const config = getUserTypeConfig(userType);
+      
+      const { data: user, error } = await supabaseAdmin
+        .from(config.table)
         .select('mfa_habilitado')
-        .eq('id', adminId)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -199,7 +223,7 @@ const mfaService = {
       }
 
       return {
-        mfaEnabled: admin?.mfa_habilitado || false
+        mfaEnabled: user?.mfa_habilitado || false
       };
     } catch (error) {
       console.error('Error al verificar estado de MFA:', error);
@@ -222,17 +246,20 @@ const mfaService = {
 
   /**
    * Regenera códigos de respaldo
+   * @param {string} userId - ID del usuario
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  regenerateBackupCodes: async (adminId) => {
+  regenerateBackupCodes: async (userId, userType = 'admin') => {
     try {
+      const config = getUserTypeConfig(userType);
       const backupCodes = mfaService.generateBackupCodes();
 
       const { error } = await supabaseAdmin
-        .from('admins')
+        .from(config.table)
         .update({
           mfa_backup_codes: JSON.stringify(backupCodes)
         })
-        .eq('id', adminId);
+        .eq('id', userId);
 
       if (error) {
         throw new Error('Error al regenerar códigos de respaldo');

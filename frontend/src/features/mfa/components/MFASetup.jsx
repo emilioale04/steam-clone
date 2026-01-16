@@ -1,12 +1,12 @@
 /**
- * Componente de Configuración de MFA
- * Permite al administrador configurar TOTP con código QR
+ * Componente de Configuración de MFA - Genérico para todos los módulos
+ * Permite al usuario configurar TOTP con código QR
  */
 
 import { useState } from 'react';
 import mfaService from '../services/mfaService';
 
-const MFASetup = ({ token, onSuccess, onCancel }) => {
+const MFASetup = ({ token, userType = 'admin', onSuccess, onCancel }) => {
   const [step, setStep] = useState('initial'); // initial, qr, verify, complete
   const [qrCode, setQrCode] = useState('');
   const [manualKey, setManualKey] = useState('');
@@ -53,7 +53,7 @@ const MFASetup = ({ token, onSuccess, onCancel }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'backup-codes.txt';
+    a.download = `steam-${userType}-backup-codes.txt`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

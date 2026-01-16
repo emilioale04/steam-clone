@@ -86,9 +86,10 @@ const LoginAdminForm = () => {
   if (requiresSetupMFA && mfaData) {
     return (
       <MFASetupRequired
-        adminId={mfaData.adminId}
+        userId={mfaData.adminId}
         email={mfaData.email}
         tempToken={mfaData.tempToken}
+        userType="admin"
         onSuccess={handleMFASuccess}
         onError={handleSetupError}
       />
@@ -99,8 +100,9 @@ const LoginAdminForm = () => {
   if (requiresMFA && mfaData) {
     return (
       <MFAVerification
-        adminId={mfaData.adminId}
+        userId={mfaData.adminId}
         email={mfaData.email}
+        userType="admin"
         onSuccess={handleMFASuccess}
         onCancel={handleMFACancel}
       />

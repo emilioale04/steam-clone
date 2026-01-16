@@ -6,10 +6,11 @@ const mfaController = {
    */
   setupMFA: async (req, res) => {
     try {
-      const adminId = req.user.id;
+      const userId = req.user.id;
       const email = req.user.email;
+      const userType = req.user.userType || 'admin'; // Default a admin si no está especificado
 
-      const result = await mfaService.generateMFASecret(adminId, email);
+      const result = await mfaService.generateMFASecret(userId, email, userType);
 
       res.status(200).json({
         success: true,
@@ -34,7 +35,8 @@ const mfaController = {
    */
   verifyAndEnable: async (req, res) => {
     try {
-      const adminId = req.user.id;
+      const userId = req.user.id;
+      const userType = req.user.userType || 'admin';
       const { token } = req.body;
 
       if (!token) {
@@ -44,7 +46,7 @@ const mfaController = {
         });
       }
 
-      const result = await mfaService.verifyAndEnableMFA(adminId, token);
+      const result = await mfaService.verifyAndEnableMFA(userId, token, userType);
 
       res.status(200).json({
         success: true,
@@ -65,16 +67,16 @@ const mfaController = {
    */
   verifyLogin: async (req, res) => {
     try {
-      const { adminId, token } = req.body;
+      const { userId, token, userType = 'admin' } = req.body;
 
-      if (!adminId || !token) {
+      if (!userId || !token) {
         return res.status(400).json({
           success: false,
-          message: 'Admin ID y código de verificación requeridos'
+          message: 'User ID y código de verificación requeridos'
         });
       }
 
-      const verified = await mfaService.verifyTOTP(adminId, token);
+      const verified = await mfaService.verifyTOTP(userId, token, userType);
 
       if (!verified) {
         return res.status(401).json({
@@ -97,11 +99,12 @@ const mfaController = {
   },
 
   /**
-   * Deshabilita MFA para el admin
+   * Deshabilita MFA para el usuario
    */
   disable: async (req, res) => {
     try {
-      const adminId = req.user.id;
+      const userId = req.user.id;
+      const userType = req.user.userType || 'admin';
       const { password } = req.body;
 
       if (!password) {
@@ -113,7 +116,7 @@ const mfaController = {
 
       // Aquí podrías agregar verificación de contraseña adicional
       
-      await mfaService.disableMFA(adminId);
+      await mfaService.disableMFA(userId, userType);
 
       res.status(200).json({
         success: true,
@@ -129,13 +132,14 @@ const mfaController = {
   },
 
   /**
-   * Obtiene el estado de MFA del admin
+   * Obtiene el estado de MFA del usuario
    */
   getStatus: async (req, res) => {
     try {
-      const adminId = req.user.id;
+      const userId = req.user.id;
+      const userType = req.user.userType || 'admin';
 
-      const status = await mfaService.checkMFAStatus(adminId);
+      const status = await mfaService.checkMFAStatus(userId, userType);
 
       res.status(200).json({
         success: true,
@@ -155,9 +159,10 @@ const mfaController = {
    */
   regenerateBackupCodes: async (req, res) => {
     try {
-      const adminId = req.user.id;
+      const userId = req.user.id;
+      const userType = req.user.userType || 'admin';
 
-      const backupCodes = await mfaService.regenerateBackupCodes(adminId);
+      const backupCodes = await mfaService.regenerateBackupCodes(userId, userType);
 
       res.status(200).json({
         success: true,
@@ -178,9 +183,9 @@ const mfaController = {
    */
   setupInitial: async (req, res) => {
     try {
-      const { adminId, email, tempToken } = req.body;
+      const { userId, email, tempToken, userType = 'admin' } = req.body;
 
-      if (!adminId || !email || !tempToken) {
+      if (!userId || !email || !tempToken) {
         return res.status(400).json({
           success: false,
           message: 'Datos incompletos'
@@ -189,20 +194,23 @@ const mfaController = {
 
       // Verificar el token temporal
       const { supabaseAdmin } = await import('../../../shared/config/supabase.js');
-      const { data: admin, error: adminError } = await supabaseAdmin
-        .from('admins')
+      const { getUserTypeConfig } = await import('../config/userTypes.js');
+      const config = getUserTypeConfig(userType);
+      
+      const { data: user, error: userError } = await supabaseAdmin
+        .from(config.table)
         .select('id')
-        .eq('id', adminId)
+        .eq('id', userId)
         .single();
 
-      if (adminError || !admin) {
+      if (userError || !user) {
         return res.status(401).json({
           success: false,
           message: 'Sesión inválida'
         });
       }
 
-      const result = await mfaService.generateMFASecret(adminId, email);
+      const result = await mfaService.generateMFASecret(userId, email, userType);
 
       res.status(200).json({
         success: true,
@@ -227,9 +235,9 @@ const mfaController = {
    */
   verifyAndEnableInitial: async (req, res) => {
     try {
-      const { adminId, token, tempToken } = req.body;
+      const { userId, token, tempToken, userType = 'admin' } = req.body;
 
-      if (!adminId || !token || !tempToken) {
+      if (!userId || !token || !tempToken) {
         return res.status(400).json({
           success: false,
           message: 'Datos incompletos'
@@ -237,7 +245,7 @@ const mfaController = {
       }
 
       // Verificar el código y activar MFA
-      const result = await mfaService.verifyAndEnableMFA(adminId, token);
+      const result = await mfaService.verifyAndEnableMFA(userId, token, userType);
 
       if (!result.success) {
         return res.status(400).json({
@@ -247,11 +255,15 @@ const mfaController = {
       }
 
       // Completar el login creando la sesión
-      const adminService = (await import('../../admin/services/adminService.js')).default;
-      const ipAddress = req.ip || req.connection.remoteAddress;
-      const userAgent = req.headers['user-agent'];
-      
-      const loginResult = await adminService.completeMFALogin(adminId, ipAddress, userAgent);
+      // Este paso depende del tipo de usuario
+      let loginResult;
+      if (userType === 'admin') {
+        const adminService = (await import('../../admin/services/adminService.js')).default;
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        loginResult = await adminService.completeMFALogin(userId, ipAddress, userAgent);
+      }
+      // Aquí se pueden agregar otros tipos de usuario en el futuro
 
       res.status(200).json({
         success: true,

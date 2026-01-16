@@ -51,17 +51,20 @@ const adminController = {
    */
   verifyMFALogin: async (req, res) => {
     try {
-      const { adminId, token } = req.body;
+      const userId = req.body.userId || req.body.adminId;
+      const { token, userType = 'admin' } = req.body;
 
-      if (!adminId || !token) {
+      console.log('Verifying MFA login for userId:', userId, 'userType:', userType);
+      
+      if (!userId || !token) {
         return res.status(400).json({
           success: false,
-          message: 'Admin ID y código de verificación requeridos',
+          message: 'ID de usuario y código de verificación requeridos',
         });
       }
 
       // Verificar el código TOTP
-      const verified = await mfaService.verifyTOTP(adminId, token);
+      const verified = await mfaService.verifyTOTP(userId, token, userType);
 
       if (!verified) {
         return res.status(401).json({
@@ -74,7 +77,7 @@ const adminController = {
       const ipAddress = req.ip || req.connection.remoteAddress;
       const userAgent = req.headers['user-agent'];
       
-      const result = await adminService.completeMFALogin(adminId, ipAddress, userAgent);
+      const result = await adminService.completeMFALogin(userId, ipAddress, userAgent);
 
       res.status(200).json({
         success: true,
@@ -104,7 +107,7 @@ const adminController = {
         });
       }
 
-      const adminId = req.admin?.id; // Viene del middleware
+      const adminId = req.admin?.id;
       const ipAddress = req.ip || req.connection.remoteAddress;
       const userAgent = req.headers['user-agent'];
 

@@ -92,6 +92,7 @@ const MFASettings = () => {
     return (
       <MFASetup
         token={localStorage.getItem('adminToken')}
+        userType="admin"
         onSuccess={handleMFASuccess}
         onCancel={() => setShowSetup(false)}
       />

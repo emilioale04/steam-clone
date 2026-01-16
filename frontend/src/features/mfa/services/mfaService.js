@@ -1,22 +1,28 @@
 /**
- * Servicio de MFA
- * Por el momento solo implementado para el módulo de administración
+ * Servicio de MFA - Genérico para todos los módulos
+ * Soporta admin, developer, y user con configuración flexible
  */
+
+import { getUserTypeConfig } from '../config/userTypes';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const mfaService = {
   /**
    * Iniciar configuración de MFA durante login inicial (sin token de sesión)
+   * @param {string} userId - ID del usuario
+   * @param {string} email - Email del usuario
+   * @param {string} tempToken - Token temporal de login
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  setupInitial: async (adminId, email, tempToken) => {
+  setupInitial: async (userId, email, tempToken, userType = 'admin') => {
     try {
       const response = await fetch(`${API_URL}/mfa/setup-initial`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ adminId, email, tempToken })
+        body: JSON.stringify({ userId, email, tempToken, userType })
       });
 
       const data = await response.json();
@@ -34,15 +40,19 @@ const mfaService = {
 
   /**
    * Verificar código TOTP, activar MFA y completar login inicial
+   * @param {string} userId - ID del usuario
+   * @param {string} totpCode - Código TOTP a verificar
+   * @param {string} tempToken - Token temporal de login
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  verifyAndEnableInitial: async (adminId, totpCode, tempToken) => {
+  verifyAndEnableInitial: async (userId, totpCode, tempToken, userType = 'admin') => {
     try {
       const response = await fetch(`${API_URL}/mfa/verify-enable-initial`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ adminId, token: totpCode, tempToken })
+        body: JSON.stringify({ userId, token: totpCode, tempToken, userType })
       });
 
       const data = await response.json();
@@ -113,17 +123,23 @@ const mfaService = {
 
   /**
    * Verificar código TOTP durante login
+   * @param {string} userId - ID del usuario
+   * @param {string} totpCode - Código TOTP a verificar
+   * @param {string} userType - Tipo de usuario (admin, developer, user)
    */
-  verifyLoginCode: async (adminId, totpCode) => {
+  verifyLoginCode: async (userId, totpCode, userType = 'admin') => {
     try {
-      const response = await fetch(`${API_URL}/admin/verify-mfa-login`, {
+      const config = getUserTypeConfig(userType);
+      
+      const response = await fetch(`${API_URL}${config.apiEndpoint}/verify-mfa-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          adminId,
-          token: totpCode
+          userId,
+          token: totpCode,
+          userType
         })
       });
 

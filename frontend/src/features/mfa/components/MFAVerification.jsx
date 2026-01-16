@@ -1,15 +1,24 @@
 /**
- * Componente de Verificación de MFA
+ * Componente de Verificación de MFA - Genérico para todos los módulos
  * Muestra un formulario para ingresar el código TOTP durante el login
  */
 
 import { useState } from 'react';
 import mfaService from '../services/mfaService';
+import { getUserTypeConfig } from '../config/userTypes';
 
-const MFAVerification = ({ adminId, email, onSuccess, onCancel }) => {
+const MFAVerification = ({ 
+  userId, 
+  email, 
+  userType = 'admin',
+  onSuccess, 
+  onCancel 
+}) => {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const config = getUserTypeConfig(userType);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,15 +26,15 @@ const MFAVerification = ({ adminId, email, onSuccess, onCancel }) => {
     setError('');
 
     try {
-      const response = await mfaService.verifyLoginCode(adminId, code);
+      const response = await mfaService.verifyLoginCode(userId, code, userType);
       
-      // Guardar token y datos del usuario
-      localStorage.setItem('adminToken', response.token);
+      // Guardar token y datos del usuario usando las claves configuradas
+      localStorage.setItem(config.tokenKey, response.token);
       if (response.refreshToken) {
-        localStorage.setItem('adminRefreshToken', response.refreshToken);
+        localStorage.setItem(config.refreshTokenKey, response.refreshToken);
       }
       if (response.user) {
-        localStorage.setItem('adminUser', JSON.stringify(response.user));
+        localStorage.setItem(config.userKey, JSON.stringify(response.user));
       }
 
       onSuccess(response.user);
@@ -59,7 +68,7 @@ const MFAVerification = ({ adminId, email, onSuccess, onCancel }) => {
             Verificación de Dos Factores
           </h2>
           <p className="text-gray-400 text-sm text-center mb-6">
-            Ingresando como: <span className="text-[#66c0f4]">{email}</span>
+            Ingresando como {config.displayName}: <span className="text-[#66c0f4]">{email}</span>
           </p>
 
           {error && (
