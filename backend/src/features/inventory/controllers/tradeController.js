@@ -54,10 +54,10 @@ export const tradeController = {
 
 	async acceptTrade(req, res) {
 		try {
-			const { tradeId } = req.params;
+			const { tradeOfferId } = req.params;
 			const requesterId = req.user?.id;
 
-			const result = await tradeService.acceptTrade(tradeId, requesterId);
+			const result = await tradeService.acceptTrade(tradeOfferId);
 			res.json({
 				success: true,
 				data: result,
@@ -89,12 +89,12 @@ export const tradeController = {
 
 	async postTradeOffer(req, res) {
 		try {
-			const { tradeId, offeredItemId } = req.body;
+			const { offererId, tradeId, itemId } = req.body;
 			const requesterId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
 			const tradeOffer = await tradeOfferService.postTradeOffer(
 				requesterId,
 				tradeId,
-				offeredItemId
+				itemId
 			);
 
 			res.json({
@@ -113,7 +113,7 @@ export const tradeController = {
 		try {
 			const { tradeId } = req.params;
 			const requesterId = req.user?.id;
-			const offers = await tradeOfferService.getOffersForTrade(requesterId, tradeId);
+			const offers = await tradeService.getOffers(tradeId);
 
 			res.json({
 				success: true,

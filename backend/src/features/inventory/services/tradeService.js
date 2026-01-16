@@ -70,7 +70,7 @@ export const tradeService = {
 			const expiryDate = new Date();
 			expiryDate.setDate(expiryDate.getDate() + 7);
 
-			const { data, error } = await await supabase.rpc('create_trade_and_lock_item', {
+			const { data, error } = await supabase.rpc('create_trade_and_lock_item', {
 				p_offerer_id: offererId,
 				p_item_id: itemId,
 				p_expiry_date: expiryDate.toISOString(),
@@ -88,95 +88,39 @@ export const tradeService = {
 		}
 	},
 
-	async acceptTrade(tradeId) {
-		// buscar la oferta - fuente de verdad
-		const { tradeOffer, error } = await supabase
-			.from('trade_offer')
-			.eq('id', tradeId)
-			.single();
-		console.log('offer', tradeOffer);
-		if (error) throw error;
+	async acceptTrade(tradeOfferId) {
+		try {
+			const { data, error } = await supabase.rpc('accept_trade', {
+				offer_id_param: tradeOfferId,
+			});
 
-		// aceptar la oferta seleccionada
-		const { offerAccepted, errorOfferAccepted } = await supabase
-			.from('trade_offer')
-			.update({
-				status: ALLOWED_STATUSES.ACCEPTED,
-			})
-			.eq('id', tradeOffer.id)
-			.select()
-			.single();
-		console.log('accepted', offerAccepted);
-		if (errorOfferAccepted) throw errorOfferAccepted;
+			if (error) throw error;
 
-		// actualizar el trade principal
-		const { myTrade, errorMyTrade } = await supabase
-			.from('trade')
-			.update({
-				status: ALLOWED_STATUSES.ACCEPTED,
-				receiver_id: offerAccepted.offerer_id,
-				item_accepted_id: offerAccepted.item_id,
-				expired_at: new Date().toISOString(),
-			})
-			.eq('id', offerAccepted.trade_id)
-			.select()
-			.single();
-		console.log('trade', myTrade);
-		if (errorMyTrade) throw errorMyTrade;
+			if (!data.success) {
+				throw new Error(data.message);
+			}
 
-		// Dar item al nuevo dueño
-		const { itemSended, errorItemSended } = await supabase
-			.from('items')
-			.update({
-				is_locked: false,
-				owner_id: offerAccepted.offerer_id,
-			})
-			.eq('id', myTrade.item_id)
-			.select()
-			.single();
-		console.log('item', itemSended);
-		if (errorItemSended) throw errorItemSended;
-
-		// Recibir item del offerer
-		const { itemReceived, errorItemReceived } = await supabase
-			.from('items')
-			.update({
-				is_locked: false,
-				owner_id: myTrade.offerer_id,
-			})
-			.eq('id', offerAccepted.item_id)
-			.select()
-			.single();
-		console.log('item receiver', itemReceived);
-		if (errorItemReceived) throw errorItemReceived;
-
-		// rechazar otras ofertas pendientes
-		const { rejected, errorRejected } = await supabase
-			.from('trade_offer')
-			.update({
-				status: ALLOWED_STATUSES.REJECTED,
-			})
-			.eq('trade_id', tradeOffer.trade_id)
-			.eq('status', ALLOWED_STATUSES.PENDING)
-			.ne('id', tradeOffer.id)
-			.select();
-		console.log('rechazados', rejected);
-		if (errorRejected) throw errorRejected;
-
-		return {
-			success: true,
-			message: 'Intercambio aceptado exitosamente',
-		};
+			return data;
+		} catch (error) {
+			console.error('Error accepting trade:', error);
+			throw error;
+		}
 	},
 
 	async getOffers(tradeId) {
-		const { data, error } = await supabase
-			.from('trade_offer')
-			.select('*, items(name)')
-			.eq('trade_id', tradeId)
-			.eq('status', ALLOWED_STATUSES.PENDING);
-		if (error) throw error;
+		console.log('Invocando RPC con ID:', tradeId);
 
+		const { data, error, status, statusText } = await supabase.rpc('get_trade_offers', {
+			trade_id_param: tradeId,
+		});
+
+		if (error) {
+			console.error('Error de Supabase:', error.message);
+			throw error;
+		}
+
+		console.log('Respuesta status:', status); // Si es 200 y llega [], es un tema de RLS o parámetros.
+		console.log('Datos recibidos:', data);
 		return data;
 	},
 
@@ -288,39 +232,25 @@ const updateTradeOfferStatus = async (id, newStatus) => {
 };
 
 export const tradeOfferService = {
-	async postTradeOffer(tradeId, offererId, itemId) {
-		// Lógica para crear una nueva oferta de intercambio
-		const { data, error } = await supabase
-			.from('trade_offer')
-			.insert([
-				{
-					trade_id: tradeId,
-					offerer_id: offererId,
-					item_id: itemId,
-					status: ALLOWED_STATUSES.PENDING,
-					created_at: new Date().toISOString(),
-				},
-			])
-			.select();
+	async postTradeOffer(offererId, tradeId, itemId) {
+		try {
+			const { data, error } = await supabase.rpc('post_trade_offer_atomic', {
+				arg_trade_id: tradeId, // ¡Verifica que estos valores no sean undefined!
+				arg_offerer_id: offererId,
+				arg_item_id: itemId, // Este es el que faltaba en tu error
+				arg_status: 'Pendiente', // Coincide con arg_status
+			});
 
-		if (error) throw error;
+			if (error) {
+				console.error('Error detallado:', error);
+				throw error;
+			}
 
-		// bloquear el item ofrecido
-		const { item, itemError } = await supabase
-			.from('items')
-			.update({
-				is_locked: true,
-			})
-			.eq('id', itemId)
-			.select()
-			.single();
-		if (itemError) throw itemError;
-
-		return {
-			success: true,
-			data,
-			message: 'Oferta enviada exitosamente',
-		};
+			return data;
+		} catch (error) {
+			console.error('Error en postTradeOffer:', error);
+			throw error;
+		}
 	},
 
 	async cancelTradeOffer(id) {

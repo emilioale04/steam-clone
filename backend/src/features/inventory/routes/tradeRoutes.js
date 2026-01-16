@@ -9,9 +9,9 @@ tradeRouter.get('/actives', tradeController.getActiveTrades);
 // Postear intercambio
 tradeRouter.post('/post', requireAuth, tradeController.postTrade);
 // Aceptar un trade
-tradeRouter.post('/accept/:tradeId', requireAuth, tradeController.acceptTrade);
+tradeRouter.post('/accept/:tradeOfferId', requireAuth, tradeController.acceptTrade);
 // Cancelar un trade
-tradeRouter.post('/reject/:tradeId', requireAuth, tradeController.cancelTrade);
+tradeRouter.post('/reject/:tradeOfferId', requireAuth, tradeController.cancelTrade);
 
 // Enviar oferta para un trade
 tradeRouter.post('/offer', requireAuth, tradeController.postTradeOffer);

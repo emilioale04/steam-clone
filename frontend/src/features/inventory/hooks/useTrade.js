@@ -3,6 +3,7 @@ import { tradeService } from '../services/tradeService';
 
 export const useTrade = (userId) => {
 	const [trades, setTrades] = useState([]);
+	const [tradesForMe, setTradesForMe] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -14,6 +15,20 @@ export const useTrade = (userId) => {
 			setError(null);
 		} catch (err) {
 			setError(err.message);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const acceptTrade = async (tradeId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.acceptTrade(tradeId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
 		} finally {
 			setLoading(false);
 		}
@@ -37,5 +52,60 @@ export const useTrade = (userId) => {
 		fetchActiveTrades();
 	}, []);
 
-	return { trades, loading, error, refetch: fetchActiveTrades, postTrade };
+	const postTradeOffer = async (tradeId, itemId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.postTradeOffer(userId, tradeId, itemId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const cancelTradeOffer = async (offerId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.cancelTradeOffer(offerId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const getOffersForTrade = async (tradeId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.getOffersForTrade(tradeId);
+			setTradesForMe(response);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return {
+		trades,
+		tradesForMe,
+		loading,
+		error,
+		refetch: fetchActiveTrades,
+		postTrade,
+		postTradeOffer,
+		acceptTrade,
+
+		cancelTradeOffer,
+		getOffersForTrade,
+	};
 };
