@@ -1,171 +1,125 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAdminAuth from '../hooks/useAdminAuth';
+import ResumenPanel from '../components/ResumenPanel';
+import BloqueoPais from '../components/BloqueoPais';
+import RevisionJuegos from '../components/RevisionJuegos';
+import GestionUsuarios from '../components/GestionUsuarios';
+import GestionCategorias from '../components/GestionCategorias';
 
 const AdminDashboardPage = () => {
+  const [activeTab, setActiveTab] = useState('resumen');
   const { admin, logout } = useAdminAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    window.location.href = '/steamworks/admin-login';
+    try {
+      await logout();
+      navigate('/steamworks/admin-login');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
+
+  const tabs = [
+    { id: 'resumen', label: 'Resumen del Panel' },
+    { id: 'bloqueo', label: 'Bloqueo por País' },
+    { id: 'revision', label: 'Revisión de Juegos' },
+    { id: 'usuarios', label: 'Gestión de Usuarios' },
+    { id: 'categorias', label: 'Gestión de Categorías' },
+  ];
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'resumen':
+        return <ResumenPanel />;
+      case 'bloqueo':
+        return <BloqueoPais />;
+      case 'revision':
+        return <RevisionJuegos />;
+      case 'usuarios':
+        return <GestionUsuarios />;
+      case 'categorias':
+        return <GestionCategorias />;
+      default:
+        return <ResumenPanel />;
+    }
   };
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.headerContent}>
-          <h1 style={styles.title}>Panel de Administración</h1>
-          <div style={styles.userInfo}>
-            <span style={styles.userName}>
-              {admin?.email || 'Administrador'}
-            </span>
-            <button onClick={handleLogout} style={styles.logoutButton}>
-              Cerrar Sesión
-            </button>
-          </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#1b2838' }}>
+      {/* Header */}
+      <header style={{
+        backgroundColor: '#171a21',
+        padding: '1rem 2rem',
+        borderBottom: '1px solid #2a475e',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{ color: '#66c0f4', margin: 0, fontSize: '1.5rem' }}>
+            Steamworks Admin
+          </h1>
+          <p style={{ color: '#8f98a0', margin: 0, fontSize: '0.875rem' }}>
+            Panel de Administración
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ color: '#c7d5e0' }}>
+            {admin?.email}
+          </span>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </header>
 
-      <main style={styles.main}>
-        <div style={styles.welcomeCard}>
-          <h2 style={styles.welcomeTitle}>Bienvenido al Dashboard</h2>
-          <p style={styles.welcomeText}>
-            Este es el panel de administración. Aquí podrás gestionar todos los aspectos de la plataforma.
-          </p>
-          
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>👥</div>
-              <div style={styles.statInfo}>
-                <h3 style={styles.statTitle}>Usuarios</h3>
-                <p style={styles.statValue}>Próximamente</p>
-              </div>
-            </div>
+      {/* Tabs */}
+      <div style={{
+        backgroundColor: '#2a475e',
+        padding: '0 2rem',
+        display: 'flex',
+        gap: '0.5rem',
+        borderBottom: '2px solid #1b2838'
+      }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '1rem 1.5rem',
+              backgroundColor: activeTab === tab.id ? '#1b2838' : 'transparent',
+              color: activeTab === tab.id ? '#66c0f4' : '#8f98a0',
+              border: 'none',
+              borderTop: activeTab === tab.id ? '2px solid #66c0f4' : 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: activeTab === tab.id ? 'bold' : 'normal',
+              transition: 'all 0.2s'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>🎮</div>
-              <div style={styles.statInfo}>
-                <h3 style={styles.statTitle}>Juegos</h3>
-                <p style={styles.statValue}>Próximamente</p>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>⚠️</div>
-              <div style={styles.statInfo}>
-                <h3 style={styles.statTitle}>Reportes</h3>
-                <p style={styles.statValue}>Próximamente</p>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>🔒</div>
-              <div style={styles.statInfo}>
-                <h3 style={styles.statTitle}>Sanciones</h3>
-                <p style={styles.statValue}>Próximamente</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+      {/* Content */}
+      <div style={{ padding: '2rem' }}>
+        {renderContent()}
+      </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#1b2838',
-  },
-  header: {
-    backgroundColor: '#171a21',
-    borderBottom: '1px solid #2a475e',
-    padding: '20px',
-  },
-  headerContent: {
-    maxWidth: '1400px',
-    margin: '0 auto',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    color: '#fff',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    margin: 0,
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '15px',
-  },
-  userName: {
-    color: '#8f98a0',
-    fontSize: '14px',
-  },
-  logoutButton: {
-    backgroundColor: '#c94d4d',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-  main: {
-    maxWidth: '1400px',
-    margin: '0 auto',
-    padding: '40px 20px',
-  },
-  welcomeCard: {
-    backgroundColor: '#212b36',
-    borderRadius: '8px',
-    padding: '30px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-  },
-  welcomeTitle: {
-    color: '#fff',
-    fontSize: '28px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-  },
-  welcomeText: {
-    color: '#8f98a0',
-    fontSize: '16px',
-    marginBottom: '30px',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '20px',
-  },
-  statCard: {
-    backgroundColor: '#1b2838',
-    borderRadius: '6px',
-    padding: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '15px',
-    border: '1px solid #2a475e',
-  },
-  statIcon: {
-    fontSize: '32px',
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statTitle: {
-    color: '#8f98a0',
-    fontSize: '14px',
-    fontWeight: 'normal',
-    margin: '0 0 5px 0',
-  },
-  statValue: {
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    margin: 0,
-  },
 };
 
 export default AdminDashboardPage;
