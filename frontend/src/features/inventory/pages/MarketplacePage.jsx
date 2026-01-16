@@ -4,14 +4,14 @@ import { ShoppingCart, Repeat, Search, DollarSign, Filter, Package, X, ArrowLeft
 import { inventoryService } from '../services/inventoryService';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
+import { tradeService } from '../services/tradeService';
 
 export const MarketplacePage = () => {
   const { user } = useAuth();
   const { inventory } = useInventory(user?.id);
-
   const [activeTab, setActiveTab] = useState('market'); // 'market' | 'trading'
   const [marketItems, setMarketItems] = useState([]);
-  const [tradeOffers, setTradeOffers] = useState([]);
+  const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para el Modal de Venta
@@ -27,10 +27,10 @@ export const MarketplacePage = () => {
     setLoading(true);
     try {
       const marketRes = await inventoryService.getMarketListings();
-      const tradesRes = await inventoryService.getActiveTrades();
-      
+      const tradesRes = await tradeService.getTradesActive();
+     
       if (marketRes.success) setMarketItems(marketRes.listings);
-      if (tradesRes.success) setTradeOffers(tradesRes.trades);
+      if (tradesRes.success) setTrades(tradesRes.data);
     } catch (error) {
       console.error("Error fetching marketplace data", error);
     } finally {
@@ -205,42 +205,46 @@ export const MarketplacePage = () => {
                 </div>
                 
                 <div className="divide-y divide-[#2a475e]">
-                  {tradeOffers.map((trade) => (
-                    <div key={trade.id} className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-[#1b2838] transition">
+               {trades.map((trade) => (
+                  <div key={trade.id} className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-[#1b2838] transition">
                       
                       <div className="flex items-center gap-6 flex-1">
-                        <div className="text-center w-32">
-                            <div className="w-12 h-12 bg-blue-900 rounded-full mx-auto mb-2 flex items-center justify-center font-bold text-lg">
-                                {trade.initiator.charAt(0)}
-                            </div>
-                            <span className="text-blue-300 font-medium text-sm">{trade.initiator}</span>
-                        </div>
-                        
-                        <div className="flex-1 flex items-center justify-center md:justify-start gap-8">
-                            <div className="text-center bg-black/20 p-3 rounded w-full max-w-[150px]">
-                                <span className="text-xs text-gray-400 uppercase tracking-wider">Ofrece</span>
-                                <div className="text-green-400 font-semibold mt-1">{trade.offering}</div>
-                            </div>
-                            
-                            <Repeat className="text-gray-500" />
-                            
-                            <div className="text-center bg-black/20 p-3 rounded w-full max-w-[150px]">
-                                <span className="text-xs text-gray-400 uppercase tracking-wider">Pide</span>
-                                <div className="text-blue-400 font-semibold mt-1">{trade.requesting}</div>
-                            </div>
-                        </div>
+                          <div className="text-center w-32">
+                              <div className="w-12 h-12 bg-blue-900 rounded-full mx-auto mb-2 flex items-center justify-center font-bold text-lg">
+                                  {trade.offerer.username.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-blue-300 font-medium text-sm">{trade.offerer.username}</span>
+                          </div>
+                          
+                          <div className="flex-1 flex items-center justify-center md:justify-start gap-8">
+                              <div className="text-center bg-black/20 p-3 rounded w-full max-w-[150px]">
+                                  <span className="text-xs text-gray-400 uppercase tracking-wider">Ofrece</span>
+                                  <div className="text-green-400 font-semibold mt-1">{trade.item.name}</div>
+                              </div>
+                              
+                              <Repeat className="text-gray-500" />
+                              
+                              <div className="text-center bg-black/20 p-3 rounded w-full max-w-[150px]">
+                                  <span className="text-xs text-gray-400 uppercase tracking-wider">Pide</span>
+                                  <div className="text-gray-400 italic mt-1">Cualquier item</div>
+                              </div>
+                          </div>
                       </div>
 
-                      <div className="flex gap-3">
-                         <button 
-                            onClick={() => handleTradeOffer(trade.id)}
-                            className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition w-full md:w-auto"
-                         >
-                            Intercambiar
-                         </button>
+                      <div className="flex items-center gap-4">
+                          <span className="text-yellow-400 text-sm font-medium px-3 py-1 bg-yellow-900/20 rounded">
+                              {trade.status}
+                          </span>
+                          
+                          <button 
+                              onClick={() => handleTradeOffer(trade.id)}
+                              className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition"
+                          >
+                              Intercambiar
+                          </button>
                       </div>
-                    </div>
-                  ))}
+                  </div>
+              ))}
                 </div>
               </div>
             )}

@@ -4,10 +4,12 @@ import { Package, Gamepad2, ArrowLeft, Search, Filter, Grid, List, Lock, Trendin
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
 import { inventoryService } from '../services/inventoryService';
+import { useTrade } from '../hooks/useTrade';
 
 export const InventoryPage = () => {
   const { user } = useAuth();
   const { inventory, loading, error, refetch } = useInventory(user?.id);
+  const { postTrade, loading: tradesLoading, error: tradesError, refetch: refetchTrades } = useTrade();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('id'); // 'id', 'tradeable', 'marketable'
@@ -487,9 +489,11 @@ export const InventoryPage = () => {
                     </button>
                   )}
                   {selectedItem.is_tradeable && !selectedItem.is_locked && (
-                     <button className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                     <button
+                     onClick={()=>(postTrade(selectedItem.id))}
+                     className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <RefreshCw size={18} />
-                        Intercambiar
+                        Intercambiar {selectedItem.id}
                      </button>
                   )}
                    <button 
