@@ -13,7 +13,7 @@ tradeRouter.post('/accept/:tradeOfferId', requireAuth, tradeController.acceptTra
 // Rechazar oferta de un trade
 tradeRouter.post('/offer/reject/:offerId', requireAuth, tradeController.rejectTradeOffer);
 // Cancelar un trade
-tradeRouter.post('/reject/:tradeId', requireAuth, tradeController.cancelTrade);
+tradeRouter.post('/cancel/:tradeId', requireAuth, tradeController.cancelTrade);
 
 // Enviar oferta para un trade
 tradeRouter.post('/offer', requireAuth, tradeController.postTradeOffer);

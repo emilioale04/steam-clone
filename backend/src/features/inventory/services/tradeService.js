@@ -8,44 +8,7 @@ const ALLOWED_STATUSES = {
 	CANCELLED: 'Cancelada',
 };
 
-// Validar que el estado sea uno de los permitidos
-const isValidStatus = (status) => {
-	return Object.values(ALLOWED_STATUSES).includes(status);
-};
-
-// Método genérico para actualizar estado
-const updateTradeStatus = async (id, newStatus) => {
-	// Validar el estado
-	if (!isValidStatus(newStatus)) {
-		throw new Error(
-			`Estado inválido. Los estados permitidos son: ${Object.values(
-				ALLOWED_STATUSES
-			).join(', ')}`
-		);
-	}
-
-	const { data, error } = await supabase
-		.from('trade')
-		.update({
-			status: newStatus,
-			updated_at: new Date().toISOString(), // Añadir timestamp de actualización
-		})
-		.eq('id', id)
-		.select();
-
-	if (error) throw error;
-
-	return {
-		success: true,
-		data,
-		message: `Estado actualizado a: ${newStatus}`,
-	};
-};
-
 export const tradeService = {
-	ALLOWED_STATUSES,
-
-	// Método para traer todos los trades activos (Pendientes) con relaciones
 	async getAllActiveTrades() {
 		const { data, error } = await supabase
 			.from('trade')
@@ -65,8 +28,6 @@ export const tradeService = {
 
 	async postTrade(offererId, itemId) {
 		try {
-			console.log('Yo: ', offererId, 'Item: ', itemId);
-
 			const expiryDate = new Date();
 			expiryDate.setDate(expiryDate.getDate() + 7);
 
@@ -78,7 +39,6 @@ export const tradeService = {
 			if (error) throw error;
 
 			return {
-				success: true,
 				data: data,
 				message: 'Oferta de intercambio creada exitosamente',
 			};
@@ -100,7 +60,7 @@ export const tradeService = {
 				throw new Error(data.message);
 			}
 
-			return data;
+			return 'Intercambio exitoso';
 		} catch (error) {
 			console.error('Error accepting trade:', error);
 			throw error;
@@ -108,8 +68,6 @@ export const tradeService = {
 	},
 
 	async getOffers(tradeId) {
-		console.log('Invocando RPC con ID:', tradeId);
-
 		const { data, error, status, statusText } = await supabase.rpc('get_trade_offers', {
 			trade_id_param: tradeId,
 		});
@@ -118,9 +76,6 @@ export const tradeService = {
 			console.error('Error de Supabase:', error.message);
 			throw error;
 		}
-
-		console.log('Respuesta status:', status); // Si es 200 y llega [], es un tema de RLS o parámetros.
-		console.log('Datos recibidos:', data);
 		return data;
 	},
 
@@ -136,55 +91,18 @@ export const tradeService = {
 				throw new Error(data.message);
 			}
 
-			return data;
+			return 'Intercambio cancelado, se liberaron todos los objetos';
 		} catch (error) {
 			console.error('Error al cancelar el trade:', error);
 			throw error;
 		}
-	},
-
-	// Métodos específicos para cada estado (opcionales, para mayor claridad)
-	async setPendingStatus(id) {
-		return updateTradeStatus(id, ALLOWED_STATUSES.PENDING);
-	},
-
-	async setAcceptedStatus(id) {
-		return updateTradeStatus(id, ALLOWED_STATUSES.ACCEPTED);
-	},
-
-	async setRejectedStatus(id) {
-		return updateTradeStatus(id, ALLOWED_STATUSES.REJECTED);
-	},
-
-	async setExpiredStatus(id) {
-		return updateTradeStatus(id, ALLOWED_STATUSES.EXPIRED);
-	},
-
-	async setCalcelStatus(id) {
-		return updateTradeStatus(id, ALLOWED_STATUSES.CANCELLED);
-	},
-
-	// Método para validar transiciones de estado si es necesario
-	async validateStatusTransition(itemId, newStatus) {
-		const currentStatus = await this.getCurrentStatus(itemId);
-
-		// Aquí puedes añadir lógica de validación de transiciones
-		// Por ejemplo, si no quieres permitir cambiar de "Expirada" a otro estado
-		if (
-			currentStatus === ALLOWED_STATUSES.EXPIRED &&
-			newStatus !== ALLOWED_STATUSES.EXPIRED
-		) {
-			throw new Error('No se puede cambiar el estado de un item expirado');
-		}
-
-		return { currentStatus, newStatus, isValid: true };
 	},
 };
 
 export const tradeOfferService = {
 	async postTradeOffer(offererId, tradeId, itemId) {
 		try {
-			const { data, error } = await supabase.rpc('post_trade_offer_atomic', {
+			const { error } = await supabase.rpc('post_trade_offer_atomic', {
 				arg_trade_id: tradeId, // ¡Verifica que estos valores no sean undefined!
 				arg_offerer_id: offererId,
 				arg_item_id: itemId, // Este es el que faltaba en tu error
@@ -196,7 +114,7 @@ export const tradeOfferService = {
 				throw error;
 			}
 
-			return data;
+			return 'Oferta eviada';
 		} catch (error) {
 			console.error('Error en postTradeOffer:', error);
 			throw error;
@@ -205,7 +123,6 @@ export const tradeOfferService = {
 
 	async getTradeOfferByItemId(itemId) {
 		try {
-			console.log(itemId);
 			const { data, error } = await supabase
 				.from('trade_offer')
 				.select('*')
@@ -223,14 +140,11 @@ export const tradeOfferService = {
 
 	async rejectTradeOfferServ(offerId) {
 		try {
-			const { data, error } = await supabase.rpc('reject_trade_offer', {
+			const { error } = await supabase.rpc('reject_trade_offer', {
 				offer_id_param: offerId,
 			});
 
 			if (error) throw error;
-
-			// data[0] contiene la oferta actualizada
-			console.log('Oferta rechazada e ítem liberado:', data[0]);
 
 			return 'Oferta rechazada';
 		} catch (error) {
@@ -243,13 +157,13 @@ export const tradeOfferService = {
 		try {
 			await new Promise((resolve) => setTimeout(resolve, 5000));
 
-			const { data, error } = await supabase.rpc('cancel_trade_offer_and_unlock', {
+			const { error } = await supabase.rpc('cancel_trade_offer_and_unlock', {
 				offer_id_param: id,
 			});
 
 			if (error) throw error;
 
-			return data[0];
+			return 'Oferta cancelada, el objeto ha sido liberado';
 		} catch (error) {
 			console.error('Error en el proceso de cancelación:', error.message);
 			throw error;

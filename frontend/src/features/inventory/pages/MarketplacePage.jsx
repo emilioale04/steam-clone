@@ -9,7 +9,7 @@ import { useTrade } from '../hooks/useTrade';
 
 export const MarketplacePage = () => {
   const { user } = useAuth();
-  const { inventory } = useInventory(user?.id);
+  const { inventory, refetch } = useInventory(user?.id);
   const { tradesForMe, postTradeOffer, getOffersForTrade, acceptTrade, cancelTradeById, rejectTradeOffer } = useTrade(user?.id);
   const [activeTab, setActiveTab] = useState('market'); // 'market' | 'trading'
   const [marketItems, setMarketItems] = useState([]);
@@ -43,23 +43,31 @@ export const MarketplacePage = () => {
     }
   };
 
-  const handleBuyItem = (itemName, price) => {
-    alert(`Has comprado "${itemName}" por $${price}. (Mock)`);
-  };
-
   const handleTradeOffer = (tradeId, itemId) => {
-    console.log("tradeId: ", tradeId, "Item: ", itemId)
-    postTradeOffer(tradeId, itemId)
+     postTradeOffer(tradeId, itemId)
+      .then((response) => {setSelectedSellItem(null); setShowTradeOfferModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(() => {refetch();});
   };
 
   const handleAcceptOffer = (tradeId) => {
-    console.log('Aceptar oferta:', tradeId);
-    acceptTrade(tradeId);
+     acceptTrade(tradeId)
+      .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(()=> fetchData())
+    };
+    
+    const handleRejectOffer = (tradeId) => {
+      rejectTradeOffer(tradeId)
+      .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(()=> fetchData())
   };
 
-  const handleRejectOffer = (tradeId) => {
-    console.log('Rechazar oferta:', tradeId);
-    rejectTradeOffer(tradeId)
+
+
+  const handleBuyItem = (itemName, price) => {
+    alert(`Has comprado "${itemName}" por $${price}. (Mock)`);
   };
 
   const handleCancelListing = async (listingId) => {
@@ -100,6 +108,193 @@ export const MarketplacePage = () => {
       console.error("Error selling item:", error);
       alert("Hubo un error al publicar el item.");
     }
+  };
+
+  // Función para mostrar mensaje de éxito con z-index máximo
+  const showSuccessMessage = (message, duration = 5000) => {
+    // Crear el elemento modal con z-index máximo
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay con animación y z-index alto
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal con z-index más alto
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-green-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">¡Éxito!</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message}</p>
+          <button class="close-btn px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS para las animaciones con z-index seguro
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción después del tiempo especificado
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer si se cierra manualmente
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
+  };
+
+  // Función para mostrar mensaje de error con z-index máximo
+  const showErrorMessage = (message = '', duration = 5000) => {
+    const defaultMessage = "Ocurrió un problema, inténtalo más tarde";
+    
+    // Crear el elemento modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-red-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Error</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message || defaultMessage}</p>
+          <button class="close-btn px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+      @keyframes pulse-once {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+      .icon-animation {
+        animation: pulse-once 0.5s ease-in-out;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Agregar animación al icono
+    setTimeout(() => {
+      const iconContainer = modal.querySelector('.w-16.h-16');
+      if (iconContainer) {
+        iconContainer.classList.add('icon-animation');
+      }
+    }, 100);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
   };
 
   return (
@@ -215,9 +410,7 @@ export const MarketplacePage = () => {
               <div className="bg-[#16202d] rounded-xl overflow-hidden border border-[#2a475e]">
                 <div className="p-6 border-b border-[#2a475e] flex justify-between items-center">
                     <h2 className="text-xl font-bold">Ofertas de Intercambio Activas</h2>
-                    <button className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm transition">
-                        Nueva Oferta
-                    </button>
+                  
                 </div>
 
                 
@@ -249,25 +442,25 @@ export const MarketplacePage = () => {
                       </div>
 
                       <div className="flex items-center gap-4">
-                      {trade.offerer_id === user?.id && (
-                        <button onClick={() => setShowCancelTradeModal(true)} 
-                        className="flex-1 px-2 bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                          Cancelar Intercambio
-                        </button>
+                        {trade.offerer_id === user?.id && (
+                          <button onClick={() => setShowCancelTradeModal(true)} 
+                          className="flex-1 px-2 bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Cancelar Intercambio
+                          </button>
                         )}
-                      {trade.offerer_id === user?.id && (
-                        <button onClick={()=>{getOffersForTrade(trade.id)
-                          setShowTradeOfferForMeModal(true);
-                        }} className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition">
-                          Ver ofertas
-                        </button>
+                      
+                        {trade.offerer_id === user?.id && (
+                          <button onClick={()=>{getOffersForTrade(trade.id)
+                            setShowTradeOfferForMeModal(true);
+                          }} className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition">
+                            Ver ofertas
+                          </button>
                         )}
-
                       </div>
 
                       {
                         showCancelTradeModal && (
-                          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
                             <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-md w-full border border-[#2a475e] flex flex-col">
                               {/* Modal Header */}  
                               <div className="p-6 border-b border-[#2a475e] flex justify-between items-center bg-[#171a21] rounded-t-xl">
@@ -293,8 +486,11 @@ export const MarketplacePage = () => {
                                   </button>
                                   <button
                                     onClick={() => {
-                                      cancelTradeById(trade.id);
-                                      setShowCancelTradeModal(false);
+                                      cancelTradeById(trade.id)
+                                      .then((response) => {setShowCancelTradeModal(false);showSuccessMessage(response)})
+                                      .catch(() => showErrorMessage())
+                                      .finally(() => {fetchData();});
+                                      
                                     }}
                                     className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors"
                                   >
@@ -307,16 +503,15 @@ export const MarketplacePage = () => {
                         )
                       }
 
-
-                        
-                        {trade.offerer_id !== user?.id && (
+                      {trade.offerer_id !== user?.id && (
                         <button 
                           onClick={() => setShowTradeOfferModal(true)}
                           className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition"
                         >
                           Intercambiar
                         </button>
-                        )}
+                      )}
+
                      {showTradeOfferModal && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                           <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-4xl w-full border border-[#2a475e] flex flex-col max-h-[90vh]">
@@ -344,33 +539,9 @@ export const MarketplacePage = () => {
                                       Intercambiando con: <span className="text-[#66c0f4] font-medium">{trade.offerer.username || "Usuario"}</span>
                                     </p>
                                   </div>
-                                  
-                                  {selectedSellItem && (
-                                    <div className="flex items-center gap-3">
-                                      <div className="bg-[#16202d] rounded-lg p-3 border border-[#2a475e]">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-8 h-8 bg-green-500/20 rounded flex items-center justify-center">
-                                            <Package className="text-green-400" size={16} />
-                                          </div>
-                                          <div>
-                                            <p className="text-sm text-white truncate max-w-[150px]">
-                                              {selectedSellItem.name || selectedSellItem.title}
-                                            </p>
-                                            <p className="text-xs text-gray-400">Seleccionado</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <button
-                                        onClick={() => handleTradeOffer(trade.id, selectedSellItem.id)}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                                      >
-                                        <Send size={16} />
-                                        Enviar Oferta
-                                      </button>
-                                    </div>
-                                  )}
+                      
                                 </div>
-                                
+
                                 <div className="text-sm text-gray-400 bg-[#16202d] p-3 rounded-lg border border-[#2a475e]">
                                   <div className="flex items-center gap-2">
                                     <Info size={16} />

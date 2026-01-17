@@ -38,7 +38,7 @@ export const tradeService = {
 	},
 
 	async cancelTradeById(tradeId) {
-		const response = await fetch(`${API_URL}/trade/reject/${tradeId}`, {
+		const response = await fetch(`${API_URL}/trade/cancel/${tradeId}`, {
 			method: 'POST',
 			credentials: 'include',
 		});
