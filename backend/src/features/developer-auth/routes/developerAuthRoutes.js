@@ -7,7 +7,9 @@
 
 import express from 'express';
 import { developerAuthController } from '../controllers/developerAuthController.js';
+import { aplicacionesController } from '../controllers/aplicacionesController.js';
 import { loginLimiter, registerLimiter, authLimiter } from '../../../shared/middleware/rateLimiter.js';
+import { requireDesarrollador } from '../middleware/developerAuthMiddleware.js';
 
 const router = express.Router();
 
@@ -29,5 +31,8 @@ router.get('/verificar', developerAuthController.verificarDesarrollador);
 // Recuperación de contraseña con rate limiting
 router.post('/forgot-password', authLimiter, developerAuthController.forgotPassword);
 router.post('/reset-password', authLimiter, developerAuthController.resetPassword);
+
+// Obtener aplicaciones del desarrollador (requiere autenticación)
+router.get('/aplicaciones', requireDesarrollador, aplicacionesController.obtenerAplicaciones);
 
 export default router;

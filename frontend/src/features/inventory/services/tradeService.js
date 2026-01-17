@@ -11,6 +11,17 @@ export const tradeService = {
 		return data;
 	},
 
+	async acceptTrade(id) {
+		const response = await fetch(`${API_URL}/trade/accept/${id}`, {
+			method: 'POST',
+			credentials: 'include',
+		});
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		console.log(data);
+		return data.data;
+	},
+
 	async postTrade(offererId, itemId) {
 		const response = await fetch(`${API_URL}/trade/post`, {
 			method: 'POST',
@@ -23,6 +34,70 @@ export const tradeService = {
 		const data = await response.json();
 		if (!data.success) throw new Error(data.message);
 
+		return data.data;
+	},
+
+	async cancelTradeById(tradeId) {
+		const response = await fetch(`${API_URL}/trade/cancel/${tradeId}`, {
+			method: 'POST',
+			credentials: 'include',
+		});
+		const data = await response.json();
+		console.log(data);
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
+	async postTradeOffer(offererId, tradeId, itemId) {
+		const response = await fetch(`${API_URL}/trade/offer`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			credentials: 'include',
+			body: JSON.stringify({ offererId, tradeId, itemId }),
+		});
+		const data = await response.json();
+		console.log(data);
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
+	async getTradeOffersByItemId(itemId) {
+		const response = await fetch(`${API_URL}/trade/offer/${itemId}`, {
+			credentials: 'include',
+		});
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
+	async getOffersForTrade(tradeId) {
+		const response = await fetch(`${API_URL}/trade/offers/${tradeId}`, {
+			credentials: 'include',
+		});
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
+	async cancelTradeOffer(offerId) {
+		const response = await fetch(`${API_URL}/trade/offer/cancel/${offerId}`, {
+			method: 'POST',
+			credentials: 'include',
+		});
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
+	async rejectTradeOffer(offerId) {
+		const response = await fetch(`${API_URL}/trade/offer/reject/${offerId}`, {
+			method: 'POST',
+			credentials: 'include',
+		});
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
 		return data.data;
 	},
 };

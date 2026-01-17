@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Repeat, Search, DollarSign, Filter, Package, X, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Repeat, Search, DollarSign, Filter, Package, X, ArrowLeft, Inbox, Check, Info, Send } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
 import { tradeService } from '../services/tradeService';
+import { useTrade } from '../hooks/useTrade';
 
 export const MarketplacePage = () => {
   const { user } = useAuth();
-  const { inventory } = useInventory(user?.id);
+  const { inventory, refetch } = useInventory(user?.id);
+  const { tradesForMe, postTradeOffer, getOffersForTrade, acceptTrade, cancelTradeById, rejectTradeOffer } = useTrade(user?.id);
   const [activeTab, setActiveTab] = useState('market'); // 'market' | 'trading'
   const [marketItems, setMarketItems] = useState([]);
   const [trades, setTrades] = useState([]);
@@ -16,6 +18,9 @@ export const MarketplacePage = () => {
 
   // Estados para el Modal de Venta
   const [showSellModal, setShowSellModal] = useState(false);
+  const [showTradeOfferModal, setShowTradeOfferModal] = useState(false);
+  const [showTradeOfferForMeModal, setShowTradeOfferForMeModal] = useState(false);
+  const [showCancelTradeModal, setShowCancelTradeModal] = useState(false);
   const [selectedSellItem, setSelectedSellItem] = useState(null);
   const [sellPrice, setSellPrice] = useState('');
 
@@ -38,12 +43,31 @@ export const MarketplacePage = () => {
     }
   };
 
-  const handleBuyItem = (itemName, price) => {
-    alert(`Has comprado "${itemName}" por $${price}. (Mock)`);
+  const handleTradeOffer = (tradeId, itemId) => {
+     postTradeOffer(tradeId, itemId)
+      .then((response) => {setSelectedSellItem(null); setShowTradeOfferModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(() => {refetch();});
   };
 
-  const handleTradeOffer = (offerId) => {
-    alert(`Has enviado una propuesta para el intercambio #${offerId}. (Mock)`);
+  const handleAcceptOffer = (tradeId) => {
+     acceptTrade(tradeId)
+      .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(()=> fetchData())
+    };
+    
+    const handleRejectOffer = (tradeId) => {
+      rejectTradeOffer(tradeId)
+      .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(()=> fetchData())
+  };
+
+
+
+  const handleBuyItem = (itemName, price) => {
+    alert(`Has comprado "${itemName}" por $${price}. (Mock)`);
   };
 
   const handleCancelListing = async (listingId) => {
@@ -84,6 +108,193 @@ export const MarketplacePage = () => {
       console.error("Error selling item:", error);
       alert("Hubo un error al publicar el item.");
     }
+  };
+
+  // Función para mostrar mensaje de éxito con z-index máximo
+  const showSuccessMessage = (message, duration = 5000) => {
+    // Crear el elemento modal con z-index máximo
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay con animación y z-index alto
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal con z-index más alto
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-green-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">¡Éxito!</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message}</p>
+          <button class="close-btn px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS para las animaciones con z-index seguro
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción después del tiempo especificado
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer si se cierra manualmente
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
+  };
+
+  // Función para mostrar mensaje de error con z-index máximo
+  const showErrorMessage = (message = '', duration = 5000) => {
+    const defaultMessage = "Ocurrió un problema, inténtalo más tarde";
+    
+    // Crear el elemento modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-red-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Error</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message || defaultMessage}</p>
+          <button class="close-btn px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+      @keyframes pulse-once {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+      .icon-animation {
+        animation: pulse-once 0.5s ease-in-out;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Agregar animación al icono
+    setTimeout(() => {
+      const iconContainer = modal.querySelector('.w-16.h-16');
+      if (iconContainer) {
+        iconContainer.classList.add('icon-animation');
+      }
+    }, 100);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
   };
 
   return (
@@ -199,10 +410,9 @@ export const MarketplacePage = () => {
               <div className="bg-[#16202d] rounded-xl overflow-hidden border border-[#2a475e]">
                 <div className="p-6 border-b border-[#2a475e] flex justify-between items-center">
                     <h2 className="text-xl font-bold">Ofertas de Intercambio Activas</h2>
-                    <button className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm transition">
-                        Nueva Oferta
-                    </button>
+                  
                 </div>
+
                 
                 <div className="divide-y divide-[#2a475e]">
                {trades.map((trade) => (
@@ -232,17 +442,225 @@ export const MarketplacePage = () => {
                       </div>
 
                       <div className="flex items-center gap-4">
-                          <span className="text-yellow-400 text-sm font-medium px-3 py-1 bg-yellow-900/20 rounded">
-                              {trade.status}
-                          </span>
-                          
-                          <button 
-                              onClick={() => handleTradeOffer(trade.id)}
-                              className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition"
-                          >
-                              Intercambiar
+                        {trade.offerer_id === user?.id && (
+                          <button onClick={() => setShowCancelTradeModal(true)} 
+                          className="flex-1 px-2 bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Cancelar Intercambio
                           </button>
+                        )}
+                      
+                        {trade.offerer_id === user?.id && (
+                          <button onClick={()=>{getOffersForTrade(trade.id)
+                            setShowTradeOfferForMeModal(true);
+                          }} className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition">
+                            Ver ofertas
+                          </button>
+                        )}
                       </div>
+
+                      {
+                        showCancelTradeModal && (
+                          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+                            <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-md w-full border border-[#2a475e] flex flex-col">
+                              {/* Modal Header */}  
+                              <div className="p-6 border-b border-[#2a475e] flex justify-between items-center bg-[#171a21] rounded-t-xl">
+                                <h2 className="text-xl font-bold text-white">Cancelar Intercambio</h2>
+                                <button
+                                  onClick={() => setShowCancelTradeModal(false)}
+                                  className="text-gray-400 hover:text-white"
+                                >
+                                  <X size={20} />
+                                </button>
+                              </div>
+                              {/* Modal Content */}
+                              <div className="p-6 flex-1">
+                                <p className="text-gray-400 mb-4">
+                                  ¿Estás seguro de que deseas cancelar este intercambio? Esta acción no se puede deshacer.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                  <button
+                                    onClick={() => setShowCancelTradeModal(false)}
+                                    className="px-4 py-2 bg-[#2a475e] hover:bg-[#3a577e] text-white rounded-lg font-medium transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      cancelTradeById(trade.id)
+                                      .then((response) => {setShowCancelTradeModal(false);showSuccessMessage(response)})
+                                      .catch(() => showErrorMessage())
+                                      .finally(() => {fetchData();});
+                                      
+                                    }}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors"
+                                  >
+                                    Confirmar Cancelación
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      {trade.offerer_id !== user?.id && (
+                        <button 
+                          onClick={() => setShowTradeOfferModal(true)}
+                          className="bg-[#2a475e] hover:bg-blue-600 px-6 py-3 rounded font-medium transition"
+                        >
+                          Intercambiar
+                        </button>
+                      )}
+
+                     {showTradeOfferModal && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                          <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-4xl w-full border border-[#2a475e] flex flex-col max-h-[90vh]">
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-[#2a475e] flex justify-between items-center bg-[#171a21] rounded-t-xl">
+                              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Repeat className="text-gray-400" /> Mis items para Intercambio
+                              </h2>
+                              <button 
+                                onClick={() => setShowTradeOfferModal(false)} 
+                                className="text-gray-400 hover:text-white"
+                              >
+                                <X size={20} />
+                              </button>
+                            </div>
+                            
+                            {/* Modal Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                              {/* Header de selección */}
+                              <div className="mb-6">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <h3 className="text-lg font-medium text-white">Selecciona un item para intercambiar</h3>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                      Intercambiando con: <span className="text-[#66c0f4] font-medium">{trade.offerer.username || "Usuario"}</span>
+                                    </p>
+                                  </div>
+                      
+                                </div>
+
+                                <div className="text-sm text-gray-400 bg-[#16202d] p-3 rounded-lg border border-[#2a475e]">
+                                  <div className="flex items-center gap-2">
+                                    <Info size={16} />
+                                    Solo se muestran items intercambiables y no bloqueados
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Grid de items */}
+                              {inventory?.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                  {inventory.filter(i => i.is_tradeable && !i.is_locked).map(item => (
+                                    <div 
+                                      key={item.steam_item_id || item.id}
+                                      onClick={() => setSelectedSellItem(item)}
+                                      className={`cursor-pointer bg-[#16202d] rounded-lg p-3 border-2 transition-all relative group hover:scale-[1.02]
+                                        ${selectedSellItem?.id === item.id 
+                                          ? 'border-green-500 bg-[#1a2638] shadow-lg shadow-green-500/20' 
+                                          : 'border-[#2a475e] hover:border-[#66c0f4]'
+                                        }
+                                      `}
+                                    >
+                                      {/* Indicador de selección */}
+                                      {selectedSellItem?.id === item.id && (
+                                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center z-10">
+                                          <Check size={14} className="text-white" />
+                                        </div>
+                                      )}
+                                      
+                                      {/* Contenedor de imagen */}
+                                      <div className="aspect-square bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center mb-3 overflow-hidden">
+                                        {item.image_url ? (
+                                          <img 
+                                            src={item.image_url} 
+                                            alt={item.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <Package 
+                                            className={selectedSellItem?.id === item.id ? 'text-green-400' : 'text-gray-500'} 
+                                            size={40} 
+                                          />
+                                        )}
+                                      </div>
+                                      
+                                      {/* Información del item */}
+                                      <div className="space-y-2">
+                                        <h4 className="text-sm font-medium text-white truncate">
+                                          {item.name || item.title}
+                                        </h4>
+                                        
+                                        {item.steam_item_id && (
+                                          <p className="text-xs text-gray-400 truncate">
+                                            ID: {item.steam_item_id}
+                                          </p>
+                                        )}
+                                        
+                                        {/* Botón de selección */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedSellItem(item);
+                                          }}
+                                          className={`w-full py-2 text-xs rounded transition-colors font-medium
+                                            ${selectedSellItem?.id === item.id
+                                              ? 'bg-green-600 hover:bg-green-500 text-white'
+                                              : 'bg-[#2a475e] hover:bg-[#3a577e] text-gray-300'
+                                            }
+                                          `}
+                                        >
+                                          {selectedSellItem?.id === item.id ? 'Seleccionado' : 'Seleccionar'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-center py-12 text-gray-500 bg-[#16202d] rounded-lg border border-dashed border-gray-700">
+                                  <div className="w-16 h-16 mx-auto bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
+                                    <Package className="text-gray-400" size={32} />
+                                  </div>
+                                  <h3 className="text-lg font-medium text-white mb-2">No hay items intercambiables</h3>
+                                  <p className="text-gray-400 max-w-md mx-auto">
+                                    Todos tus items están bloqueados o no son intercambiables. 
+                                    Verifica la disponibilidad de tus items en el inventario.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Modal Footer */}
+                            <div className="p-4 border-t border-[#2a475e] bg-[#171a21] rounded-b-xl">
+                              <div className="flex justify-between items-center">
+                                <div className="text-sm text-gray-400">
+                                  {inventory?.filter(i => i.is_tradeable && !i.is_locked).length || 0} items disponibles
+                                </div>
+                                <div className="flex gap-3">
+                                  <button
+                                    onClick={() => setShowTradeOfferModal(false)}
+                                    className="px-4 py-2 bg-[#2a475e] hover:bg-[#3a577e] text-white rounded-lg font-medium transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  {selectedSellItem && (
+                                    <button
+                                      onClick={() => handleTradeOffer(trade.id, selectedSellItem.id)}
+                                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    >
+                                      <Send size={16} />
+                                      Enviar Oferta
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                   </div>
               ))}
                 </div>
@@ -349,6 +767,125 @@ export const MarketplacePage = () => {
           </div>
         </div>
       )}
+
+      {
+        showTradeOfferForMeModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#1b2838] rounded-xl shadow-2xl max-w-2xl w-full border border-[#2a475e] flex flex-col max-h-[90vh]">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-[#2a475e] flex justify-between items-center bg-[#171a21] rounded-t-xl">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Repeat className="text-gray-400" /> Ofertas Recibidas
+                </h2>
+                <button 
+                  onClick={() => setShowTradeOfferForMeModal(false)} 
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button> 
+              </div>
+              
+              <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                {/* Lista de ofertas recibidas */}
+                {tradesForMe.length > 0 ? (
+                  <div className="space-y-4">
+                    {tradesForMe.map((trade) => (
+                      <div 
+                        key={`${trade.out_trade_id}-${trade.out_item_id}`}
+                        className="bg-[#16202d] rounded-lg p-4 border border-[#2a475e] hover:border-[#66c0f4] transition-colors"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                              <span className="text-sm font-medium text-gray-400">
+                                Estado: <span className="text-yellow-500">{trade.out_status}</span>
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-white">
+                              {trade.out_item_name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-sm text-gray-400">De:</span>
+                              <span className="text-sm font-medium text-[#66c0f4]">
+                                {trade.out_offerer_username}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <span className="text-xs text-gray-400 block mb-1">
+                              ID: {trade.out_steam_item_id}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date().toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-3 border-t border-[#2a475e]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-[#2a475e] rounded flex items-center justify-center">
+                              <Package className="text-gray-400" size={20} />
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-300">Item ofrecido</p>
+                              <p className="text-xs text-gray-400">Trade ID: {trade.out_trade_id.substring(0, 8)}...</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleRejectOffer(trade.out_id)}
+                              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition-colors flex items-center gap-2"
+                            >
+                              <X size={16} />
+                              Rechazar
+                            </button>
+                            <button
+                              onClick={() => handleAcceptOffer(trade.out_id)}
+                              className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 hover:text-green-300 rounded-lg font-medium transition-colors flex items-center gap-2"
+                            >
+                              <Check size={16} />
+                              Aceptar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
+                      <Inbox className="text-gray-400" size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">No hay ofertas recibidas</h3>
+                    <p className="text-gray-400 max-w-md">
+                      Cuando otros usuarios te envíen ofertas de intercambio, aparecerán aquí.
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-[#2a475e] bg-[#171a21] rounded-b-xl">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-400">
+                    {tradesForMe.length} oferta{tradesForMe.length !== 1 ? 's' : ''} pendiente{tradesForMe.length !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    onClick={() => setShowTradeOfferForMeModal(false)}
+                    className="px-4 py-2 bg-[#2a475e] hover:bg-[#3a577e] text-white rounded-lg font-medium transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
     </div>
   );
 };

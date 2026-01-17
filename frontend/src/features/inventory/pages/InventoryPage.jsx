@@ -9,7 +9,7 @@ import { useTrade } from '../hooks/useTrade';
 export const InventoryPage = () => {
   const { user } = useAuth();
   const { inventory, loading, error, refetch } = useInventory(user?.id);
-  const { postTrade, loading: tradesLoading, error: tradesError, refetch: refetchTrades } = useTrade();
+  const { postTrade , getTradeOffersByItemId, cancelTradeOffer} = useTrade();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('id'); // 'id', 'tradeable', 'marketable'
@@ -20,11 +20,24 @@ export const InventoryPage = () => {
   const [showSellModal, setShowSellModal] = useState(false);
   const [sellPrice, setSellPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [itemActualModalSell, setItemActualModalSell] = useState(null);
 
-  const handleSellClick = () => {
+  const handleSellClick = async () => {
      setShowSellModal(true);
      setSellPrice('');
   };
+
+  const handleCancelTradeOffer = () => {
+    cancelTradeOffer(itemActualModalSell.id)
+      .then((response) => {setSelectedItem(null); setItemActualModalSell(null);showSuccessMessage(response)})
+      .catch(() => showErrorMessage())
+      .finally(() => {refetch();});
+  };
+
+  const checkItemIsOffered = async (itemId)=>{
+    const item = await getTradeOffersByItemId(itemId)
+    if(item) setItemActualModalSell(item)
+  }
 
   const handleConfirmSell = async () => {
       if (!selectedItem || !sellPrice) return;
@@ -99,6 +112,193 @@ export const InventoryPage = () => {
       </div>
     );
   }
+
+  // Función para mostrar mensaje de éxito con z-index máximo
+  const showSuccessMessage = (message, duration = 5000) => {
+    // Crear el elemento modal con z-index máximo
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay con animación y z-index alto
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal con z-index más alto
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-green-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">¡Éxito!</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message}</p>
+          <button class="close-btn px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS para las animaciones con z-index seguro
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción después del tiempo especificado
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer si se cierra manualmente
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
+  };
+
+  // Función para mostrar mensaje de error con z-index máximo
+  const showErrorMessage = (message = '', duration = 5000) => {
+    const defaultMessage = "Ocurrió un problema, inténtalo más tarde";
+    
+    // Crear el elemento modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999]';
+    
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black transition-opacity duration-300 opacity-60 z-[9998]';
+    
+    // Contenido del modal
+    modal.innerHTML = `
+      <div class="relative z-[9999] bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-100 scale-100 translate-y-0">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 rounded-t-xl overflow-hidden">
+          <div class="h-full bg-red-500 progress-bar" style="width: 100%"></div>
+        </div>
+        <div class="flex flex-col items-center text-center pt-2">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Error</h3>
+          <p class="text-gray-600 mb-6 text-lg">${message || defaultMessage}</p>
+          <button class="close-btn px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+            Aceptar
+          </button>
+          <p class="text-gray-400 text-sm mt-4">
+            Se cerrará en ${duration / 1000} segundos
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Agregar overlay y modal al body
+    modal.appendChild(overlay);
+    document.body.appendChild(modal);
+    
+    // Estilos CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .progress-bar {
+        animation: shrink ${duration}ms linear forwards;
+      }
+      @keyframes pulse-once {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+      .icon-animation {
+        animation: pulse-once 0.5s ease-in-out;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Agregar animación al icono
+    setTimeout(() => {
+      const iconContainer = modal.querySelector('.w-16.h-16');
+      if (iconContainer) {
+        iconContainer.classList.add('icon-animation');
+      }
+    }, 100);
+    
+    // Función para cerrar y destruir el modal
+    const closeModal = () => {
+      const content = modal.querySelector('div > div');
+      content.classList.add('opacity-0', 'scale-95', 'translate-y-2');
+      overlay.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    };
+    
+    // Agregar eventos de cierre
+    overlay.addEventListener('click', closeModal);
+    modal.querySelector('.close-btn').addEventListener('click', closeModal);
+    
+    // Auto-destrucción
+    const autoCloseTimer = setTimeout(closeModal, duration);
+    
+    // Limpiar timer
+    const cleanup = () => {
+      clearTimeout(autoCloseTimer);
+    };
+    
+    overlay.addEventListener('click', cleanup);
+    modal.querySelector('.close-btn').addEventListener('click', cleanup);
+    
+    return closeModal;
+  };
 
   return (
     <div className="min-h-screen bg-[#1b2838]">
@@ -276,7 +476,8 @@ export const InventoryPage = () => {
             {filteredInventory.map((item) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => {setSelectedItem(item)
+                  checkItemIsOffered(item.id)}}
                 className="bg-[#16202d] rounded-xl overflow-hidden border border-gray-700 hover:border-blue-500 transition-all hover:transform hover:scale-[1.02] cursor-pointer group relative"
               >
                 <div className="relative aspect-square bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
@@ -302,7 +503,7 @@ export const InventoryPage = () => {
                 </div>
                 <div className="p-3">
                   <h3 className="text-white text-sm font-medium truncate group-hover:text-blue-400 transition-colors">
-                    Item #{item.steam_item_id}
+                    {item.name}
                   </h3>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {item.is_tradeable && !item.is_locked && (
@@ -343,7 +544,7 @@ export const InventoryPage = () => {
                     </div>
                   </div>
                   <div className="md:col-span-3">
-                    <h3 className="text-white font-medium">Item #{item.steam_item_id}</h3>
+                    <h3 className="text-white font-medium">{item.name}</h3>
                   </div>
                   <div className="md:col-span-3">
                     {item.is_locked ? (
@@ -416,7 +617,7 @@ export const InventoryPage = () => {
               <div className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Item #{selectedItem.steam_item_id}</h2>
+                    <h2 className="text-2xl font-bold text-white mb-1">{selectedItem.name}</h2>
                     <p className="text-gray-400 text-sm">Steam Inventory Item</p>
                   </div>
                   <button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-white transition-colors">
@@ -468,7 +669,12 @@ export const InventoryPage = () => {
 
                 <div className="flex gap-3">
                   {/* Botón cancelar venta si está activo */}
-                  {selectedItem.active_listing && (
+                  { itemActualModalSell && (
+                    <button onClick={() => handleCancelTradeOffer(selectedItem.id)}
+                      className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    > Cancelar intercambio</button>
+                  )}
+                  {selectedItem.active_listing && (      
                     <button 
                       onClick={() => handleCancelSelling(selectedItem.active_listing.id)}
                       disabled={isSubmitting}
@@ -481,7 +687,7 @@ export const InventoryPage = () => {
 
                   {selectedItem.is_marketable && !selectedItem.is_locked && (
                     <button 
-                      onClick={handleSellClick}
+                      onClick={()=>handleSellClick(selectedItem.id)}
                       className="flex-1 bg-green-600 hover:bg-green-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-900/20"
                     >
                       <DollarSign size={18} />
@@ -490,14 +696,18 @@ export const InventoryPage = () => {
                   )}
                   {selectedItem.is_tradeable && !selectedItem.is_locked && (
                      <button
-                     onClick={()=>(postTrade(selectedItem.id))}
-                     className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                        onClick={() => {
+                          postTrade(selectedItem.id)
+                            .then((response) => {setSelectedItem(null); setItemActualModalSell(null);showSuccessMessage(response.message)})
+                            .catch(() => showErrorMessage());
+                        }}
+                        className="flex-1 bg-[#2a475e] hover:bg-[#3d5f7a] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <RefreshCw size={18} />
-                        Intercambiar {selectedItem.id}
+                        Intercambiar
                      </button>
                   )}
                    <button 
-                      onClick={() => setSelectedItem(null)}
+                      onClick={() => {setSelectedItem(null); setItemActualModalSell(null)}}
                       className="px-4 py-3 rounded-lg border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
                    >
                       Cerrar
@@ -528,7 +738,7 @@ export const InventoryPage = () => {
                          <Package className="text-blue-400" />
                       </div>
                       <div className="overflow-hidden">
-                         <div className="font-medium text-white truncate">Item #{selectedItem.steam_item_id}</div>
+                         <div className="font-medium text-white truncate">{selectedItem.name}</div>
                          <div className="text-xs text-gray-400">Steam Inventory</div>
                       </div>
                    </div>
