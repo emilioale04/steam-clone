@@ -48,5 +48,75 @@ export const inventoryService = {
         const data = await response.json();
         if (!data.success) throw new Error(data.message);
         return data;
+    },
+
+    /**
+     * Vende un item en el mercado
+     * @param {string} userId - ID del usuario
+     * @param {object} item - Objeto del item a vender
+     * @param {string|number} price - Precio de venta
+     */
+    async sellItem(userId, item, price) {
+        const response = await fetch(`${API_URL}/inventory/sell`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                itemId: item.id,
+                price: parseFloat(price)
+            })
+        });
+
+        const data = await response.json();
+        /* Si falla, lanzamos error para que el frontend capture */
+        if (!data.success) throw new Error(data.message || 'Error al vender item');
+        
+        return {
+            success: true,
+            listing: data.listing // El backend debe devolver el objeto listing creado
+        };
+    },
+
+    /**
+     * Cancela una venta activa
+     * @param {string} listingId 
+     */
+    async cancelListing(listingId) {
+        const response = await fetch(`${API_URL}/inventory/sell/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ listingId })
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Error al cancelar venta');
+        return data;
+    },
+
+    /**
+     * Obtiene el listado del mercado
+     */
+    async getMarketListings() {
+        const response = await fetch(`${API_URL}/inventory/market`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!data.success) return { success: false, listings: [] };
+        return { success: true, listings: data.listings };
+    },
+
+    /**
+     * Obtiene trades activos
+     */
+    async getActiveTrades() {
+        const response = await fetch(`${API_URL}/inventory/trades`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!data.success) return { success: false, trades: [] };
+        return { success: true, trades: data.trades };
     }
 };

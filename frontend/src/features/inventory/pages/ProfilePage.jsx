@@ -34,6 +34,12 @@ export const ProfilePage = () => {
               <Link to="/" className="text-gray-300 hover:text-white transition-colors">
                 Tienda
               </Link>
+              <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors">
+                Comunidad
+              </Link>
+              <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors">
+                Inventario
+              </Link>
             </nav>
           </div>
         </div>
