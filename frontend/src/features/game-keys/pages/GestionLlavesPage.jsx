@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeveloperAuth } from '../../developer-auth/hooks/useDeveloperAuth';
 import { gameKeysService } from '../services/gameKeysService';
+import { developerAuthService } from '../../developer-auth/services/developerAuthService';
 import {
   HeaderDashboard,
   Notificacion,
@@ -11,7 +12,7 @@ import {
   ModalDesactivarLlave
 } from '../components';
 
-export const GestionLlavesPage = () => {
+export const GestionLlavesPage = ({ mostrarHeader = true }) => {
   const navigate = useNavigate();
   const { desarrollador, logout } = useDeveloperAuth();
   
@@ -40,14 +41,50 @@ export const GestionLlavesPage = () => {
     try {
       setLoading(true);
 
-      const juegosMock = [
-        { id: 'e89ee8f4-4e8d-42dc-8830-b5ebc9c241d0', nombre: 'Cyberpunk Adventure' },
-        { id: 'b503eb09-cc62-479d-9217-8b0535b016e2', nombre: 'Fantasy Quest RPG' },
-        { id: '40758832-4b56-43e2-8fb5-3807cfd08460', nombre: 'Space Shooter Pro' },
-      ];
-      setJuegos(juegosMock);
+      const response = await developerAuthService.obtenerAplicaciones();
+      
+      if (!Array.isArray(response.data)) {
+        throw new Error('Formato de respuesta inválido');
+      }
+      
+      const aplicacionesFormateadas = response.data
+        .filter(app => app.id && app.nombre_juego)
+        .map(app => ({
+          id: app.id,
+          nombre: app.nombre_juego,
+          llaves_activas: 0,
+          llaves_maximas: 5,
+          estado_revision: app.estado_revision || 'pendiente',
+          fecha_creacion: app.fecha_creacion
+        }));
+
+      // Cargar las llaves de cada juego para mostrar el conteo real
+      const juegosConLlaves = await Promise.all(
+        aplicacionesFormateadas.map(async (juego) => {
+          try {
+            const data = await gameKeysService.listarLlaves(juego.id);
+            const llaves = data?.llaves || [];
+            return {
+              ...juego,
+              llaves_activas: llaves.length
+            };
+          } catch (error) {
+            console.error(`Error al cargar llaves del juego ${juego.id}:`, error);
+            return juego; // Mantener con 0 si falla
+          }
+        })
+      );
+
+      setJuegos(juegosConLlaves);
+      
+      if (juegosConLlaves.length === 0) {
+        mostrarMensaje('No tienes aplicaciones registradas. Crea una aplicación primero.', 'info');
+      } else if (juegosConLlaves.length > 0) {
+        setJuegoSeleccionado(juegosConLlaves[0].id);
+      }
     } catch (error) {
-      mostrarMensaje('Error al cargar juegos', 'error');
+      console.error('Error al cargar juegos:', error);
+      mostrarMensaje('Error al cargar aplicaciones. Por favor, intenta nuevamente.', 'error');
     } finally {
       setLoading(false);
     }
@@ -156,14 +193,16 @@ export const GestionLlavesPage = () => {
   const llavesRestantes = juegoActual ? (juegoActual.llaves_maximas || 5) - (juegoActual.llaves_activas || 0) : 5;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1a1a2e] to-[#16213e]">
-      <HeaderDashboard 
-        nombreDesarrollador={desarrollador?.nombre_legal || 'Desarrollador'}
-        onLogout={handleLogout}
-      />
+    <div className={mostrarHeader ? "min-h-screen bg-gradient-to-b from-[#1a1a2e] to-[#16213e]" : ""}>
+      {mostrarHeader && (
+        <HeaderDashboard 
+          nombreDesarrollador={desarrollador?.nombre_legal || 'Desarrollador'}
+          onLogout={handleLogout}
+        />
+      )}
 
       {mensaje && (
-        <div className="max-w-7xl mx-auto px-4 pt-4">
+        <div className={mostrarHeader ? "max-w-7xl mx-auto px-4 pt-4" : "mb-4"}>
           <Notificacion 
             texto={mensaje.texto}
             tipo={mensaje.tipo}
@@ -171,7 +210,7 @@ export const GestionLlavesPage = () => {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className={mostrarHeader ? "max-w-7xl mx-auto px-4 py-8" : ""}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-6">
             <SelectorJuegos 

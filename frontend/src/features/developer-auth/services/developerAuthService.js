@@ -64,6 +64,18 @@ export const developerAuthService = {
   },
 
   /**
+   * Obtener aplicaciones del desarrollador
+   */
+  async obtenerAplicaciones() {
+    const response = await fetch(`${API_URL}/aplicaciones`, {
+      credentials: 'include'
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.mensaje || 'Error al obtener aplicaciones');
+    return data;
+  },
+
+  /**
    * Verificar si es desarrollador válido
    */
   async verificar() {
