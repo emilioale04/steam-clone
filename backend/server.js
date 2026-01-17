@@ -15,6 +15,9 @@ import { adminRoutes } from './src/features/admin/index.js';
 import { inventoryRoutes } from './src/features/inventory/index.js';
 import { tradeRoutes } from './src/features/inventory/index.js';
 
+// Import wallet routes (Gestión de Billetera)
+import { walletRoutes } from './src/features/wallet/index.js';
+
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
@@ -77,6 +80,9 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
+
+// Wallet routes (Gestión de Billetera)
+app.use('/api/wallet', apiLimiter, walletRoutes);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);
