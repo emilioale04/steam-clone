@@ -13,7 +13,15 @@ import {
   DeveloperAuthProvider
 } from './features/developer-auth';
 
-// Inventory & Profile & Marketplace
+// Steamworks (Administración)
+import {
+  LoginAdminPage,
+  AdminDashboardPage,
+  ProtectedAdminRoute,
+  AdminAuthProvider
+} from './features/admin';
+
+// Inventory & Profile
 import { ProfilePage, InventoryPage } from './features/inventory';
 import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
 
@@ -128,6 +136,29 @@ function App() {
       <Route 
         path="/steamworks" 
         element={<Navigate to="/steamworks/login" replace />} 
+      />
+
+      {/* ============================================ */}
+      {/* RUTAS DE ADMINISTRACIÓN */}
+      {/* URL separada: /steamworks/admin-* */}
+      {/* ============================================ */}
+      <Route 
+        path="/steamworks/admin-login" 
+        element={
+          <AdminAuthProvider>
+            <LoginAdminPage />
+          </AdminAuthProvider>
+        } 
+      />
+      <Route 
+        path="/steamworks/admin-dashboard" 
+        element={
+          <AdminAuthProvider>
+            <ProtectedAdminRoute>
+              <AdminDashboardPage />
+            </ProtectedAdminRoute>
+          </AdminAuthProvider>
+        } 
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,9 +8,15 @@ import { authRoutes } from './src/features/auth/index.js';
 // Import developer auth routes (Steamworks)
 import { developerAuthRoutes } from './src/features/developer-auth/index.js';
 
+// Import admin routes
+import { adminRoutes } from './src/features/admin/index.js';
+
 // Import inventory routes (Esteban - Gestión de Inventario)
 import { inventoryRoutes } from './src/features/inventory/index.js';
 import { tradeRoutes } from './src/features/inventory/index.js';
+
+// Import MFA routes
+import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
@@ -60,6 +66,12 @@ app.use('/api/auth', apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
 app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
+
+// Admin routes
+app.use('/api/admin', apiLimiter, adminRoutes);
+
+// MFA routes
+app.use('/api/mfa', apiLimiter, mfaRoutes);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);
