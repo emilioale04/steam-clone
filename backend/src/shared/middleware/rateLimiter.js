@@ -7,7 +7,8 @@
  * - C7: Límite de solicitudes por minuto
  */
 
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { auditService } from '../services/auditService.js';
 
 /**
  * Rate limiter general para rutas de autenticación
@@ -56,7 +57,7 @@ export const registerLimiter = rateLimit({
   max: 3,
   message: {
     success: false,
-    message: 'Demasiadas solicitudes de registro desde esta IP. Intente nuevamente en 1 hora'
+    message: 'Demasiados solicitudes de registro desde esta IP. Intente nuevamente en 1 hora'
   },
   statusCode: 429
 });
@@ -87,4 +88,29 @@ export const criticalActionsLimiter = rateLimit({
     message: 'Límite de acciones críticas excedido. Intente nuevamente en 1 hora'
   },
   statusCode: 429
+});
+
+/**
+ * Rate limiter para endpoints críticos (1 solicitud cada 2 segundos)
+ */
+export const criticalRateLimiter = rateLimit({
+  windowMs: 2000,
+  max: 1,
+  keyGenerator: (req) =>
+    req.user?.id
+      ? `user:${req.user.id}`
+      : ipKeyGenerator(req),
+
+  handler: async (req, res) => {
+    await auditService.registrarRateLimitExcedido(
+      req.originalUrl,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.status(429).json({
+      success: false,
+      message: 'Muchas solicitudes en poco tiempo. Por favor, espere un momento antes de intentar nuevamente.',
+    });
+  },
 });
