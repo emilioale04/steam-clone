@@ -15,17 +15,22 @@ import { auditService, ACCIONES_AUDITORIA, RESULTADOS } from '../../../shared/se
  */
 export const requireDesarrollador = async (req, res, next) => {
   try {
-    // Obtener token del header Authorization
+    // Obtener token del header Authorization o de cookies
     const authHeader = req.headers.authorization;
+    let token = null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.session_token) {
+      token = req.cookies.session_token;
+    }
+    
+    if (!token) {
       return res.status(401).json({
         success: false,
         mensaje: 'Token de autorización no proporcionado'
       });
     }
-
-    const token = authHeader.split(' ')[1];
 
     // Verificar token con Supabase
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);

@@ -3,7 +3,7 @@
  * Consume la API de desarrolladores del backend
  */
 
-const API_URL = 'http://localhost:3000/api/desarrolladores/auth';
+const API_URL = '/api/desarrolladores/auth';
 
 export const developerAuthService = {
   /**
@@ -28,6 +28,7 @@ export const developerAuthService = {
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
 
@@ -41,7 +42,8 @@ export const developerAuthService = {
    */
   async logout() {
     const response = await fetch(`${API_URL}/logout`, {
-      method: 'POST'
+      method: 'POST',
+      credentials: 'include'
     });
 
     const data = await response.json();
@@ -53,9 +55,23 @@ export const developerAuthService = {
    * Obtener perfil del desarrollador autenticado
    */
   async obtenerPerfil() {
-    const response = await fetch(`${API_URL}/perfil`);
+    const response = await fetch(`${API_URL}/perfil`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.mensaje || 'Error al obtener perfil');
+    return data;
+  },
+
+  /**
+   * Obtener aplicaciones del desarrollador
+   */
+  async obtenerAplicaciones() {
+    const response = await fetch(`${API_URL}/aplicaciones`, {
+      credentials: 'include'
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.mensaje || 'Error al obtener aplicaciones');
     return data;
   },
 

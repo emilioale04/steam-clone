@@ -357,6 +357,8 @@ export const developerAuthService = {
     );
 
     // 6. Descifrar datos bancarios antes de retornar
+    // TEMPORAL: Comentado mientras se configura el cifrado correctamente
+    /*
     const datosDescifrados = decryptBankData({
       cuenta_bancaria: desarrollador.numero_cuenta,
       titular_banco: desarrollador.titular_cuenta,
@@ -371,6 +373,10 @@ export const developerAuthService = {
       banco: datosDescifrados.nombre_banco,
       nif_cif: datosDescifrados.nif_cif
     };
+    */
+
+    // TEMPORAL: Retornar sin descifrar
+    const desarrolladorConDatosDescifrados = desarrollador;
 
     return {
       user: authData.user,

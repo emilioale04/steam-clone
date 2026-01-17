@@ -100,6 +100,15 @@ export const developerAuthController = {
         requestMetadata
       );
 
+      // Establecer cookie httpOnly con el token
+      res.cookie('session_token', resultado.session.access_token, {
+        httpOnly: true,
+        secure: false, // En producción cambiar a true con HTTPS
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
+      });
+
       res.status(200).json({
         success: true,
         data: resultado,
@@ -124,6 +133,9 @@ export const developerAuthController = {
       const requestMetadata = extractRequestMetadata(req);
 
       await developerAuthService.cerrarSesion(userId, requestMetadata);
+
+      // Limpiar cookie
+      res.clearCookie('session_token');
 
       res.status(200).json({
         success: true,
