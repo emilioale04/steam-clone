@@ -14,6 +14,25 @@ export const SteamworksDashboardPage = () => {
   const { desarrollador, logout } = useDeveloperAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // RF-003: Validación de 5 días desde última modificación
+  const canEditProfile = () => {
+    if (!desarrollador?.ultima_modificacion_perfil) {
+      return true; // Primera vez, puede editar
+    }
+    const lastUpdate = new Date(desarrollador.ultima_modificacion_perfil);
+    const now = new Date();
+    const diffDays = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+    return diffDays >= 5;
+  };
+
+  const getDaysUntilEdit = () => {
+    if (!desarrollador?.ultima_modificacion_perfil) return 0;
+    const lastUpdate = new Date(desarrollador.ultima_modificacion_perfil);
+    const now = new Date();
+    const diffDays = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 5 - diffDays);
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -80,7 +99,7 @@ export const SteamworksDashboardPage = () => {
                     Registra un nuevo juego (requiere pago de $100 USD)
                   </span>
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveTab('mi-perfil')}
                   className='p-4 bg-[#2a3f5f] rounded border border-[#3d5a80] text-left hover:border-[#66c0f4] transition-colors'
                 >
@@ -147,10 +166,35 @@ export const SteamworksDashboardPage = () => {
         );
 
       case 'mi-perfil':
+        const profileEditable = canEditProfile();
+        const daysRemaining = getDaysUntilEdit();
+
         return (
           <div className='max-w-4xl mx-auto px-4 py-8'>
             <h2 className='text-3xl font-bold text-white mb-6'>Mi Perfil</h2>
-            
+
+            {/* Alerta de restricción de 5 días (RF-003) */}
+            {!profileEditable && (
+              <div className='bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6'>
+                <div className='flex items-start'>
+                  <span className='text-yellow-400 text-2xl mr-3'>⚠️</span>
+                  <div>
+                    <h4 className='text-yellow-400 font-semibold mb-1'>
+                      Perfil bloqueado temporalmente
+                    </h4>
+                    <p className='text-gray-300 text-sm'>
+                      Por seguridad (RF-003), solo puedes editar tu perfil cada
+                      5 días. Podrás editar nuevamente en{' '}
+                      <strong>
+                        {daysRemaining} día{daysRemaining !== 1 ? 's' : ''}
+                      </strong>
+                      .
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Sección A: Información Personal */}
             <div className='bg-[#1e2a38] border border-[#2a3f5f] rounded-lg p-6 mb-6'>
               <h3 className='text-xl font-semibold text-white mb-4 border-b border-[#2a3f5f] pb-3'>
@@ -164,17 +208,27 @@ export const SteamworksDashboardPage = () => {
                   <input
                     type='text'
                     defaultValue={desarrollador?.nombre_legal}
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    disabled={!profileEditable}
+                    className={`w-full bg-[#0f1923] text-white px-4 py-2 rounded border ${
+                      profileEditable
+                        ? 'border-[#2a3f5f] focus:border-[#66c0f4]'
+                        : 'border-gray-700 cursor-not-allowed opacity-60'
+                    } focus:outline-none`}
                   />
                 </div>
                 <div>
                   <label className='block text-sm text-gray-400 mb-2'>
                     Email
+                    <span className='ml-2 text-xs text-gray-500'>
+                      (Solo lectura)
+                    </span>
                   </label>
                   <input
                     type='email'
-                    defaultValue={desarrollador?.email}
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    value={desarrollador?.email || ''}
+                    readOnly
+                    className='w-full bg-[#0f1923] text-gray-400 px-4 py-2 rounded border border-gray-700 cursor-not-allowed opacity-60'
+                    title='El email no puede ser modificado por seguridad'
                   />
                 </div>
                 <div>
@@ -185,15 +239,28 @@ export const SteamworksDashboardPage = () => {
                     type='tel'
                     defaultValue={desarrollador?.telefono || ''}
                     placeholder='Ej: +593 99 999 9999'
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    disabled={!profileEditable}
+                    className={`w-full bg-[#0f1923] text-white px-4 py-2 rounded border ${
+                      profileEditable
+                        ? 'border-[#2a3f5f] focus:border-[#66c0f4]'
+                        : 'border-gray-700 cursor-not-allowed opacity-60'
+                    } focus:outline-none`}
                   />
                 </div>
                 <div className='pt-4'>
-                  <button className='px-6 py-2 bg-[#66c0f4] text-white rounded hover:bg-[#5bb1e3] transition-colors font-medium'>
+                  <button
+                    disabled={!profileEditable}
+                    className={`px-6 py-2 rounded font-medium transition-colors ${
+                      profileEditable
+                        ? 'bg-[#66c0f4] text-white hover:bg-[#5bb1e3]'
+                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
                     Guardar Cambios
                   </button>
                   <p className='text-xs text-yellow-400 mt-2'>
-                    ⚠️ Se requiere verificación MFA para guardar cambios en el perfil
+                    ⚠️ Se requiere verificación MFA para guardar cambios en el
+                    perfil
                   </p>
                 </div>
               </div>
@@ -211,7 +278,12 @@ export const SteamworksDashboardPage = () => {
                   </label>
                   <select
                     defaultValue='Banco Pichincha'
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    disabled={!profileEditable}
+                    className={`w-full bg-[#0f1923] text-white px-4 py-2 rounded border ${
+                      profileEditable
+                        ? 'border-[#2a3f5f] focus:border-[#66c0f4]'
+                        : 'border-gray-700 cursor-not-allowed opacity-60'
+                    } focus:outline-none`}
                   >
                     <option value='Banco Pichincha'>Banco Pichincha</option>
                     <option value='Banco Guayaquil'>Banco Guayaquil</option>
@@ -227,7 +299,12 @@ export const SteamworksDashboardPage = () => {
                   <input
                     type='text'
                     placeholder='Ej: 2100123456'
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    disabled={!profileEditable}
+                    className={`w-full bg-[#0f1923] text-white px-4 py-2 rounded border ${
+                      profileEditable
+                        ? 'border-[#2a3f5f] focus:border-[#66c0f4]'
+                        : 'border-gray-700 cursor-not-allowed opacity-60'
+                    } focus:outline-none`}
                   />
                 </div>
                 <div>
@@ -237,15 +314,28 @@ export const SteamworksDashboardPage = () => {
                   <input
                     type='text'
                     defaultValue={desarrollador?.nombre_legal}
-                    className='w-full bg-[#0f1923] text-white px-4 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none'
+                    disabled={!profileEditable}
+                    className={`w-full bg-[#0f1923] text-white px-4 py-2 rounded border ${
+                      profileEditable
+                        ? 'border-[#2a3f5f] focus:border-[#66c0f4]'
+                        : 'border-gray-700 cursor-not-allowed opacity-60'
+                    } focus:outline-none`}
                   />
                 </div>
                 <div className='pt-4'>
-                  <button className='px-6 py-2 bg-[#66c0f4] text-white rounded hover:bg-[#5bb1e3] transition-colors font-medium'>
+                  <button
+                    disabled={!profileEditable}
+                    className={`px-6 py-2 rounded font-medium transition-colors ${
+                      profileEditable
+                        ? 'bg-[#66c0f4] text-white hover:bg-[#5bb1e3]'
+                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
                     Guardar Cambios
                   </button>
                   <p className='text-xs text-yellow-400 mt-2'>
-                    ⚠️ Se requiere verificación MFA para guardar cambios bancarios
+                    ⚠️ Se requiere verificación MFA para guardar cambios
+                    bancarios
                   </p>
                 </div>
               </div>
