@@ -45,3 +45,6 @@ coverage/
 *.temp
 .cache/
 SteamWorks_indications.md
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md
