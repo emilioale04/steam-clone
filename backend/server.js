@@ -32,6 +32,7 @@ import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
 // Import new app routes (Creación de Aplicaciones - RF-004)
 import { newAppRoutes } from './src/features/new-app/index.js';
+import { appItemsRoutes } from './src/features/app-items/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import {
@@ -100,6 +101,7 @@ app.use('/api/game-keys', gameKeysRoutes);
 
 // New App routes (Creación de Aplicaciones - RF-004)
 app.use('/api/new-app', newAppRoutes);
+app.use('/api/app-items', appItemsRoutes);
 
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);

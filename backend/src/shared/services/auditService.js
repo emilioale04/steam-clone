@@ -44,6 +44,10 @@ export const ACCIONES_AUDITORIA = {
   GENERAR_CLAVE: 'generar_clave',
   DESACTIVAR_CLAVE: 'desactivar_clave',
 
+  // Items
+  CREAR_ITEM: 'crear_item',
+  BORRAR_ITEM: 'borrar_item',
+
   // Precios
   ACTUALIZAR_PRECIO: 'actualizar_precio',
 
