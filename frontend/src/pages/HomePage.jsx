@@ -122,6 +122,7 @@ export const HomePage = () => {
               <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Tienda</a>
               <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Marketplace</Link>
               <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Biblioteca</Link>
+              <Link to="/community" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Grupos y Comunidad</Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -184,8 +185,9 @@ export const HomePage = () => {
               </form>
               <nav className="flex flex-col gap-3 mb-4">
                 <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Tienda</a>
-                <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Comunidad</Link>
+                <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Marketplace</Link>
                 <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</Link>
+                <Link to="/community" className="text-gray-300 hover:text-white transition-colors py-2">Grupos y Comunidad</Link>
               </nav>
               <div className="flex items-center justify-between pt-3 border-t border-[#2a475e]">
                 <Link to="/profile" className="flex items-center gap-2 hover:text-blue-400 transition-colors">
