@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { developerAuthService } from '../../developer-auth/services/developerAuthService';
 import { appItemsService } from '../services/appItemsService';
+import { MFAVerificationModal } from '../../developer-auth/components/MFAVerificationModal';
 
 const initialForm = {
   nombre: '',
@@ -29,6 +30,9 @@ export const AppItemsPage = () => {
   const [saving, setSaving] = useState(false);
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  const [showMFAVerification, setShowMFAVerification] = useState(false);
+  const [mfaTitle, setMfaTitle] = useState('Verificacion MFA requerida');
+  const [pendingAction, setPendingAction] = useState(null);
 
   useEffect(() => {
     const cargarAplicaciones = async () => {
@@ -40,10 +44,20 @@ export const AppItemsPage = () => {
           throw new Error('Formato de respuesta invalido');
         }
 
-        setApps(response.data);
+        const aplicacionesAprobadas = response.data.filter(
+          (app) => app.estado_revision === 'aprobado',
+        );
+        setApps(aplicacionesAprobadas);
 
-        if (response.data.length > 0) {
-          setSelectedAppId((prev) => prev || response.data[0].id);
+        if (aplicacionesAprobadas.length > 0) {
+          setSelectedAppId((prev) => {
+            if (prev && aplicacionesAprobadas.some((app) => app.id === prev)) {
+              return prev;
+            }
+            return aplicacionesAprobadas[0].id;
+          });
+        } else {
+          setSelectedAppId('');
         }
       } catch (error) {
         console.error('Error al cargar aplicaciones:', error);
@@ -92,6 +106,44 @@ export const AppItemsPage = () => {
     }));
   };
 
+  const solicitarMFA = (action, title) => {
+    setPendingAction(() => action);
+    setMfaTitle(title);
+    setShowMFAVerification(true);
+  };
+
+  const handleMFAVerified = async (codigoMFA) => {
+    if (!pendingAction) return;
+    await pendingAction(codigoMFA);
+    setPendingAction(null);
+  };
+
+  const ejecutarCreacion = async (codigoMFA) => {
+    try {
+      setSaving(true);
+      const nuevoItem = await appItemsService.crearItem(selectedAppId, {
+        nombre: formData.nombre.trim(),
+        is_tradeable: formData.is_tradeable,
+        is_marketable: formData.is_marketable,
+        activo: formData.activo,
+        codigoMFA,
+      });
+
+      setItems((prev) => [nuevoItem, ...prev]);
+      setFormData((prev) => ({
+        ...prev,
+        nombre: '',
+      }));
+      mostrarMensaje('Item creado correctamente', 'success');
+    } catch (error) {
+      console.error('Error al crear item:', error);
+      mostrarMensaje(error.message || 'Error al crear item', 'error');
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCrearItem = async () => {
     if (!selectedAppId) {
       mostrarMensaje('Selecciona una aplicacion primero', 'error');
@@ -104,27 +156,7 @@ export const AppItemsPage = () => {
       return;
     }
 
-    try {
-      setSaving(true);
-      const nuevoItem = await appItemsService.crearItem(selectedAppId, {
-        nombre,
-        is_tradeable: formData.is_tradeable,
-        is_marketable: formData.is_marketable,
-        activo: formData.activo,
-      });
-
-      setItems((prev) => [nuevoItem, ...prev]);
-      setFormData((prev) => ({
-        ...prev,
-        nombre: '',
-      }));
-      mostrarMensaje('Item creado correctamente', 'success');
-    } catch (error) {
-      console.error('Error al crear item:', error);
-      mostrarMensaje(error.message || 'Error al crear item', 'error');
-    } finally {
-      setSaving(false);
-    }
+    solicitarMFA(ejecutarCreacion, 'Verificacion MFA - Crear item');
   };
 
   const handleStartEdit = (item) => {
@@ -142,20 +174,15 @@ export const AppItemsPage = () => {
     setEditForm(initialForm);
   };
 
-  const handleGuardarEdicion = async (itemId) => {
-    const nombre = editForm.nombre.trim();
-    if (!nombre || nombre.length < 3) {
-      mostrarMensaje('El nombre debe tener al menos 3 caracteres', 'error');
-      return;
-    }
-
+  const ejecutarActualizacion = async (itemId, codigoMFA) => {
     try {
       setUpdatingItemId(itemId);
       const itemActualizado = await appItemsService.actualizarItem(itemId, {
-        nombre,
+        nombre: editForm.nombre.trim(),
         is_tradeable: editForm.is_tradeable,
         is_marketable: editForm.is_marketable,
         activo: editForm.activo,
+        codigoMFA,
       });
 
       setItems((prev) =>
@@ -166,9 +193,23 @@ export const AppItemsPage = () => {
     } catch (error) {
       console.error('Error al actualizar item:', error);
       mostrarMensaje(error.message || 'Error al actualizar item', 'error');
+      throw error;
     } finally {
       setUpdatingItemId(null);
     }
+  };
+
+  const handleGuardarEdicion = async (itemId) => {
+    const nombre = editForm.nombre.trim();
+    if (!nombre || nombre.length < 3) {
+      mostrarMensaje('El nombre debe tener al menos 3 caracteres', 'error');
+      return;
+    }
+
+    solicitarMFA(
+      (codigoMFA) => ejecutarActualizacion(itemId, codigoMFA),
+      'Verificacion MFA - Actualizar item',
+    );
   };
 
   const selectedApp = apps.find((app) => app.id === selectedAppId);
@@ -227,7 +268,7 @@ export const AppItemsPage = () => {
 
       {apps.length === 0 && !loadingApps ? (
         <div className="bg-[#1e2a38] border border-[#2a3f5f] rounded-lg p-6 text-center text-gray-400">
-          No tienes aplicaciones registradas. Crea una aplicacion primero.
+          No tienes aplicaciones aprobadas para gestionar items.
         </div>
       ) : (
         <>
@@ -471,6 +512,16 @@ export const AppItemsPage = () => {
           </div>
         </>
       )}
+
+      <MFAVerificationModal
+        isOpen={showMFAVerification}
+        onClose={() => {
+          setShowMFAVerification(false);
+          setPendingAction(null);
+        }}
+        onVerify={handleMFAVerified}
+        title={mfaTitle}
+      />
     </div>
   );
 };

@@ -55,6 +55,12 @@ export const validarCrearItem = [
     .isBoolean()
     .withMessage('activo debe ser booleano')
     .toBoolean(),
+  body('codigoMFA')
+    .trim()
+    .notEmpty()
+    .withMessage('El codigo MFA es requerido')
+    .matches(/^\d{6}$/)
+    .withMessage('El codigo MFA debe tener 6 digitos'),
   handleValidationErrors,
 ];
 
@@ -94,7 +100,22 @@ export const validarActualizarItem = [
     .isBoolean()
     .withMessage('activo debe ser booleano')
     .toBoolean(),
+  body('codigoMFA')
+    .trim()
+    .notEmpty()
+    .withMessage('El codigo MFA es requerido')
+    .matches(/^\d{6}$/)
+    .withMessage('El codigo MFA debe tener 6 digitos'),
   handleValidationErrors,
 ];
 
-export const validarEliminarItem = [validarItemId, handleValidationErrors];
+export const validarEliminarItem = [
+  validarItemId,
+  body('codigoMFA')
+    .trim()
+    .notEmpty()
+    .withMessage('El codigo MFA es requerido')
+    .matches(/^\d{6}$/)
+    .withMessage('El codigo MFA debe tener 6 digitos'),
+  handleValidationErrors,
+];

@@ -62,13 +62,14 @@ export const appItemsService = {
     return data.data;
   },
 
-  async eliminarItem(itemId) {
+  async eliminarItem(itemId, codigoMFA) {
     const response = await fetch(`${API_URL}/${itemId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
+      body: JSON.stringify({ codigoMFA }),
     });
 
     const data = await response.json();

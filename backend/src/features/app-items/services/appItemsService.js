@@ -4,10 +4,12 @@ import {
   ACCIONES_AUDITORIA,
 } from '../../../shared/services/auditService.js';
 
+const ESTADO_APROBADO = 'aprobado';
+
 const obtenerAplicacion = async (appId, desarrolladorId) => {
   const { data: aplicacion, error } = await supabaseAdmin
     .from('aplicaciones_desarrolladores')
-    .select('id, nombre_juego')
+    .select('id, nombre_juego, estado_revision')
     .eq('id', appId)
     .eq('desarrollador_id', desarrolladorId)
     .single();
@@ -17,6 +19,33 @@ const obtenerAplicacion = async (appId, desarrolladorId) => {
   }
 
   return aplicacion;
+};
+
+const asegurarAplicacionAprobada = (aplicacion) => {
+  if (aplicacion.estado_revision !== ESTADO_APROBADO) {
+    throw new Error('La aplicacion debe estar aprobada para gestionar items');
+  }
+};
+
+const obtenerAplicacionAprobada = async (appId, desarrolladorId) => {
+  const aplicacion = await obtenerAplicacion(appId, desarrolladorId);
+  asegurarAplicacionAprobada(aplicacion);
+  return aplicacion;
+};
+
+const obtenerItem = async (itemId, desarrolladorId) => {
+  const { data: item, error } = await supabaseAdmin
+    .from('items_aplicaciones')
+    .select('id, aplicacion_id, nombre')
+    .eq('id', itemId)
+    .eq('desarrollador_id', desarrolladorId)
+    .single();
+
+  if (error || !item) {
+    throw new Error('Item no encontrado o sin permisos');
+  }
+
+  return item;
 };
 
 export const appItemsService = {
@@ -42,7 +71,7 @@ export const appItemsService = {
   },
 
   async crearItem(appId, desarrolladorId, datosItem, requestMetadata = {}) {
-    await obtenerAplicacion(appId, desarrolladorId);
+    await obtenerAplicacionAprobada(appId, desarrolladorId);
 
     const payload = {
       aplicacion_id: appId,
@@ -85,7 +114,10 @@ export const appItemsService = {
     return item;
   },
 
-  async actualizarItem(itemId, desarrolladorId, datosItem) {
+  async actualizarItem(itemId, desarrolladorId, datosItem, requestMetadata = {}) {
+    const itemBase = await obtenerItem(itemId, desarrolladorId);
+    await obtenerAplicacionAprobada(itemBase.aplicacion_id, desarrolladorId);
+
     const payload = {
       updated_at: new Date().toISOString(),
     };
@@ -122,10 +154,33 @@ export const appItemsService = {
       throw new Error('Item no encontrado o sin permisos');
     }
 
+    const camposActualizados = Object.entries(datosItem)
+      .filter(([, value]) => value !== undefined)
+      .map(([key]) => key);
+
+    await auditService.registrarEvento({
+      desarrolladorId,
+      accion: ACCIONES_AUDITORIA.ACTUALIZAR_ITEM,
+      recurso: `item:${item.id}`,
+      detalles: {
+        item_id: item.id,
+        aplicacion_id: item.aplicacion_id,
+        nombre: item.nombre,
+        is_tradeable: item.is_tradeable,
+        is_marketable: item.is_marketable,
+        activo: item.activo,
+        campos_actualizados: camposActualizados,
+      },
+      ipAddress: requestMetadata.ip_address,
+      userAgent: requestMetadata.user_agent,
+    });
+
     return item;
   },
 
   async eliminarItem(itemId, desarrolladorId, requestMetadata = {}) {
+    const itemBase = await obtenerItem(itemId, desarrolladorId);
+    await obtenerAplicacionAprobada(itemBase.aplicacion_id, desarrolladorId);
     const now = new Date().toISOString();
 
     const { data: item, error } = await supabaseAdmin

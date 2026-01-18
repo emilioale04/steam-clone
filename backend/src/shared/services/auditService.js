@@ -46,6 +46,7 @@ export const ACCIONES_AUDITORIA = {
 
   // Items
   CREAR_ITEM: 'crear_item',
+  ACTUALIZAR_ITEM: 'actualizar_item',
   BORRAR_ITEM: 'borrar_item',
 
   // Precios

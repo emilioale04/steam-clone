@@ -99,7 +99,7 @@ app.use('/api/game-keys', gameKeysRoutes);
 
 // New App routes (Creación de Aplicaciones - RF-004)
 app.use('/api/new-app', newAppRoutes);
-app.use('/api/app-items', appItemsRoutes);
+app.use('/api/app-items', apiLimiter, appItemsRoutes);
 
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
