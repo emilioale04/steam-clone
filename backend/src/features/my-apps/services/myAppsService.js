@@ -66,7 +66,24 @@ export const myAppsService = {
       // Aplicar búsqueda por nombre si se proporciona
       if (filters.search && filters.search.trim().length > 0) {
         const searchTerm = filters.search.trim();
-        query = query.or(`nombre_juego.ilike.%${searchTerm}%,descripcion_corta.ilike.%${searchTerm}%`);
+        
+        // Validación de seguridad para prevenir inyección
+        // Limitar longitud máxima
+        if (searchTerm.length > 100) {
+          throw new Error('El término de búsqueda es demasiado largo');
+        }
+        
+        // Sanitizar el término de búsqueda
+        // Permitir: letras (incluyendo acentos), números, espacios y algunos caracteres comunes
+        // Remover caracteres especiales que podrían ser interpretados como operadores de consulta
+        const sanitizedSearch = searchTerm
+          .replace(/[%_\\]/g, '\\$&')  // Escapar caracteres especiales de SQL LIKE
+          .replace(/[^\w\sáéíóúñÁÉÍÓÚÑ\-'.,!?()]/g, '');  // Permitir solo caracteres seguros
+        
+        // Solo aplicar búsqueda si queda contenido después de sanitizar
+        if (sanitizedSearch.length > 0) {
+          query = query.or(`nombre_juego.ilike.%${sanitizedSearch}%,descripcion_corta.ilike.%${sanitizedSearch}%`);
+        }
       }
 
       // Ordenar por fecha de creación (más recientes primero)
