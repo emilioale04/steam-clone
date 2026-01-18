@@ -15,7 +15,7 @@ export const newAppController = {
   async crearAplicacion(req, res) {
     try {
       const desarrolladorId = (await developerAuthService.obtenerDesarrolladorActual()).desarrollador.id;
-      console.log('[CONTROLLER] Desarrollador ID:', desarrolladorId);
+
       // Obtener datos del body
       const datosApp = {
         nombre_juego: req.body.nombre_juego,
