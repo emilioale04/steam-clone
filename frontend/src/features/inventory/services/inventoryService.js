@@ -97,6 +97,24 @@ export const inventoryService = {
     },
 
     /**
+     * Actualiza el precio de una venta activa
+     * @param {string} listingId - ID de la publicación
+     * @param {number} newPrice - Nuevo precio (debe estar validado)
+     */
+    async updateListingPrice(listingId, newPrice) {
+        const response = await fetch(`${API_URL}/inventory/sell/price`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ listingId, newPrice })
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Error al actualizar precio');
+        return data;
+    },
+
+    /**
      * Obtiene el listado del mercado
      */
     async getMarketListings() {
@@ -109,6 +127,21 @@ export const inventoryService = {
     },
 
     /**
+     * Obtiene el estado del límite diario de compras
+     * @returns {Promise<{dailyTotal: number, dailyLimit: number, remaining: number, limitReached: boolean}>}
+     */
+    async getDailyPurchaseStatus() {
+        const response = await fetch(`${API_URL}/inventory/market/daily-limit`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!data.success) {
+            return { dailyTotal: 0, dailyLimit: 2000, remaining: 2000, limitReached: false };
+        }
+        return data.data;
+    },
+
+    /**
      * Obtiene trades activos
      */
     async getActiveTrades() {
@@ -118,5 +151,40 @@ export const inventoryService = {
         const data = await response.json();
         if (!data.success) return { success: false, trades: [] };
         return { success: true, trades: data.trades };
+    },
+
+    /**
+     * Compra un item del marketplace
+     * NOTA: El precio NO se envía desde el cliente por seguridad
+     * El backend obtiene el precio real de la base de datos
+     * @param {string} listingId - ID del listing a comprar
+     * @returns {Promise<Object>} Resultado de la compra
+     */
+    async purchaseItem(listingId) {
+        const response = await fetch(`${API_URL}/inventory/market/purchase`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ listingId })
+        });
+
+        const data = await response.json();
+        
+        if (!data.success) {
+            const error = new Error(data.message || 'Error al realizar la compra');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return {
+            success: true,
+            message: data.message,
+            itemName: data.data?.itemName,
+            pricePaid: data.data?.pricePaid,
+            newBalance: data.data?.newBalance,
+            transactionId: data.data?.transactionId
+        };
     }
 };

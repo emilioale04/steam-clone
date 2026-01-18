@@ -1,6 +1,34 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const tradeService = {
+	/**
+	 * Obtener estado de límites de trading del usuario autenticado
+	 * @returns {Promise<{activeCount: number, maxAllowed: number, remaining: number, limitReached: boolean, maxOffersPerTrade: number}>}
+	 */
+	async getTradeLimitsStatus() {
+		const response = await fetch(`${API_URL}/trade/limits`, {
+			credentials: 'include',
+		});
+
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		return data;
+	},
+
+	/**
+	 * Obtener todas las ofertas que el usuario ha realizado en intercambios de otros
+	 * @returns {Promise<Array>}
+	 */
+	async getMyOffers() {
+		const response = await fetch(`${API_URL}/trade/my-offers`, {
+			credentials: 'include',
+		});
+
+		const data = await response.json();
+		if (!data.success) throw new Error(data.message);
+		return data.data;
+	},
+
 	async getTradesActive() {
 		const response = await fetch(`${API_URL}/trade/actives`, {
 			credentials: 'include', // httpOnly cookie sent automatically

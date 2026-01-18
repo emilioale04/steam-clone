@@ -6,7 +6,7 @@
 export const USER_TYPES = {
   ADMIN: 'admin',
   DEVELOPER: 'developer',
-  USER: 'user'
+  USER: 'user',
 };
 
 /**
@@ -17,20 +17,20 @@ export const USER_TYPE_CONFIG = {
     table: 'admins',
     displayName: 'Administrador',
     issuerName: 'Steam Clone Admin',
-    namePrefix: 'Steam Admin'
+    namePrefix: 'Steam Admin',
   },
   [USER_TYPES.DEVELOPER]: {
-    table: 'developers',
+    table: 'desarrolladores',
     displayName: 'Desarrollador',
-    issuerName: 'Steam Clone Developer',
-    namePrefix: 'Steam Developer'
+    issuerName: 'Steamworks Developer',
+    namePrefix: 'Steamworks',
   },
   [USER_TYPES.USER]: {
     table: 'users',
     displayName: 'Usuario',
     issuerName: 'Steam Clone',
-    namePrefix: 'Steam User'
-  }
+    namePrefix: 'Steam User',
+  },
 };
 
 /**
@@ -54,5 +54,5 @@ export default {
   USER_TYPES,
   USER_TYPE_CONFIG,
   isValidUserType,
-  getUserTypeConfig
+  getUserTypeConfig,
 };

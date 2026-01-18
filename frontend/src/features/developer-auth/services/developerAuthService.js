@@ -13,7 +13,7 @@ export const developerAuthService = {
     const response = await fetch(`${API_URL}/registro`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(datosRegistro)
+      body: JSON.stringify(datosRegistro),
     });
 
     const data = await response.json();
@@ -29,11 +29,12 @@ export const developerAuthService = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.mensaje || 'Error en el inicio de sesión');
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error en el inicio de sesión');
     return data;
   },
 
@@ -43,7 +44,7 @@ export const developerAuthService = {
   async logout() {
     const response = await fetch(`${API_URL}/logout`, {
       method: 'POST',
-      credentials: 'include'
+      credentials: 'include',
     });
 
     const data = await response.json();
@@ -56,10 +57,11 @@ export const developerAuthService = {
    */
   async obtenerPerfil() {
     const response = await fetch(`${API_URL}/perfil`, {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.mensaje || 'Error al obtener perfil');
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al obtener perfil');
     return data;
   },
 
@@ -68,10 +70,11 @@ export const developerAuthService = {
    */
   async obtenerAplicaciones() {
     const response = await fetch(`${API_URL}/aplicaciones`, {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.mensaje || 'Error al obtener aplicaciones');
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al obtener aplicaciones');
     return data;
   },
 
@@ -92,7 +95,7 @@ export const developerAuthService = {
     const response = await fetch(`${API_URL}/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email }),
     });
 
     const data = await response.json();
@@ -107,11 +110,30 @@ export const developerAuthService = {
     const response = await fetch(`${API_URL}/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, accessToken, refreshToken })
+      body: JSON.stringify({ password, accessToken, refreshToken }),
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.mensaje || 'Error al restablecer contraseña');
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al restablecer contraseña');
     return data;
-  }
+  },
+
+  /**
+   * Reenviar correo de verificación
+   */
+  async reenviarVerificacion(email) {
+    const response = await fetch(`${API_URL}/reenviar-verificacion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(
+        data.mensaje || 'Error al reenviar correo de verificación',
+      );
+    return data;
+  },
 };

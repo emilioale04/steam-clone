@@ -1,6 +1,34 @@
 import { tradeOfferService, tradeService } from '../services/tradeService.js';
+import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
 
 export const tradeController = {
+	/**
+	 * Obtener estado de límites de trading para el usuario autenticado
+	 */
+	async getTradeLimitsStatus(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const status = await tradeService.getTradeLimitsStatus(userId);
+			res.json({
+				success: true,
+				...status,
+				maxOffersPerTrade: TRADE_LIMITS.MAX_OFFERS_PER_TRADE
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
+			});
+		}
+	},
+
 	/**
 	 * Obtener trades activos
 	 */
@@ -102,8 +130,27 @@ export const tradeController = {
 				data: tradeOffer,
 			});
 		} catch (error) {
-			res.status(error.message.includes('permiso') ? 403 : 500).json({
+			// Determinar código de estado apropiado
+			let statusCode = 500;
+			let errorCode = 'INTERNAL_ERROR';
+			
+			if (error.code === 'PRIVACY_RESTRICTED' || error.isPrivacyError) {
+				statusCode = 403;
+				errorCode = 'PRIVACY_RESTRICTED';
+			} else if (error.message.includes('permiso')) {
+				statusCode = 403;
+				errorCode = 'FORBIDDEN';
+			} else if (error.message.includes('no encontrado') || error.message.includes('no está disponible')) {
+				statusCode = 404;
+				errorCode = 'NOT_FOUND';
+			} else if (error.message.includes('límite') || error.message.includes('Ya has ofertado')) {
+				statusCode = 400;
+				errorCode = 'BAD_REQUEST';
+			}
+
+			res.status(statusCode).json({
 				success: false,
+				code: errorCode,
 				message: error.message,
 			});
 		}
@@ -176,6 +223,32 @@ export const tradeController = {
 			res.status(error.message.includes('permiso') ? 403 : 500).json({
 				success: false,
 				message: error.message,
+			});
+		}
+	},
+
+	/**
+	 * Obtener las ofertas que el usuario autenticado ha realizado
+	 */
+	async getMyOffers(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const offers = await tradeOfferService.getMyOffers(userId);
+			res.json({
+				success: true,
+				data: offers
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
 			});
 		}
 	},

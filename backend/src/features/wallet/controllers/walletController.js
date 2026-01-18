@@ -1,4 +1,5 @@
 import { walletService } from '../services/walletService.js';
+import { limitedAccountService } from '../../../shared/services/limitedAccountService.js';
 
 export const walletController = {
     /**
@@ -21,6 +22,28 @@ export const walletController = {
             res.status(500).json({
                 success: false,
                 message: error.message || 'Error al obtener el balance'
+            });
+        }
+    },
+
+    /**
+     * Obtiene el estado de cuenta (limitada o no)
+     * GET /api/wallet/account-status
+     */
+    async getAccountStatus(req, res) {
+        try {
+            const userId = req.user.id;
+            const accountStatus = await limitedAccountService.getAccountStatus(userId);
+
+            res.json({
+                success: true,
+                data: accountStatus
+            });
+        } catch (error) {
+            console.error('Error al obtener estado de cuenta:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Error al obtener el estado de la cuenta'
             });
         }
     },
@@ -56,10 +79,14 @@ export const walletController = {
 
             res.json({
                 success: true,
-                message: 'Recarga procesada exitosamente',
+                message: result.accountUnlocked 
+                    ? '¡Recarga exitosa! Tu cuenta ha sido desbloqueada.' 
+                    : 'Recarga procesada exitosamente',
                 data: {
                     newBalance: result.newBalance,
-                    transactionId: result.transactionId
+                    transactionId: result.transactionId,
+                    accountUnlocked: result.accountUnlocked,
+                    unlockMessage: result.unlockMessage
                 }
             });
         } catch (error) {

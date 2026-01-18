@@ -4,6 +4,7 @@ import { tradeService } from '../services/tradeService';
 export const useTrade = (userId) => {
 	const [trades, setTrades] = useState([]);
 	const [tradesForMe, setTradesForMe] = useState([]);
+	const [myOffers, setMyOffers] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -137,9 +138,25 @@ export const useTrade = (userId) => {
 		}
 	};
 
+	const fetchMyOffers = async () => {
+		try {
+			setLoading(true);
+			const response = await tradeService.getMyOffers();
+			setMyOffers(response);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	return {
 		trades,
 		tradesForMe,
+		myOffers,
 		loading,
 		error,
 		refetch: fetchActiveTrades,
@@ -152,5 +169,6 @@ export const useTrade = (userId) => {
 		getTradeOffersByItemId,
 		cancelTradeOffer,
 		rejectTradeOffer,
+		fetchMyOffers,
 	};
 };
