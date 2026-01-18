@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Repeat, Search, DollarSign, Filter, Package, X, ArrowLeft, Inbox, Check, Info, Send, Loader2, User, Tag, AlertTriangle, Edit2, Save, Clock } from 'lucide-react';
+import { ShoppingCart, Repeat, Search, DollarSign, Filter, Package, X, ArrowLeft, Inbox, Check, Info, Send, Loader2, User, Tag, AlertTriangle, Edit2, Save, Clock, SortAsc, SortDesc, ChevronDown } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
@@ -50,6 +50,118 @@ export const MarketplacePage = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPurchaseItem, setSelectedPurchaseItem] = useState(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  // Estados para búsqueda y filtros
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'price-low' | 'price-high' | 'name'
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filtrar y ordenar items del marketplace
+  const filteredMarketItems = useMemo(() => {
+    let items = otherMarketListings;
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(item => {
+        const name = (item.name || item.itemName || '').toLowerCase();
+        const game = (item.game || '').toLowerCase();
+        const seller = (item.seller || '').toLowerCase();
+        return name.includes(query) || game.includes(query) || seller.includes(query);
+      });
+    }
+
+    // Filtrar por rango de precio
+    if (priceRange.min !== '') {
+      const minPrice = parseFloat(priceRange.min);
+      if (!isNaN(minPrice)) {
+        items = items.filter(item => {
+          const price = typeof item.price === 'number' ? item.price : parseFloat(item.price);
+          return price >= minPrice;
+        });
+      }
+    }
+    if (priceRange.max !== '') {
+      const maxPrice = parseFloat(priceRange.max);
+      if (!isNaN(maxPrice)) {
+        items = items.filter(item => {
+          const price = typeof item.price === 'number' ? item.price : parseFloat(item.price);
+          return price <= maxPrice;
+        });
+      }
+    }
+
+    // Ordenar
+    items = [...items].sort((a, b) => {
+      const priceA = typeof a.price === 'number' ? a.price : parseFloat(a.price);
+      const priceB = typeof b.price === 'number' ? b.price : parseFloat(b.price);
+      const nameA = (a.name || a.itemName || '').toLowerCase();
+      const nameB = (b.name || b.itemName || '').toLowerCase();
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+
+      switch (sortBy) {
+        case 'price-low':
+          return priceA - priceB;
+        case 'price-high':
+          return priceB - priceA;
+        case 'name':
+          return nameA.localeCompare(nameB);
+        case 'oldest':
+          return dateA - dateB;
+        case 'newest':
+        default:
+          return dateB - dateA;
+      }
+    });
+
+    return items;
+  }, [otherMarketListings, searchQuery, priceRange, sortBy]);
+
+  // Filtrar y ordenar mis listings
+  const filteredMyListings = useMemo(() => {
+    let items = myMarketListings;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(item => {
+        const name = (item.name || item.itemName || '').toLowerCase();
+        const game = (item.game || '').toLowerCase();
+        return name.includes(query) || game.includes(query);
+      });
+    }
+
+    return [...items].sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return dateB - dateA;
+    });
+  }, [myMarketListings, searchQuery]);
+
+  // Filtrar trades
+  const filteredOtherTrades = useMemo(() => {
+    let items = otherTrades;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(trade => {
+        const itemName = (trade.item?.name || '').toLowerCase();
+        const username = (trade.offerer?.username || '').toLowerCase();
+        return itemName.includes(query) || username.includes(query);
+      });
+    }
+
+    return items;
+  }, [otherTrades, searchQuery]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setPriceRange({ min: '', max: '' });
+    setSortBy('newest');
+  };
+
+  const hasActiveFilters = searchQuery.trim() || priceRange.min !== '' || priceRange.max !== '' || sortBy !== 'newest';
 
   useEffect(() => {
     fetchData();
@@ -679,7 +791,7 @@ export const MarketplacePage = () => {
                 )}
 
                 <div className="bg-[#16202d] p-6 rounded-xl border border-[#2a475e]">
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                     <h2 className="text-xl font-bold">Items Disponibles para Comprar</h2>
                     <div className="flex gap-2">
                        <button 
@@ -689,6 +801,125 @@ export const MarketplacePage = () => {
                          Vender un item
                        </button>
                     </div>
+                  </div>
+
+                  {/* Search and Filters Bar */}
+                  <div className="mb-6 space-y-4">
+                    {/* Search Input */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder="Buscar por nombre, juego o vendedor..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-[#1b2838] border border-[#2a475e] rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Sort Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="appearance-none bg-[#1b2838] border border-[#2a475e] rounded-lg px-4 py-2.5 pr-10 text-white focus:border-blue-500 focus:outline-none transition cursor-pointer min-w-[160px]"
+                        >
+                          <option value="newest">Más recientes</option>
+                          <option value="oldest">Más antiguos</option>
+                          <option value="price-low">Precio: menor</option>
+                          <option value="price-high">Precio: mayor</option>
+                          <option value="name">Nombre A-Z</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                      </div>
+
+                      {/* Filter Toggle Button */}
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition ${
+                          showFilters || hasActiveFilters
+                            ? 'bg-blue-600 border-blue-500 text-white'
+                            : 'bg-[#1b2838] border-[#2a475e] text-gray-300 hover:border-blue-500'
+                        }`}
+                      >
+                        <Filter size={18} />
+                        <span className="hidden sm:inline">Filtros</span>
+                        {hasActiveFilters && (
+                          <span className="bg-white/20 text-xs px-1.5 py-0.5 rounded">
+                            {[searchQuery.trim(), priceRange.min, priceRange.max].filter(Boolean).length + (sortBy !== 'newest' ? 1 : 0)}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Expanded Filters */}
+                    {showFilters && (
+                      <div className="bg-[#1b2838] rounded-lg p-4 border border-[#2a475e] animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex flex-col sm:flex-row gap-4 items-end">
+                          {/* Price Range */}
+                          <div className="flex-1">
+                            <label className="block text-sm text-gray-400 mb-2">Rango de precio</label>
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                                <input
+                                  type="number"
+                                  placeholder="Mín"
+                                  value={priceRange.min}
+                                  onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-full bg-[#16202d] border border-[#2a475e] rounded pl-7 pr-2 py-2 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition text-sm"
+                                />
+                              </div>
+                              <span className="text-gray-500">-</span>
+                              <div className="relative flex-1">
+                                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                                <input
+                                  type="number"
+                                  placeholder="Máx"
+                                  value={priceRange.max}
+                                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-full bg-[#16202d] border border-[#2a475e] rounded pl-7 pr-2 py-2 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Clear Filters Button */}
+                          {hasActiveFilters && (
+                            <button
+                              onClick={clearFilters}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition"
+                            >
+                              <X size={16} />
+                              Limpiar filtros
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Results Count */}
+                    {(searchQuery || priceRange.min || priceRange.max) && (
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-gray-400">
+                          {filteredMarketItems.length} {filteredMarketItems.length === 1 ? 'resultado' : 'resultados'}
+                          {searchQuery && <span> para "<span className="text-blue-400">{searchQuery}</span>"</span>}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {otherMarketListings.length === 0 ? (
@@ -701,9 +932,26 @@ export const MarketplacePage = () => {
                         No hay artículos de otros usuarios a la venta en este momento.
                       </p>
                     </div>
+                  ) : filteredMarketItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-16 h-16 bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
+                        <Search className="text-gray-400" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">No se encontraron resultados</h3>
+                      <p className="text-gray-400 max-w-md mb-4">
+                        No hay artículos que coincidan con tu búsqueda o filtros.
+                      </p>
+                      <button
+                        onClick={clearFilters}
+                        className="text-blue-400 hover:text-blue-300 flex items-center gap-2"
+                      >
+                        <X size={16} />
+                        Limpiar filtros
+                      </button>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {otherMarketListings.map((item) => {
+                      {filteredMarketItems.map((item) => {
                         const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price);
                         const exceedsLimit = itemPrice > dailyPurchaseStatus.remaining;
                         const limitReached = dailyPurchaseStatus.limitReached;
@@ -753,8 +1001,39 @@ export const MarketplacePage = () => {
             {/* Trading Section - Solo trades de OTROS usuarios */}
             {activeTab === 'trading' && (
               <div className="bg-[#16202d] rounded-xl overflow-hidden border border-[#2a475e]">
-                <div className="p-6 border-b border-[#2a475e] flex justify-between items-center">
+                <div className="p-6 border-b border-[#2a475e]">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <h2 className="text-xl font-bold">Intercambios Disponibles</h2>
+                  </div>
+                  
+                  {/* Search Bar for Trading */}
+                  {otherTrades.length > 0 && (
+                    <div className="mt-4">
+                      <div className="relative max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder="Buscar por item o usuario..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-[#1b2838] border border-[#2a475e] rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                      {searchQuery && (
+                        <p className="text-sm text-gray-400 mt-2">
+                          {filteredOtherTrades.length} {filteredOtherTrades.length === 1 ? 'resultado' : 'resultados'}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {otherTrades.length === 0 ? (
@@ -767,9 +1046,26 @@ export const MarketplacePage = () => {
                       No hay ofertas de intercambio de otros usuarios en este momento.
                     </p>
                   </div>
+                ) : filteredOtherTrades.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
+                      <Search className="text-gray-400" size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">No se encontraron resultados</h3>
+                    <p className="text-gray-400 max-w-md mb-4">
+                      No hay intercambios que coincidan con "{searchQuery}".
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-2"
+                    >
+                      <X size={16} />
+                      Limpiar búsqueda
+                    </button>
+                  </div>
                 ) : (
                   <div className="divide-y divide-[#2a475e]">
-               {otherTrades.map((trade) => (
+               {filteredOtherTrades.map((trade) => (
                   <div key={trade.id} className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-[#1b2838] transition">
                       
                       <div className="flex items-center gap-6 flex-1">
@@ -979,7 +1275,7 @@ export const MarketplacePage = () => {
 
                 {/* Mis artículos en venta */}
                 <div className="bg-[#16202d] p-6 rounded-xl border border-[#2a475e]">
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                       <ShoppingCart className="text-yellow-500" size={24} />
                       Mis Artículos en Venta
@@ -1005,6 +1301,30 @@ export const MarketplacePage = () => {
                     </button>
                   </div>
 
+                  {/* Search for My Listings */}
+                  {myMarketListings.length > 0 && (
+                    <div className="mb-4">
+                      <div className="relative max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder="Buscar en mis artículos..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-[#1b2838] border border-[#2a475e] rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {myMarketListings.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center bg-[#1b2838] rounded-lg border border-dashed border-gray-700">
                       <div className="w-16 h-16 bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
@@ -1021,9 +1341,26 @@ export const MarketplacePage = () => {
                         Vender un item
                       </button>
                     </div>
+                  ) : filteredMyListings.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-16 h-16 bg-[#2a475e] rounded-full flex items-center justify-center mb-4">
+                        <Search className="text-gray-400" size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-2">No se encontraron resultados</h3>
+                      <p className="text-gray-400 max-w-md mb-4">
+                        No hay artículos que coincidan con "{searchQuery}".
+                      </p>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-yellow-400 hover:text-yellow-300 flex items-center gap-2"
+                      >
+                        <X size={16} />
+                        Limpiar búsqueda
+                      </button>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {myMarketListings.map((item) => {
+                      {filteredMyListings.map((item) => {
                         const isEditing = editingPriceId === item.id;
                         const currentPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price);
                         const editPriceState = isEditing ? getPriceValidationState(editPrice) : null;
