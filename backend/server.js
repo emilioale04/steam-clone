@@ -21,6 +21,9 @@ import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
+// Import new app routes (Creación de Aplicaciones - RF-004)
+import { newAppRoutes } from './src/features/new-app/index.js';
+
 // Import security middleware (Grupo 2 - Seguridad)
 import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
 import { apiLimiter, criticalRateLimiter } from './src/shared/middleware/rateLimiter.js';
@@ -72,6 +75,10 @@ app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
+
+// New App routes (Creación de Aplicaciones - RF-004)
+app.use('/api/new-app', newAppRoutes);
+
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
 
