@@ -65,4 +65,68 @@ export const developerProfileService = {
       );
     return data;
   },
+
+  /**
+   * Obtener estado de MFA
+   */
+  async obtenerEstadoMFA() {
+    const response = await fetch(`${API_URL}/mfa/status`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al obtener estado de MFA');
+    return data;
+  },
+
+  /**
+   * Iniciar configuración de MFA (obtener QR)
+   */
+  async setupMFA() {
+    const response = await fetch(`${API_URL}/mfa/setup`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al configurar MFA');
+    return data;
+  },
+
+  /**
+   * Verificar código TOTP y activar MFA
+   */
+  async verificarYActivarMFA(codigo) {
+    const response = await fetch(`${API_URL}/mfa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ codigo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Código de verificación inválido');
+    return data;
+  },
+
+  /**
+   * Deshabilitar MFA
+   */
+  async deshabilitarMFA(codigo) {
+    const response = await fetch(`${API_URL}/mfa/disable`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ codigo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.mensaje || 'Error al deshabilitar MFA');
+    return data;
+  },
 };
