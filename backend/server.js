@@ -25,6 +25,8 @@ import { walletRoutes } from './src/features/wallet/index.js';
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
+// Import community routes
+import registerCommunityRoutes from './src/features/community/index.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
@@ -105,6 +107,8 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
 
+// Community routes
+registerCommunityRoutes(app);
 // Wallet routes (Gestión de Billetera)
 app.use('/api/wallet', apiLimiter, walletRoutes);
 
