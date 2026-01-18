@@ -24,6 +24,9 @@ import { walletRoutes } from './src/features/wallet/index.js';
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
+// Import Family Sharing routes (Grupo 3 - Family Sharing)
+import { familyRoutes } from './src/features/family/index.js';
+
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
@@ -103,6 +106,9 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
+
+// Family Sharing routes (Grupo 3 - Family Sharing)
+app.use('/api/family', apiLimiter, familyRoutes);
 
 // Wallet routes (Gestión de Billetera)
 app.use('/api/wallet', apiLimiter, walletRoutes);
