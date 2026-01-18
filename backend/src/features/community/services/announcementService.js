@@ -23,6 +23,15 @@ export const announcementService = {
             throw new Error('Solo el dueño y moderadores pueden crear anuncios');
         }
 
+        // Si se va a fijar, primero desfijar todos los demás
+        if (announcementData.fijado) {
+            await supabase
+                .from('anuncios_grupo')
+                .update({ fijado: false })
+                .eq('id_grupo', groupId)
+                .eq('fijado', true);
+        }
+
         // Crear anuncio
         const { data: announcement, error: announcementError } = await supabase
             .from('anuncios_grupo')
@@ -33,6 +42,7 @@ export const announcementService = {
                 contenido: announcementData.contenido,
                 fecha_publicacion: announcementData.fecha_publicacion || new Date().toISOString(),
                 fecha_expiracion: announcementData.fecha_expiracion || null,
+                fijado: announcementData.fijado || false,
                 activo: true
             })
             .select()
@@ -91,6 +101,18 @@ export const announcementService = {
         if (updateData.contenido) updateFields.contenido = updateData.contenido;
         if (updateData.fecha_expiracion !== undefined) updateFields.fecha_expiracion = updateData.fecha_expiracion;
         if (updateData.activo !== undefined) updateFields.activo = updateData.activo;
+        if (updateData.fijado !== undefined) {
+            // Si se va a fijar, primero desfijar todos los demás
+            if (updateData.fijado === true) {
+                await supabase
+                    .from('anuncios_grupo')
+                    .update({ fijado: false })
+                    .eq('id_grupo', announcement.id_grupo)
+                    .eq('fijado', true)
+                    .neq('id', announcementId);
+            }
+            updateFields.fijado = updateData.fijado;
+        }
         updateFields.updated_at = new Date().toISOString();
 
         const { data: updated, error: updateError } = await supabase
@@ -156,6 +178,20 @@ export const announcementService = {
      * Obtener anuncios activos de un grupo
      */
     async getGroupAnnouncements(userId, groupId) {
+        // Primero, marcar anuncios expirados como inactivos
+        const now = new Date().toISOString();
+        await supabase
+            .from('anuncios_grupo')
+            .update({
+                activo: false,
+                fijado: false,
+                deleted_at: now
+            })
+            .eq('id_grupo', groupId)
+            .eq('activo', true)
+            .not('fecha_expiracion', 'is', null)
+            .lt('fecha_expiracion', now);
+
         // Verificar acceso al grupo
         const { data: grupo } = await supabase
             .from('grupos')
@@ -188,8 +224,7 @@ export const announcementService = {
             }
         }
 
-        // Obtener anuncios activos
-        const now = new Date().toISOString();
+        // Obtener anuncios activos (no expirados ni eliminados)
         const { data: announcements, error } = await supabase
             .from('anuncios_grupo')
             .select(`
@@ -198,6 +233,7 @@ export const announcementService = {
                 contenido,
                 fecha_publicacion,
                 fecha_expiracion,
+                fijado,
                 profiles!anuncios_grupo_id_autor_fkey (
                     id,
                     username
@@ -206,7 +242,6 @@ export const announcementService = {
             .eq('id_grupo', groupId)
             .eq('activo', true)
             .is('deleted_at', null)
-            .or(`fecha_expiracion.is.null,fecha_expiracion.gte.${now}`)
             .order('fecha_publicacion', { ascending: false });
 
         if (error) throw error;

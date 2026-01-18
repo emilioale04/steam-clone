@@ -118,9 +118,9 @@ export const groupController = {
         try {
             const userId = req.user.id;
             const { groupId, memberId } = req.params;
-            const { ban } = req.body; // true para banear, false para desbanear
+            const { ban, isPermanent, days } = req.body;
 
-            await groupService.banMember(userId, groupId, memberId, ban);
+            await groupService.banMember(userId, groupId, memberId, ban, isPermanent, days);
 
             res.json({
                 success: true,

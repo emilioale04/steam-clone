@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageSquare, Plus } from 'lucide-react';
 import { useForum } from '../hooks/useForum';
+import { useGroupDetails } from '../hooks/useGroups';
 import ThreadCard from '../components/ThreadCard';
 import CreateThreadModal from '../components/CreateThreadModal';
 
@@ -9,8 +10,11 @@ export default function ForumPage() {
     const { groupId } = useParams();
     const navigate = useNavigate();
     const { threads, forum, loading, error, fetchForum, fetchThreads, createThread } = useForum(groupId);
+    const { group } = useGroupDetails(groupId);
     const [isCreatingThread, setIsCreatingThread] = useState(false);
     const [creatingThreadLoading, setCreatingThreadLoading] = useState(false);
+
+    const isMember = group?.user_membership !== null;
 
     useEffect(() => {
         fetchForum();
@@ -55,13 +59,20 @@ export default function ForumPage() {
                                 Participa en las discusiones y comparte tus ideas
                             </p>
                         </div>
-                        <button
-                            onClick={() => setIsCreatingThread(true)}
-                            className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors flex items-center gap-2 font-semibold"
-                        >
-                            <Plus size={20} />
-                            Nuevo Hilo
-                        </button>
+                        {isMember ? (
+                            <button
+                                onClick={() => setIsCreatingThread(true)}
+                                className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors flex items-center gap-2 font-semibold"
+                            >
+                                <Plus size={20} />
+                                Nuevo Hilo
+                            </button>
+                        ) : (
+                            <div className="px-6 py-3 bg-blue-600/20 text-blue-400 rounded-lg flex items-center gap-2 font-semibold border border-blue-500/30">
+                                <Plus size={20} />
+                                Únete a este grupo para publicar un hilo
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

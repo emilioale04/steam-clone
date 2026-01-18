@@ -131,7 +131,7 @@ export const forumService = {
     },
 
     /**
-     * RG-002 - Cerrar/abrir hilo (Owner y Moderator)
+     * RG-002 - Cerrar/abrir hilo (Owner, Moderator o autor del hilo)
      */
     async toggleThreadStatus(userId, threadId, close = true) {
         // Obtener información del hilo
@@ -139,6 +139,7 @@ export const forumService = {
             .from('hilos')
             .select(`
                 id,
+                id_autor,
                 foros (
                     id_grupo
                 )
@@ -151,7 +152,9 @@ export const forumService = {
             throw new Error('Hilo no encontrado');
         }
 
-        // Verificar permisos (Owner o Moderator)
+        // Verificar permisos (Owner, Moderator o autor)
+        const isAuthor = hilo.id_autor === userId;
+
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
             .select('rol')
@@ -165,8 +168,10 @@ export const forumService = {
             throw new Error('No eres miembro de este grupo');
         }
 
-        if (member.rol !== 'Owner' && member.rol !== 'Moderator') {
-            throw new Error('No tienes permisos para cerrar/abrir hilos');
+        const isModerator = member.rol === 'Owner' || member.rol === 'Moderator';
+
+        if (!isAuthor && !isModerator) {
+            throw new Error('No tienes permisos para cerrar/abrir este hilo');
         }
 
         // Actualizar estado
@@ -182,7 +187,7 @@ export const forumService = {
     },
 
     /**
-     * RG-002 - Eliminar hilo (Owner y Moderator)
+     * RG-002 - Eliminar hilo (Owner, Moderator o autor del hilo)
      */
     async deleteThread(userId, threadId) {
         // Obtener información del hilo
@@ -190,6 +195,7 @@ export const forumService = {
             .from('hilos')
             .select(`
                 id,
+                id_autor,
                 foros (
                     id_grupo
                 )
@@ -202,7 +208,9 @@ export const forumService = {
             throw new Error('Hilo no encontrado');
         }
 
-        // Verificar permisos
+        // Verificar permisos (Owner, Moderator o autor)
+        const isAuthor = hilo.id_autor === userId;
+
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
             .select('rol')
@@ -216,8 +224,10 @@ export const forumService = {
             throw new Error('No eres miembro de este grupo');
         }
 
-        if (member.rol !== 'Owner' && member.rol !== 'Moderator') {
-            throw new Error('No tienes permisos para eliminar hilos');
+        const isModerator = member.rol === 'Owner' || member.rol === 'Moderator';
+
+        if (!isAuthor && !isModerator) {
+            throw new Error('No tienes permisos para eliminar este hilo');
         }
 
         // Soft delete
@@ -317,6 +327,24 @@ export const forumService = {
             .eq('id', commentId);
 
         return { success: true };
+    },
+
+    /**
+     * Obtener detalles de un comentario
+     */
+    async getCommentDetails(commentId) {
+        const { data: comment, error } = await supabase
+            .from('comentarios')
+            .select('id, id_autor, id_hilo, contenido, created_at, editado')
+            .eq('id', commentId)
+            .is('deleted_at', null)
+            .single();
+
+        if (error || !comment) {
+            throw new Error('Comentario no encontrado');
+        }
+
+        return comment;
     },
 
     /**
@@ -497,6 +525,24 @@ export const forumService = {
     },
 
     /**
+     * Obtener detalles básicos de un hilo por ID (para moderación)
+     */
+    async getThreadById(threadId) {
+        const { data: thread, error } = await supabase
+            .from('hilos')
+            .select('id, id_autor, titulo, estado, created_at')
+            .eq('id', threadId)
+            .is('deleted_at', null)
+            .single();
+
+        if (error || !thread) {
+            throw new Error('Hilo no encontrado');
+        }
+
+        return thread;
+    },
+
+    /**
      * Obtener todos los foros de un grupo
      */
     async getGroupForums(userId, groupId) {
@@ -600,5 +646,108 @@ export const forumService = {
         if (foroError) throw foroError;
 
         return foro;
+    },
+
+    /**
+     * Cerrar/abrir foro (solo Owner y Moderator)
+     */
+    async toggleForumStatus(userId, forumId, close = true) {
+        // Obtener información del foro
+        const { data: foro, error: foroError } = await supabase
+            .from('foros')
+            .select(`
+                id,
+                id_grupo,
+                estado
+            `)
+            .eq('id', forumId)
+            .is('deleted_at', null)
+            .single();
+
+        if (foroError || !foro) {
+            throw new Error('Foro no encontrado');
+        }
+
+        // Verificar permisos (Owner o Moderator)
+        const { data: member, error: memberError } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', foro.id_grupo)
+            .eq('id_perfil', userId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (memberError || !member) {
+            throw new Error('No eres miembro de este grupo');
+        }
+
+        const isModerator = member.rol === 'Owner' || member.rol === 'Moderator';
+
+        if (!isModerator) {
+            throw new Error('No tienes permisos para cerrar/abrir foros');
+        }
+
+        // Actualizar estado
+        const newStatus = close ? 'cerrado' : 'activo';
+        const { error: updateError } = await supabase
+            .from('foros')
+            .update({ 
+                estado: newStatus,
+                updated_at: new Date().toISOString() 
+            })
+            .eq('id', forumId);
+
+        if (updateError) throw updateError;
+
+        return { success: true, status: newStatus };
+    },
+
+    /**
+     * Eliminar foro (solo Owner y Moderator)
+     */
+    async deleteForum(userId, forumId) {
+        // Obtener información del foro
+        const { data: foro, error: foroError } = await supabase
+            .from('foros')
+            .select(`
+                id,
+                id_grupo
+            `)
+            .eq('id', forumId)
+            .is('deleted_at', null)
+            .single();
+
+        if (foroError || !foro) {
+            throw new Error('Foro no encontrado');
+        }
+
+        // Verificar permisos (Owner o Moderator)
+        const { data: member, error: memberError } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', foro.id_grupo)
+            .eq('id_perfil', userId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (memberError || !member) {
+            throw new Error('No eres miembro de este grupo');
+        }
+
+        const isModerator = member.rol === 'Owner' || member.rol === 'Moderator';
+
+        if (!isModerator) {
+            throw new Error('No tienes permisos para eliminar foros');
+        }
+
+        // Soft delete del foro
+        await supabase
+            .from('foros')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', forumId);
+
+        return { success: true };
     }
 };

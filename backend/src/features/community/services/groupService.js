@@ -113,6 +113,7 @@ export const groupService = {
         if (updateData.descripcion !== undefined) updateFields.descripcion = updateData.descripcion;
         if (updateData.avatar_url !== undefined) updateFields.avatar_url = updateData.avatar_url;
         if (updateData.visibilidad) updateFields.visibilidad = updateData.visibilidad;
+        if (updateData.reglas !== undefined) updateFields.reglas = updateData.reglas;
         updateFields.updated_at = new Date().toISOString();
 
         const { data: grupo, error: updateError } = await supabase
@@ -163,16 +164,15 @@ export const groupService = {
             throw new Error('Este grupo no está activo');
         }
 
-        // Verificar si ya es miembro
+        // Verificar si ya es miembro (incluyendo registros eliminados)
         const { data: existingMember } = await supabase
             .from('miembros_grupo')
-            .select('estado_membresia')
+            .select('id, estado_membresia, deleted_at')
             .eq('id_grupo', groupId)
             .eq('id_perfil', userId)
-            .is('deleted_at', null)
             .single();
 
-        if (existingMember) {
+        if (existingMember && !existingMember.deleted_at) {
             if (existingMember.estado_membresia === 'activo') {
                 throw new Error('Ya eres miembro de este grupo');
             }
@@ -181,20 +181,39 @@ export const groupService = {
             }
         }
 
+        // Si el usuario fue baneado previamente, no puede volver a unirse
+        if (existingMember && existingMember.estado_membresia === 'baneado') {
+            throw new Error('Has sido baneado de este grupo');
+        }
+
         // Lógica según visibilidad
         if (grupo.visibilidad === 'Open') {
-            // Unirse directamente
-            const { error: joinError } = await supabase
-                .from('miembros_grupo')
-                .insert({
-                    id_grupo: groupId,
-                    id_perfil: userId,
-                    rol: 'Member',
-                    estado_membresia: 'activo',
-                    fecha_union: new Date().toISOString()
-                });
+            // Si existe un registro eliminado, restaurarlo; si no, crear uno nuevo
+            if (existingMember && existingMember.deleted_at) {
+                const { error: updateError } = await supabase
+                    .from('miembros_grupo')
+                    .update({
+                        deleted_at: null,
+                        rol: 'Member',
+                        estado_membresia: 'activo',
+                        fecha_union: new Date().toISOString()
+                    })
+                    .eq('id', existingMember.id);
 
-            if (joinError) throw joinError;
+                if (updateError) throw updateError;
+            } else {
+                const { error: joinError } = await supabase
+                    .from('miembros_grupo')
+                    .insert({
+                        id_grupo: groupId,
+                        id_perfil: userId,
+                        rol: 'Member',
+                        estado_membresia: 'activo',
+                        fecha_union: new Date().toISOString()
+                    });
+
+                if (joinError) throw joinError;
+            }
             return { success: true, status: 'joined' };
         } else if (grupo.visibilidad === 'Restricted' || grupo.visibilidad === 'Closed') {
             // Verificar si tiene invitación pendiente
@@ -218,15 +237,28 @@ export const groupService = {
                     })
                     .eq('id', invitation.id);
 
-                await supabase
-                    .from('miembros_grupo')
-                    .insert({
-                        id_grupo: groupId,
-                        id_perfil: userId,
-                        rol: 'Member',
-                        estado_membresia: 'activo',
-                        fecha_union: new Date().toISOString()
-                    });
+                // Si existe un registro eliminado, restaurarlo; si no, crear uno nuevo
+                if (existingMember && existingMember.deleted_at) {
+                    await supabase
+                        .from('miembros_grupo')
+                        .update({
+                            deleted_at: null,
+                            rol: 'Member',
+                            estado_membresia: 'activo',
+                            fecha_union: new Date().toISOString()
+                        })
+                        .eq('id', existingMember.id);
+                } else {
+                    await supabase
+                        .from('miembros_grupo')
+                        .insert({
+                            id_grupo: groupId,
+                            id_perfil: userId,
+                            rol: 'Member',
+                            estado_membresia: 'activo',
+                            fecha_union: new Date().toISOString()
+                        });
+                }
 
                 return { success: true, status: 'joined' };
             }
@@ -389,7 +421,7 @@ export const groupService = {
     /**
      * RG-006 - Banear/desbanear miembro (Owner y Moderator)
      */
-    async banMember(requesterId, groupId, targetUserId, isBan = true) {
+    async banMember(requesterId, groupId, targetUserId, isBan = true, isPermanent = true, days = null) {
         // Verificar permisos
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -421,14 +453,43 @@ export const groupService = {
         }
 
         // Banear o desbanear
-        const newStatus = isBan ? 'baneado' : 'activo';
-        const { error: updateError } = await supabase
-            .from('miembros_grupo')
-            .update({ estado_membresia: newStatus })
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', targetUserId);
+        if (isBan) {
+            const updateData = { 
+                estado_membresia: 'baneado',
+                updated_at: new Date().toISOString()
+            };
 
-        if (updateError) throw updateError;
+            // Si es temporal, calcular fecha de fin del baneo
+            if (!isPermanent && days) {
+                const banEndDate = new Date();
+                banEndDate.setDate(banEndDate.getDate() + days);
+                updateData.fecha_fin_baneo = banEndDate.toISOString();
+            } else {
+                // Si es permanente, asegurarse de que no hay fecha de fin
+                updateData.fecha_fin_baneo = null;
+            }
+
+            const { error: updateError } = await supabase
+                .from('miembros_grupo')
+                .update(updateData)
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', targetUserId);
+
+            if (updateError) throw updateError;
+        } else {
+            // Desbanear
+            const { error: updateError } = await supabase
+                .from('miembros_grupo')
+                .update({ 
+                    estado_membresia: 'activo',
+                    fecha_fin_baneo: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', targetUserId);
+
+            if (updateError) throw updateError;
+        }
 
         return { success: true };
     },

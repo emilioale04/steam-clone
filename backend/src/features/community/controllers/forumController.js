@@ -134,6 +134,26 @@ export const forumController = {
         }
     },
 
+    // Obtener detalles de un comentario
+    async getCommentDetails(req, res) {
+        try {
+            const { commentId } = req.params;
+
+            const comment = await forumService.getCommentDetails(commentId);
+
+            res.json({
+                success: true,
+                data: comment
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error getting comment details:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al obtener el comentario'
+            });
+        }
+    },
+
     // Obtener hilos de un grupo
     async getGroupThreads(req, res) {
         try {
@@ -182,6 +202,26 @@ export const forumController = {
         }
     },
 
+    // Obtener detalles básicos de un hilo por ID (para moderación)
+    async getThreadById(req, res) {
+        try {
+            const { threadId } = req.params;
+
+            const thread = await forumService.getThreadById(threadId);
+
+            res.json({
+                success: true,
+                data: thread
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error getting thread by id:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al obtener el hilo'
+            });
+        }
+    },
+
     // Obtener todos los foros de un grupo
     async getGroupForums(req, res) {
         try {
@@ -222,6 +262,50 @@ export const forumController = {
             res.status(400).json({
                 success: false,
                 message: error.message || 'Error al crear el foro'
+            });
+        }
+    },
+
+    // Cerrar/abrir foro
+    async toggleForumStatus(req, res) {
+        try {
+            const userId = req.user.id;
+            const { forumId } = req.params;
+            const { close } = req.body;
+
+            const result = await forumService.toggleForumStatus(userId, forumId, close);
+
+            res.json({
+                success: true,
+                message: close ? 'Foro cerrado exitosamente' : 'Foro abierto exitosamente',
+                data: result
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error toggling forum status:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al cambiar el estado del foro'
+            });
+        }
+    },
+
+    // Eliminar foro
+    async deleteForum(req, res) {
+        try {
+            const userId = req.user.id;
+            const { forumId } = req.params;
+
+            await forumService.deleteForum(userId, forumId);
+
+            res.json({
+                success: true,
+                message: 'Foro eliminado exitosamente'
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error deleting forum:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al eliminar el foro'
             });
         }
     }

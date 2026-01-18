@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Eye, Lock, ChevronDown, ChevronUp, CornerDownRight } from 'lucide-react';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { useGroupDetails } from '../hooks/useGroups';
 import CommentBox from './CommentBox';
+import ThreadActions from './ThreadActions';
+import CommentActions from './CommentActions';
 import { forumService } from '../services/forumService';
 
-export default function ThreadCard({ thread, groupId }) {
+export default function ThreadCard({ thread, groupId, onThreadDeleted }) {
+    const { user } = useAuth();
+    const { group } = useGroupDetails(groupId);
     const [isExpanded, setIsExpanded] = useState(false);
     const [showCommentBox, setShowCommentBox] = useState(false);
     const [replyingTo, setReplyingTo] = useState(null);
@@ -11,7 +17,18 @@ export default function ThreadCard({ thread, groupId }) {
     const [displayedComments, setDisplayedComments] = useState(3);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [expandedReplies, setExpandedReplies] = useState({});
     const COMMENTS_PER_PAGE = 5;
+
+    const isMember = group?.user_membership !== null;
+    const userRole = group?.user_membership?.rol;
+
+    const toggleReplies = (commentId) => {
+        setExpandedReplies(prev => ({
+            ...prev,
+            [commentId]: !prev[commentId]
+        }));
+    };
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -70,6 +87,40 @@ export default function ThreadCard({ thread, groupId }) {
         }
     };
 
+    const handleToggleThreadStatus = async (close) => {
+        try {
+            await forumService.toggleThreadStatus(thread.id, close);
+            window.location.reload(); // Refresh to show updated status
+        } catch (err) {
+            console.error('Error toggling thread status:', err);
+        }
+    };
+
+    const handleDeleteThread = async () => {
+        try {
+            await forumService.deleteThread(thread.id);
+            if (onThreadDeleted) {
+                onThreadDeleted(thread.id);
+            }
+        } catch (err) {
+            console.error('Error deleting thread:', err);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        try {
+            await forumService.deleteComment(commentId);
+            await loadComments(); // Refresh comments
+        } catch (err) {
+            console.error('Error deleting comment:', err);
+        }
+    };
+
+    const handleEditComment = (comment) => {
+        // Implementar lógica de edición si es necesario
+        console.log('Edit comment:', comment);
+    };
+
     // Organizar comentarios en estructura jerárquica
     const organizeComments = (allComments) => {
         const topLevelComments = allComments.filter(c => !c.id_comentario_padre);
@@ -96,44 +147,86 @@ export default function ThreadCard({ thread, groupId }) {
         <div className={`${depth > 0 ? 'ml-8 mt-2' : ''}`}>
             <div className="bg-[#1b2838] rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center shrink-0">
                         <span className="text-blue-400 font-semibold">
                             {comment.profiles?.username?.[0]?.toUpperCase() || 'U'}
                         </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-white">
-                                {comment.profiles?.username || 'Usuario'}
-                            </span>
-                            <span className="text-gray-500 text-sm">
-                                {formatDate(comment.fecha_publicacion)}
-                            </span>
-                            {comment.editado && (
-                                <span className="text-gray-500 text-xs italic">(editado)</span>
+                        <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white">
+                                    {comment.profiles?.username || 'Usuario'}
+                                </span>
+                                <span className="text-gray-500 text-sm">
+                                    {formatDate(comment.fecha_publicacion)}
+                                </span>
+                                {comment.editado && (
+                                    <span className="text-gray-500 text-xs italic">(editado)</span>
+                                )}
+                            </div>
+                            {user && (
+                                <CommentActions
+                                    comment={comment}
+                                    userRole={userRole}
+                                    userId={user.id}
+                                    groupId={groupId}
+                                    onEdit={() => handleEditComment(comment)}
+                                    onDelete={() => handleDeleteComment(comment.id)}
+                                />
                             )}
                         </div>
                         <p className="text-gray-300 whitespace-pre-wrap mb-2">
                             {comment.contenido}
                         </p>
-                        {thread.estado !== 'cerrado' && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                                }}
-                                className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
-                            >
-                                <CornerDownRight size={14} />
-                                Responder
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                            {thread.estado !== 'cerrado' && (
+                                isMember ? (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                                        }}
+                                        className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                                    >
+                                        <CornerDownRight size={14} />
+                                        Responder
+                                    </button>
+                                ) : (
+                                    <div className="text-sm text-blue-400/70 flex items-center gap-1">
+                                        <CornerDownRight size={14} />
+                                        Únete a este grupo para responder
+                                    </div>
+                                )
+                            )}
+                            {comment.replies && comment.replies.length > 0 && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleReplies(comment.id);
+                                    }}
+                                    className="text-sm text-gray-400 hover:text-gray-300 transition-colors flex items-center gap-1"
+                                >
+                                    {expandedReplies[comment.id] ? (
+                                        <>
+                                            <ChevronUp size={14} />
+                                            Ocultar respuestas ({comment.replies.length})
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ChevronDown size={14} />
+                                            Ver respuestas ({comment.replies.length})
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Reply Box */}
-            {replyingTo === comment.id && (
+            {isMember && replyingTo === comment.id && (
                 <div className="ml-8 mt-2" onClick={(e) => e.stopPropagation()}>
                     <CommentBox
                         onSubmit={(contenido) => handleComment(contenido, comment.id)}
@@ -145,7 +238,7 @@ export default function ThreadCard({ thread, groupId }) {
             )}
 
             {/* Nested Replies */}
-            {comment.replies && comment.replies.length > 0 && (
+            {comment.replies && comment.replies.length > 0 && expandedReplies[comment.id] && (
                 <div className="mt-2">
                     {comment.replies.map(reply => (
                         <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
@@ -162,7 +255,7 @@ export default function ThreadCard({ thread, groupId }) {
                 className="cursor-pointer"
                 onClick={toggleExpand}
             >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-semibold text-white hover:text-blue-400 transition-colors">
@@ -197,29 +290,48 @@ export default function ThreadCard({ thread, groupId }) {
                             </div>
                         </div>
                     </div>
+                    {user && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <ThreadActions
+                                thread={thread}
+                                userRole={userRole}
+                                userId={user.id}
+                                groupId={groupId}
+                                onToggleStatus={handleToggleThreadStatus}
+                                onDelete={handleDeleteThread}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Comment Button */}
             <div className="mt-4 pt-4 border-t border-gray-700">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCommentBox(!showCommentBox);
-                        if (!isExpanded) {
-                            toggleExpand();
-                        }
-                    }}
-                    className="text-gray-400 hover:text-blue-400 transition-colors flex items-center gap-2"
-                    disabled={thread.estado === 'cerrado'}
-                >
-                    <MessageSquare size={18} />
-                    <span>{thread.estado === 'cerrado' ? 'Hilo cerrado' : 'Comentar'}</span>
-                </button>
+                {isMember ? (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCommentBox(!showCommentBox);
+                            if (!isExpanded) {
+                                toggleExpand();
+                            }
+                        }}
+                        className="text-gray-400 hover:text-blue-400 transition-colors flex items-center gap-2"
+                        disabled={thread.estado === 'cerrado'}
+                    >
+                        <MessageSquare size={18} />
+                        <span>{thread.estado === 'cerrado' ? 'Hilo cerrado' : 'Comentar'}</span>
+                    </button>
+                ) : (
+                    <div className="text-blue-400 flex items-center gap-2">
+                        <MessageSquare size={18} />
+                        <span>Únete a este grupo para comentar</span>
+                    </div>
+                )}
             </div>
 
             {/* Comment Box */}
-            {showCommentBox && thread.estado !== 'cerrado' && (
+            {isMember && showCommentBox && thread.estado !== 'cerrado' && (
                 <div className="mt-4" onClick={(e) => e.stopPropagation()}>
                     <CommentBox
                         onSubmit={(contenido) => handleComment(contenido)}

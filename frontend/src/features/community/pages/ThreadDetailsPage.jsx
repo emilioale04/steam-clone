@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useThread } from '../hooks/useForum';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { useGroupDetails } from '../hooks/useGroups';
+import { forumService } from '../services/forumService';
 import CommentBox from '../components/CommentBox';
+import ThreadActions from '../components/ThreadActions';
+import CommentActions from '../components/CommentActions';
 
 export default function ThreadDetailsPage() {
     const { groupId, threadId } = useParams();
     const navigate = useNavigate();
-    const { thread, loading, error, fetchThread, createComment } = useThread(threadId);
+    const { user } = useAuth();
+    const { group } = useGroupDetails(groupId);
+    const { thread, loading, error, fetchThread, createComment, deleteComment } = useThread(threadId);
     const [, setReplyingTo] = useState(null);
+    const [editingComment, setEditingComment] = useState(null);
 
     useEffect(() => {
         fetchThread();
@@ -16,6 +24,38 @@ export default function ThreadDetailsPage() {
     const handleCreateComment = async (contenido) => {
         await createComment(contenido);
         setReplyingTo(null);
+    };
+
+    const handleToggleThreadStatus = async (close) => {
+        try {
+            await forumService.toggleThreadStatus(threadId, close);
+            await fetchThread();
+        } catch (err) {
+            console.error('Error toggling thread status:', err);
+        }
+    };
+
+    const handleDeleteThread = async () => {
+        try {
+            await forumService.deleteThread(threadId);
+            navigate(`/community/groups/${groupId}/forum`);
+        } catch (err) {
+            console.error('Error deleting thread:', err);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        try {
+            await deleteComment(commentId);
+            await fetchThread();
+        } catch (err) {
+            console.error('Error deleting comment:', err);
+        }
+    };
+
+    const handleEditComment = (comment) => {
+        setEditingComment(comment);
+        // Aquí podrías implementar la lógica de edición
     };
 
 
@@ -58,6 +98,8 @@ export default function ThreadDetailsPage() {
     if (!thread) return null;
 
     const isClosed = thread.estado === 'cerrado';
+    const isMember = group?.user_membership !== null;
+    const userRole = group?.user_membership?.rol;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -73,12 +115,24 @@ export default function ThreadDetailsPage() {
                         </svg>
                         Volver al foro
                     </button>
-                    <div className="flex items-center space-x-3">
-                        <h1 className="text-3xl font-bold text-gray-900">{thread.titulo}</h1>
-                        {isClosed && (
-                            <span className="px-3 py-1 text-sm font-semibold rounded bg-gray-100 text-gray-600">
-                                Cerrado
-                            </span>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <h1 className="text-3xl font-bold text-gray-900">{thread.titulo}</h1>
+                            {isClosed && (
+                                <span className="px-3 py-1 text-sm font-semibold rounded bg-gray-100 text-gray-600">
+                                    Cerrado
+                                </span>
+                            )}
+                        </div>
+                        {user && (
+                            <ThreadActions
+                                thread={thread}
+                                userRole={userRole}
+                                userId={user.id}
+                                groupId={groupId}
+                                onToggleStatus={handleToggleThreadStatus}
+                                onDelete={handleDeleteThread}
+                            />
                         )}
                     </div>
                 </div>
@@ -139,19 +193,31 @@ export default function ThreadDetailsPage() {
                                         </div>
                                     </div>
                                     <div className="flex-1">
-                                        <div className="flex items-center space-x-2">
-                                            <p className="font-semibold text-gray-900">
-                                                {comment.profiles?.username || 'Usuario'}
-                                            </p>
-                                            <span className="text-gray-500">•</span>
-                                            <p className="text-sm text-gray-500">
-                                                {formatDate(comment.fecha_publicacion)}
-                                            </p>
-                                            {comment.editado && (
-                                                <>
-                                                    <span className="text-gray-500">•</span>
-                                                    <p className="text-xs text-gray-400 italic">Editado</p>
-                                                </>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-2">
+                                                <p className="font-semibold text-gray-900">
+                                                    {comment.profiles?.username || 'Usuario'}
+                                                </p>
+                                                <span className="text-gray-500">•</span>
+                                                <p className="text-sm text-gray-500">
+                                                    {formatDate(comment.fecha_publicacion)}
+                                                </p>
+                                                {comment.editado && (
+                                                    <>
+                                                        <span className="text-gray-500">•</span>
+                                                        <p className="text-xs text-gray-400 italic">Editado</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                            {user && (
+                                                <CommentActions
+                                                    comment={comment}
+                                                    userRole={userRole}
+                                                    userId={user.id}
+                                                    groupId={groupId}
+                                                    onEdit={() => handleEditComment(comment)}
+                                                    onDelete={() => handleDeleteComment(comment.id)}
+                                                />
                                             )}
                                         </div>
                                         <div className="mt-2 text-gray-700 whitespace-pre-wrap">
@@ -164,13 +230,21 @@ export default function ThreadDetailsPage() {
                     ))}
 
                     {/* New Comment */}
-                    {!isClosed && (
+                    {!isClosed && isMember && (
                         <div className="mt-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Responder</h3>
                             <CommentBox
                                 onSubmit={handleCreateComment}
                                 submitLabel="Publicar Respuesta"
                             />
+                        </div>
+                    )}
+                    
+                    {!isClosed && !isMember && (
+                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                            <p className="text-blue-800 font-semibold">
+                                Únete a este grupo para comentar
+                            </p>
                         </div>
                     )}
 

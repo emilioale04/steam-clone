@@ -135,5 +135,31 @@ export const forumService = {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
         return data;
+    },
+
+    // Cerrar/abrir foro
+    async toggleForumStatus(forumId, close = true) {
+        const response = await fetch(`${API_URL}/forums/${forumId}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ close })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        return data;
+    },
+
+    // Eliminar foro
+    async deleteForum(forumId) {
+        const response = await fetch(`${API_URL}/forums/${forumId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        return data;
     }
 };
