@@ -13,9 +13,4 @@ router.get('/groups/:groupId/announcements', communityController.getGroupAnnounc
 router.put('/announcements/:announcementId', communityController.updateAnnouncement);
 router.delete('/announcements/:announcementId', communityController.deleteAnnouncement);
 
-// Reportes
-router.post('/reports', communityController.createReport);
-router.get('/groups/:groupId/reports', communityController.getGroupReports);
-router.post('/reports/:reportId/resolve', communityController.resolveReport);
-
 export default router;

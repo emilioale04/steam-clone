@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, AlertTriangle, Ban, CheckCircle, XCircle, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
 import { useGroupDetails, useGroups } from '../hooks/useGroups';
-import { useAnnouncements, useReports } from '../hooks/useCommunity';
+import { useAnnouncements } from '../hooks/useCommunity';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { forumService } from '../services/forumService';
 import AnnouncementBanner from '../components/AnnouncementBanner';
@@ -10,8 +10,6 @@ import CreateForumModal from '../components/CreateForumModal';
 import CreateAnnouncementModal from '../components/CreateAnnouncementModal';
 import GroupSettingsForm from '../components/GroupSettingsForm';
 import ForumActions from '../components/ForumActions';
-import ReportButton from '../components/ReportButton';
-import BanUserModal from '../components/BanUserModal';
 
 export default function GroupDetailsPage() {
     const { groupId } = useParams();
@@ -26,8 +24,6 @@ export default function GroupDetailsPage() {
     const [leavingGroup, setLeavingGroup] = useState(false);
     const [isEditingRules, setIsEditingRules] = useState(false);
     const [rulesText, setRulesText] = useState('');
-    const [isBanModalOpen, setIsBanModalOpen] = useState(false);
-    const [selectedReport, setSelectedReport] = useState(null);
     const [searchMember, setSearchMember] = useState('');
     const [isOwnerSectionExpanded, setIsOwnerSectionExpanded] = useState(true);
     const [isModeratorsExpanded, setIsModeratorsExpanded] = useState(true);
@@ -50,16 +46,14 @@ export default function GroupDetailsPage() {
     } = useGroupDetails(groupId);
     const { joinGroup, leaveGroup } = useGroups();
     const { announcements, loading: loadingAnnouncements, createAnnouncement, updateAnnouncement, fetchAnnouncements } = useAnnouncements(groupId);
-    const { reports, loading: loadingReports, fetchReports, resolveReport } = useReports(groupId);
 
     useEffect(() => {
         fetchGroupDetails();
         fetchMembers();
         fetchPendingRequests();
         fetchAnnouncements();
-        fetchReports();
         loadForums();
-    }, [fetchGroupDetails, fetchMembers, fetchPendingRequests, fetchAnnouncements, fetchReports]);
+    }, [fetchGroupDetails, fetchMembers, fetchPendingRequests, fetchAnnouncements]);
 
     const loadForums = async () => {
         try {
@@ -186,86 +180,6 @@ export default function GroupDetailsPage() {
         } catch (err) {
             console.error('Error toggling pin:', err);
             alert(err.message || 'Error al fijar/desfijar el anuncio');
-        }
-    };
-
-    const handleBanUser = async (banData) => {
-        try {
-            // Obtener el usuario reportado desde el objetivo
-            let targetUserId;
-            if (selectedReport.tipo_objetivo === 'hilo') {
-                const response = await fetch(`http://localhost:3000/api/community/forums/threads/${selectedReport.id_objetivo}/details`, {
-                    credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(`Error obteniendo hilo: ${error.message || response.statusText}`);
-                }
-                
-                const data = await response.json();
-                targetUserId = data.data?.id_autor;
-                
-                if (!targetUserId) {
-                    console.error('Response data:', data);
-                    throw new Error('No se encontró el autor del hilo en la respuesta');
-                }
-            } else if (selectedReport.tipo_objetivo === 'comentario') {
-                const response = await fetch(`http://localhost:3000/api/community/forums/comments/${selectedReport.id_objetivo}`, {
-                    credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(`Error obteniendo comentario: ${error.message || response.statusText}`);
-                }
-                
-                const data = await response.json();
-                targetUserId = data.data?.id_autor;
-                
-                if (!targetUserId) {
-                    console.error('Response data:', data);
-                    throw new Error('No se encontró el autor del comentario en la respuesta');
-                }
-            } else if (selectedReport.tipo_objetivo === 'usuario') {
-                targetUserId = selectedReport.id_objetivo;
-            }
-
-            if (!targetUserId) {
-                throw new Error('No se pudo determinar el usuario a banear');
-            }
-
-            console.log('Baneando usuario:', targetUserId);
-
-            // Banear al usuario
-            const banResponse = await fetch(`http://localhost:3000/api/community/groups/${groupId}/members/${targetUserId}/ban`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ 
-                    ban: true, 
-                    isPermanent: banData.isPermanent,
-                    days: banData.days
-                })
-            });
-
-            if (!banResponse.ok) {
-                const error = await banResponse.json();
-                throw new Error(error.message || 'Error al banear usuario');
-            }
-
-            // Marcar el reporte como resuelto
-            await resolveReport(selectedReport.id, {
-                estado: 'resuelto',
-                notas: banData.isPermanent ? 'Usuario baneado permanentemente' : `Usuario baneado por ${banData.days} días`
-            });
-
-            alert('Usuario baneado exitosamente');
-            fetchReports();
-            fetchMembers();
-        } catch (err) {
-            console.error('Error en handleBanUser:', err);
-            alert(err.message || 'Error al banear usuario');
         }
     };
 
@@ -612,15 +526,6 @@ export default function GroupDetailsPage() {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {getRoleBadge(member.rol)}
-                                                    {user && member.profiles?.id !== user.id && (
-                                                        <ReportButton
-                                                            targetId={member.profiles?.id}
-                                                            targetType="perfil"
-                                                            groupId={groupId}
-                                                            targetTitle={member.profiles?.username}
-                                                            variant="icon"
-                                                        />
-                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -676,15 +581,6 @@ export default function GroupDetailsPage() {
                                                     ) : (
                                                         getRoleBadge(member.rol)
                                                     )}
-                                                    {user && member.profiles?.id !== user.id && (
-                                                        <ReportButton
-                                                            targetId={member.profiles?.id}
-                                                            targetType="perfil"
-                                                            groupId={groupId}
-                                                            targetTitle={member.profiles?.username}
-                                                            variant="icon"
-                                                        />
-                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -739,15 +635,6 @@ export default function GroupDetailsPage() {
                                                         </select>
                                                     ) : (
                                                         getRoleBadge(member.rol)
-                                                    )}
-                                                    {user && member.profiles?.id !== user.id && (
-                                                        <ReportButton
-                                                            targetId={member.profiles?.id}
-                                                            targetType="perfil"
-                                                            groupId={groupId}
-                                                            targetTitle={member.profiles?.username}
-                                                            variant="icon"
-                                                        />
                                                     )}
                                                 </div>
                                             </div>
@@ -1014,104 +901,6 @@ export default function GroupDetailsPage() {
                                 )}
                             </div>
                         </div>
-
-                        {/* Reportes del Grupo */}
-                        <div className="bg-[#2a475e] rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                                <AlertTriangle className="text-yellow-400" size={24} />
-                                Reportes del Grupo
-                            </h3>
-                            {loadingReports ? (
-                                <p className="text-gray-400 text-center py-4">Cargando reportes...</p>
-                            ) : reports.length === 0 ? (
-                                <p className="text-gray-400 text-center py-4">
-                                    No hay reportes pendientes
-                                </p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {reports.map((report) => (
-                                        <div key={report.id} className="bg-[#1b2838] rounded-lg p-4">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-white font-semibold">
-                                                            Reportado por: {report.profiles?.username || 'Usuario'}
-                                                        </span>
-                                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                                            report.estado === 'pendiente' ? 'bg-yellow-600 text-white' :
-                                                            report.estado === 'resuelto' ? 'bg-green-600 text-white' :
-                                                            'bg-gray-600 text-white'
-                                                        }`}>
-                                                            {report.estado}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-gray-400 text-sm mb-2">
-                                                        Tipo: {report.tipo_objetivo} • ID: {report.id_objetivo}
-                                                    </p>
-                                                    <p className="text-gray-300">
-                                                        Motivo: {report.motivo}
-                                                    </p>
-                                                    <p className="text-gray-500 text-xs mt-1">
-                                                        {new Date(report.created_at).toLocaleString('es-ES')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {report.estado === 'pendiente' && (
-                                                <div className="flex gap-2 mt-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedReport({
-                                                                ...report,
-                                                                reporterName: report.profiles?.username || 'Usuario'
-                                                            });
-                                                            setIsBanModalOpen(true);
-                                                        }}
-                                                        className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded transition-colors text-sm font-semibold"
-                                                    >
-                                                        <Ban size={14} />
-                                                        Banear Usuario
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            try {
-                                                                await resolveReport(report.id, {
-                                                                    estado: 'resuelto',
-                                                                    notas: 'Resuelto sin acción'
-                                                                });
-                                                                alert('Reporte marcado como resuelto');
-                                                            } catch (err) {
-                                                                alert(err.message || 'Error al resolver reporte');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded transition-colors text-sm font-semibold"
-                                                    >
-                                                        <CheckCircle size={14} />
-                                                        Resolver
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            try {
-                                                                await resolveReport(report.id, {
-                                                                    estado: 'rechazado',
-                                                                    notas: 'Reporte rechazado'
-                                                                });
-                                                                alert('Reporte rechazado');
-                                                            } catch (err) {
-                                                                alert(err.message || 'Error al rechazar reporte');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors text-sm font-semibold"
-                                                    >
-                                                        <XCircle size={14} />
-                                                        Rechazar
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
                     </div>
                 )}
 
@@ -1148,17 +937,6 @@ export default function GroupDetailsPage() {
                 onClose={() => setIsCreateAnnouncementModalOpen(false)}
                 onSubmit={handleCreateAnnouncement}
                 loading={loadingAnnouncements}
-            />
-
-            {/* Ban User Modal */}
-            <BanUserModal
-                isOpen={isBanModalOpen}
-                onClose={() => {
-                    setIsBanModalOpen(false);
-                    setSelectedReport(null);
-                }}
-                onConfirm={handleBanUser}
-                reportData={selectedReport}
             />
         </div>
     );

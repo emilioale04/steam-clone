@@ -167,6 +167,42 @@ export async function registrarActualizarGrupo(userId, grupoId, cambios, ipAddre
 }
 
 /**
+ * Registra baneo de usuario
+ */
+export async function registrarBanearUsuario(moderadorId, grupoId, usuarioId, isPermanent, days, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.BANEAR_USUARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_baneado: usuarioId,
+            tipo_baneo: isPermanent ? 'permanente' : 'temporal',
+            duracion_dias: days || null,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra desbaneo de usuario
+ */
+export async function registrarDesbanearUsuario(moderadorId, grupoId, usuarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.DESBANEAR_USUARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_desbaneado: usuarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
  * Obtiene logs de un usuario específico
  */
 export async function obtenerLogsPorUsuario(userId, limite = 50) {

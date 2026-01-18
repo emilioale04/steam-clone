@@ -144,8 +144,9 @@ export const groupController = {
             const userId = req.user.id;
             const { groupId, memberId } = req.params;
             const { ban, isPermanent, days } = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await groupService.banMember(userId, groupId, memberId, ban, isPermanent, days);
+            await groupService.banMember(userId, groupId, memberId, ban, isPermanent, days, ipAddress);
 
             res.json({
                 success: true,

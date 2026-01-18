@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, Lock, Unlock, Trash2, AlertCircle, Flag } from 'lucide-react';
-import ReportModal from './ReportModal';
+import { MoreVertical, Lock, Unlock, Trash2, AlertCircle } from 'lucide-react';
 
 export default function ForumActions({ 
     forum, 
@@ -11,14 +10,13 @@ export default function ForumActions({
 }) {
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirm, setShowConfirm] = useState(null);
-    const [showReportModal, setShowReportModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Owner y Moderator pueden ver acciones de moderación
     const isModerator = userRole === 'Owner' || userRole === 'Moderator';
-    
-    // Siempre mostrar el menú (al menos para reportar)
+
+    if (!isModerator) return null;
     const showActions = true;
 
     if (!showActions) return null;
@@ -118,32 +116,9 @@ export default function ForumActions({
                                 </button>
                             </>
                         )}
-
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setShowReportModal(true);
-                                setShowMenu(false);
-                            }}
-                            className={`w-full px-4 py-3 text-left hover:bg-yellow-500/10 transition-colors flex items-center gap-3 text-yellow-400 hover:text-yellow-300 ${
-                                isModerator ? 'border-t border-[#2a475e]' : ''
-                            }`}
-                        >
-                            <Flag size={18} />
-                            <span>Reportar foro</span>
-                        </button>
                     </div>
                 </>
             )}
-
-            <ReportModal
-                isOpen={showReportModal}
-                onClose={() => setShowReportModal(false)}
-                targetId={forum.id}
-                targetType="grupo"
-                groupId={groupId}
-                targetTitle={forum.titulo}
-            />
 
             {showConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

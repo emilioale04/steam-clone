@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, Lock, Unlock, Trash2, AlertCircle, Flag } from 'lucide-react';
-import ReportModal from './ReportModal';
+import { MoreVertical, Lock, Unlock, Trash2, AlertCircle } from 'lucide-react';
 
 export default function ThreadActions({ 
     thread, 
@@ -12,7 +11,6 @@ export default function ThreadActions({
 }) {
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirm, setShowConfirm] = useState(null);
-    const [showReportModal, setShowReportModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -23,8 +21,7 @@ export default function ThreadActions({
 
     const isClosed = thread.estado === 'cerrado';
 
-    // Siempre mostrar el menú (al menos para reportar)
-    // if (!canModify) return null; // Removido para permitir reportar
+    if (!canModify) return null;
 
     const handleToggleStatus = async () => {
         setLoading(true);
@@ -110,33 +107,9 @@ export default function ThreadActions({
                                 </button>
                             </>
                         )}
-
-                        {!isAuthor && (
-                            <button
-                                onClick={() => {
-                                    setShowReportModal(true);
-                                    setShowMenu(false);
-                                }}
-                                className={`w-full px-4 py-3 text-left hover:bg-yellow-500/10 transition-colors flex items-center gap-3 text-yellow-400 hover:text-yellow-300 ${
-                                    canModify ? 'border-t border-[#2a475e]' : ''
-                                }`}
-                            >
-                                <Flag size={18} />
-                                <span>Reportar hilo</span>
-                            </button>
-                        )}
                     </div>
                 </>
             )}
-
-            <ReportModal
-                isOpen={showReportModal}
-                onClose={() => setShowReportModal(false)}
-                targetId={thread.id}
-                targetType="hilo"
-                groupId={groupId}
-                targetTitle={thread.titulo}
-            />
 
             {showConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

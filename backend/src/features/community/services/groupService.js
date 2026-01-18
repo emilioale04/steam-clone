@@ -1,5 +1,11 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
-import { registrarCrearGrupo, registrarEliminarGrupo, registrarActualizarGrupo } from '../utils/auditLogger.js';
+import { 
+    registrarCrearGrupo, 
+    registrarEliminarGrupo, 
+    registrarActualizarGrupo,
+    registrarBanearUsuario,
+    registrarDesbanearUsuario
+} from '../utils/auditLogger.js';
 
 export const groupService = {
     /**
@@ -497,7 +503,7 @@ export const groupService = {
     /**
      * RG-006 - Banear/desbanear miembro (Owner y Moderator)
      */
-    async banMember(requesterId, groupId, targetUserId, isBan = true, isPermanent = true, days = null) {
+    async banMember(requesterId, groupId, targetUserId, isBan = true, isPermanent = true, days = null, ipAddress = null) {
         // Verificar permisos
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -552,6 +558,16 @@ export const groupService = {
                 .eq('id_perfil', targetUserId);
 
             if (updateError) throw updateError;
+
+            // Registrar log de auditoría
+            await registrarBanearUsuario(
+                requesterId,
+                groupId,
+                targetUserId,
+                isPermanent,
+                days,
+                ipAddress
+            );
         } else {
             // Desbanear
             const { error: updateError } = await supabase
@@ -565,6 +581,14 @@ export const groupService = {
                 .eq('id_perfil', targetUserId);
 
             if (updateError) throw updateError;
+
+            // Registrar log de auditoría
+            await registrarDesbanearUsuario(
+                requesterId,
+                groupId,
+                targetUserId,
+                ipAddress
+            );
         }
 
         return { success: true };

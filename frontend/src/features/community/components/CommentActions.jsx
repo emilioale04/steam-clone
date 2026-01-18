@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, Edit, Trash2, AlertCircle, Flag } from 'lucide-react';
-import ReportModal from './ReportModal';
+import { MoreVertical, Edit, Trash2, AlertCircle } from 'lucide-react';
 
 export default function CommentActions({ 
     comment, 
@@ -12,7 +11,6 @@ export default function CommentActions({
 }) {
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [showReportModal, setShowReportModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -22,7 +20,7 @@ export default function CommentActions({
     const canEdit = isAuthor;
     const canDelete = isAuthor || isModerator;
 
-    // Siempre mostrar menú (al menos para reportar)
+    if (!canEdit && !canDelete) return null;
     const showActions = true;
 
     if (!showActions) return null;
@@ -95,33 +93,9 @@ export default function CommentActions({
                                 <span>Eliminar</span>
                             </button>
                         )}
-
-                        {!isAuthor && (
-                            <button
-                                onClick={() => {
-                                    setShowReportModal(true);
-                                    setShowMenu(false);
-                                }}
-                                className={`w-full px-4 py-2.5 text-left hover:bg-yellow-500/10 transition-colors flex items-center gap-3 text-yellow-400 hover:text-yellow-300 ${
-                                    canEdit || canDelete ? 'border-t border-[#2a475e]' : ''
-                                }`}
-                                disabled={loading}
-                            >
-                                <Flag size={16} />
-                                <span>Reportar</span>
-                            </button>
-                        )}
                     </div>
                 </>
             )}
-
-            <ReportModal
-                isOpen={showReportModal}
-                onClose={() => setShowReportModal(false)}
-                targetId={comment.id}
-                targetType="comentario"
-                groupId={groupId}
-            />
 
             {showConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { announcementService, reportService } from '../services/communityService';
+import { announcementService } from '../services/communityService';
 
 export function useAnnouncements(groupId) {
     const [announcements, setAnnouncements] = useState([]);
@@ -73,64 +73,5 @@ export function useAnnouncements(groupId) {
         createAnnouncement,
         updateAnnouncement,
         deleteAnnouncement
-    };
-}
-
-export function useReports(groupId) {
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    const fetchReports = useCallback(async () => {
-        if (!groupId) return;
-        
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await reportService.getGroupReports(groupId);
-            setReports(response.data || []);
-            return response.data;
-        } catch (err) {
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId]);
-
-    const createReport = useCallback(async (reportData) => {
-        setLoading(true);
-        setError(null);
-        try {
-            await reportService.createReport(reportData);
-        } catch (err) {
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    const resolveReport = useCallback(async (reportId, resolution) => {
-        setLoading(true);
-        setError(null);
-        try {
-            await reportService.resolveReport(reportId, resolution);
-            await fetchReports(); // Refresh list
-        } catch (err) {
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    }, [fetchReports]);
-
-    return {
-        reports,
-        loading,
-        error,
-        fetchReports,
-        createReport,
-        resolveReport
     };
 }
