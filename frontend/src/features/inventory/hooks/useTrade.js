@@ -3,6 +3,8 @@ import { tradeService } from '../services/tradeService';
 
 export const useTrade = (userId) => {
 	const [trades, setTrades] = useState([]);
+	const [tradesForMe, setTradesForMe] = useState([]);
+	const [myOffers, setMyOffers] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -14,6 +16,20 @@ export const useTrade = (userId) => {
 			setError(null);
 		} catch (err) {
 			setError(err.message);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const acceptTrade = async (tradeId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.acceptTrade(tradeId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
 		} finally {
 			setLoading(false);
 		}
@@ -33,9 +49,126 @@ export const useTrade = (userId) => {
 		}
 	};
 
+	const cancelTradeById = async (tradeId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.cancelTradeById(tradeId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		fetchActiveTrades();
 	}, []);
 
-	return { trades, loading, error, refetch: fetchActiveTrades, postTrade };
+	const postTradeOffer = async (tradeId, itemId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.postTradeOffer(userId, tradeId, itemId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const getTradeOffersByItemId = async (itemId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.getTradeOffersByItemId(itemId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const rejectTradeOffer = async (offerId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.rejectTradeOffer(offerId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const cancelTradeOffer = async (offerId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.cancelTradeOffer(offerId);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const getOffersForTrade = async (tradeId) => {
+		try {
+			setLoading(true);
+			const response = await tradeService.getOffersForTrade(tradeId);
+			setTradesForMe(response);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const fetchMyOffers = async () => {
+		try {
+			setLoading(true);
+			const response = await tradeService.getMyOffers();
+			setMyOffers(response);
+			setError(null);
+			return response;
+		} catch (err) {
+			setError(err.message);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return {
+		trades,
+		tradesForMe,
+		myOffers,
+		loading,
+		error,
+		refetch: fetchActiveTrades,
+		postTrade,
+		postTradeOffer,
+		acceptTrade,
+		cancelTradeById,
+
+		getOffersForTrade,
+		getTradeOffersByItemId,
+		cancelTradeOffer,
+		rejectTradeOffer,
+		fetchMyOffers,
+	};
 };

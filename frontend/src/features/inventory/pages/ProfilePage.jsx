@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw } from 'lucide-react';
+import { User, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw, Wallet } from 'lucide-react';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
+import { WalletCard } from '../../wallet';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -106,6 +107,17 @@ export const ProfilePage = () => {
             }`}
           >
             Resumen
+          </button>
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'wallet'
+                ? 'bg-[#2a475e] text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Wallet size={16} />
+            Billetera
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
@@ -218,6 +230,10 @@ export const ProfilePage = () => {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'wallet' && (
+          <WalletCard />
         )}
 
         {activeTab === 'inventory' && (

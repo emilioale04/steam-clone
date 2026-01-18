@@ -18,11 +18,17 @@ import { adminRoutes } from './src/features/admin/index.js';
 import { inventoryRoutes } from './src/features/inventory/index.js';
 import { tradeRoutes } from './src/features/inventory/index.js';
 
+// Import wallet routes (Gestión de Billetera)
+import { walletRoutes } from './src/features/wallet/index.js';
+
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
+
+// Import new app routes (Creación de Aplicaciones - RF-004)
+import { newAppRoutes } from './src/features/new-app/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import {
@@ -88,11 +94,18 @@ app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
+
+// New App routes (Creación de Aplicaciones - RF-004)
+app.use('/api/new-app', newAppRoutes);
+
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
 
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
+
+// Wallet routes (Gestión de Billetera)
+app.use('/api/wallet', apiLimiter, walletRoutes);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);

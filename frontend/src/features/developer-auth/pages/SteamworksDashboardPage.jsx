@@ -11,6 +11,7 @@ import { GestionLlavesPage } from '../../game-keys/pages/GestionLlavesPage';
 import { MFASetupModal } from '../components/MFASetupModal';
 import { MFAVerificationModal } from '../components/MFAVerificationModal';
 import { developerProfileService } from '../services/developerProfileService';
+import { NuevaAppPage } from '../../new-app/pages';
 
 export const SteamworksDashboardPage = () => {
   const navigate = useNavigate();
@@ -292,6 +293,16 @@ export const SteamworksDashboardPage = () => {
             </h2>
             <div className='bg-[#1e2a38] border border-[#2a3f5f] rounded-lg p-6 text-center'>
               <p className='text-gray-400'>No tienes aplicaciones aún</p>
+            </div>
+          </div>
+        );
+
+      case 'nueva-aplicacion':
+        return (
+          <div className="p-8">
+            <h2 className="text-3xl font-bold text-white mb-6">Agregar una nueva aplicación</h2>
+            <div className="bg-[#1e2a38] border border-[#2a3f5f] rounded-lg p-6 text-center">
+              <NuevaAppPage />
             </div>
           </div>
         );
