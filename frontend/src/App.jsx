@@ -27,8 +27,13 @@ import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
 
 // Community
 import { 
-  CommunityPage, 
-  GroupDetailsPage, 
+  CommunityPage,
+  CommunityExplorerPage,
+  ChatPage,
+  CreateGroupPage,
+  GroupDetailsPage,
+  GroupHomePage,
+  GroupAdminPage,
   ForumPage
 } from './features/community';
 
@@ -122,7 +127,16 @@ function App() {
         path="/community/groups/:groupId"
         element={
           <ProtectedRoute>
-            <GroupDetailsPage />
+            <GroupHomePage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/admin"
+        element={
+          <ProtectedRoute>
+            <GroupAdminPage />
           </ProtectedRoute>
         }
       />
@@ -132,6 +146,24 @@ function App() {
         element={
           <ProtectedRoute>
             <ForumPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/groups/create"
+        element={
+          <ProtectedRoute>
+            <CreateGroupPage />
           </ProtectedRoute>
         }
       />
