@@ -18,6 +18,9 @@ import { tradeRoutes } from './src/features/inventory/index.js';
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
+// Import community routes
+import registerCommunityRoutes from './src/features/community/index.js';
+
 // Import security middleware (Grupo 2 - Seguridad)
 import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
 import { apiLimiter, criticalRateLimiter } from './src/shared/middleware/rateLimiter.js';
@@ -72,6 +75,9 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
+
+// Community routes
+registerCommunityRoutes(app);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);

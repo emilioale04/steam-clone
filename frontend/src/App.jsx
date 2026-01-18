@@ -25,6 +25,13 @@ import {
 import { ProfilePage, InventoryPage } from './features/inventory';
 import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
 
+// Community
+import { 
+  CommunityPage, 
+  GroupDetailsPage, 
+  ForumPage
+} from './features/community';
+
 import { useState, useEffect } from 'react'
 import { Search, User, ShoppingCart, Gamepad2, Star } from 'lucide-react'
 
@@ -98,6 +105,33 @@ function App() {
         element={
           <ProtectedRoute>
             <MarketplacePage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community"
+        element={
+          <ProtectedRoute>
+            <CommunityPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId"
+        element={
+          <ProtectedRoute>
+            <GroupDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/forum"
+        element={
+          <ProtectedRoute>
+            <ForumPage />
           </ProtectedRoute>
         }
       />
