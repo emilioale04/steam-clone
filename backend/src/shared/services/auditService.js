@@ -20,6 +20,7 @@ export const ACCIONES_AUDITORIA = {
   LOGOUT: 'logout',
   LOGIN_FALLIDO: 'login_fallido',
   SESION_EXPIRADA: 'sesion_expirada',
+  REENVIO_VERIFICACION: 'reenvio_verificacion',
 
   // MFA
   MFA_HABILITADO: 'mfa_habilitado',
