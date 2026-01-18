@@ -13,36 +13,42 @@ const mfaService = {
   generateMFASecret: async (userId, email, userType = 'admin') => {
     try {
       const config = getUserTypeConfig(userType);
-      
+
       // Generar secreto TOTP
       const secret = speakeasy.generateSecret({
         name: `${config.namePrefix} (${email})`,
         issuer: config.issuerName,
-        length: 32
+        length: 32,
       });
 
       // Generar código QR
       const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
 
       // Guardar el secreto temporalmente (sin activar aún)
-      const { error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from(config.table)
         .update({
           mfa_secret: secret.base32,
           mfa_habilitado: false, // No activar hasta verificar
-          mfa_backup_codes: null
+          mfa_backup_codes: null,
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
         console.error('Error al guardar secreto MFA:', error);
+        console.error('Tabla:', config.table);
+        console.error('UserID:', userId);
+        console.error('Error detalles:', JSON.stringify(error, null, 2));
         throw new Error('Error al configurar MFA');
       }
+
+      console.log('MFA secret guardado exitosamente para:', userId);
 
       return {
         secret: secret.base32,
         qrCode: qrCodeUrl,
-        manualEntryKey: secret.base32
+        manualEntryKey: secret.base32,
       };
     } catch (error) {
       console.error('Error al generar secreto MFA:', error);
@@ -59,7 +65,7 @@ const mfaService = {
   verifyAndEnableMFA: async (userId, token, userType = 'admin') => {
     try {
       const config = getUserTypeConfig(userType);
-      
+
       // Obtener el secreto del usuario
       const { data: user, error: userError } = await supabaseAdmin
         .from(config.table)
@@ -80,7 +86,7 @@ const mfaService = {
         secret: user.mfa_secret,
         encoding: 'base32',
         token: token,
-        window: 2 // Permite 2 intervalos antes y después (60 segundos de margen)
+        window: 2, // Permite 2 intervalos antes y después (60 segundos de margen)
       });
 
       if (!verified) {
@@ -95,7 +101,7 @@ const mfaService = {
         .from(config.table)
         .update({
           mfa_habilitado: true,
-          mfa_backup_codes: JSON.stringify(backupCodes)
+          mfa_backup_codes: JSON.stringify(backupCodes),
         })
         .eq('id', userId);
 
@@ -106,7 +112,7 @@ const mfaService = {
 
       return {
         success: true,
-        backupCodes
+        backupCodes,
       };
     } catch (error) {
       console.error('Error al verificar y activar MFA:', error);
@@ -123,7 +129,7 @@ const mfaService = {
   verifyTOTP: async (userId, token, userType = 'admin') => {
     try {
       const config = getUserTypeConfig(userType);
-      
+
       // Obtener el secreto del usuario
       const { data: user, error: userError } = await supabaseAdmin
         .from(config.table)
@@ -142,18 +148,18 @@ const mfaService = {
       // Verificar si es un código de respaldo
       if (user.mfa_backup_codes) {
         const backupCodes = JSON.parse(user.mfa_backup_codes);
-        const codeIndex = backupCodes.findIndex(code => code === token);
-        
+        const codeIndex = backupCodes.findIndex((code) => code === token);
+
         if (codeIndex !== -1) {
           // Código de respaldo válido, eliminarlo
           backupCodes.splice(codeIndex, 1);
           await supabaseAdmin
             .from(config.table)
             .update({
-              mfa_backup_codes: JSON.stringify(backupCodes)
+              mfa_backup_codes: JSON.stringify(backupCodes),
             })
             .eq('id', userId);
-          
+
           return true;
         }
       }
@@ -163,7 +169,7 @@ const mfaService = {
         secret: user.mfa_secret,
         encoding: 'base32',
         token: token,
-        window: 2
+        window: 2,
       });
 
       return verified;
@@ -181,13 +187,13 @@ const mfaService = {
   disableMFA: async (userId, userType = 'admin') => {
     try {
       const config = getUserTypeConfig(userType);
-      
+
       const { error } = await supabaseAdmin
         .from(config.table)
         .update({
           mfa_secret: null,
           mfa_habilitado: false,
-          mfa_backup_codes: null
+          mfa_backup_codes: null,
         })
         .eq('id', userId);
 
@@ -211,7 +217,7 @@ const mfaService = {
   checkMFAStatus: async (userId, userType = 'admin') => {
     try {
       const config = getUserTypeConfig(userType);
-      
+
       const { data: user, error } = await supabaseAdmin
         .from(config.table)
         .select('mfa_habilitado')
@@ -223,7 +229,7 @@ const mfaService = {
       }
 
       return {
-        mfaEnabled: user?.mfa_habilitado || false
+        mfaEnabled: user?.mfa_habilitado || false,
       };
     } catch (error) {
       console.error('Error al verificar estado de MFA:', error);
@@ -257,7 +263,7 @@ const mfaService = {
       const { error } = await supabaseAdmin
         .from(config.table)
         .update({
-          mfa_backup_codes: JSON.stringify(backupCodes)
+          mfa_backup_codes: JSON.stringify(backupCodes),
         })
         .eq('id', userId);
 
@@ -270,7 +276,7 @@ const mfaService = {
       console.error('Error al regenerar códigos de respaldo:', error);
       throw error;
     }
-  }
+  },
 };
 
 export default mfaService;

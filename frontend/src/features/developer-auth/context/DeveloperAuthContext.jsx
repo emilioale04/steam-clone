@@ -68,18 +68,33 @@ export const DeveloperAuthProvider = ({ children }) => {
     }
   };
 
+  const refreshDesarrollador = async () => {
+    try {
+      const data = await developerAuthService.obtenerPerfil();
+      setUser(data.data.user);
+      setDesarrollador(data.data.desarrollador);
+      return data;
+    } catch (err) {
+      console.error('Error al refrescar desarrollador:', err);
+      throw err;
+    }
+  };
+
   return (
-    <DeveloperAuthContext.Provider value={{
-      user,
-      desarrollador,
-      loading,
-      error,
-      registrar,
-      login,
-      logout,
-      isAuthenticated: !!desarrollador,
-      esDesarrollador: !!desarrollador
-    }}>
+    <DeveloperAuthContext.Provider
+      value={{
+        user,
+        desarrollador,
+        loading,
+        error,
+        registrar,
+        login,
+        logout,
+        refreshDesarrollador,
+        isAuthenticated: !!desarrollador,
+        esDesarrollador: !!desarrollador,
+      }}
+    >
       {children}
     </DeveloperAuthContext.Provider>
   );

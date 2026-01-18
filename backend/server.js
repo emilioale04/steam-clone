@@ -6,7 +6,10 @@ import cors from 'cors';
 import { authRoutes } from './src/features/auth/index.js';
 
 // Import developer auth routes (Steamworks)
-import { developerAuthRoutes } from './src/features/developer-auth/index.js';
+import {
+  developerAuthRoutes,
+  developerProfileRoutes,
+} from './src/features/developer-auth/index.js';
 
 // Import admin routes
 import { adminRoutes } from './src/features/admin/index.js';
@@ -28,22 +31,30 @@ import { gameKeysRoutes } from './src/features/game-keys/index.js';
 import { newAppRoutes } from './src/features/new-app/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
-import { securityHeaders, additionalSecurityHeaders } from './src/shared/middleware/securityHeaders.js';
-import { apiLimiter, criticalRateLimiter } from './src/shared/middleware/rateLimiter.js';
+import {
+  securityHeaders,
+  additionalSecurityHeaders,
+} from './src/shared/middleware/securityHeaders.js';
+import {
+  apiLimiter,
+  criticalRateLimiter,
+} from './src/shared/middleware/rateLimiter.js';
 import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
 
 // Import session service for cleanup (Grupo 2 - Gestión de Sesiones)
 import { sessionService } from './src/shared/services/sessionService.js';
 
 // Import limited account validation middleware
-import {limitedAccountValidationMiddleware} from './src/shared/middleware/limitedAccountValidationMiddleware.js';
-import {geoValidationMiddleware} from './src/shared/middleware/geoValidationMiddleware.js';
+import { limitedAccountValidationMiddleware } from './src/shared/middleware/limitedAccountValidationMiddleware.js';
+import { geoValidationMiddleware } from './src/shared/middleware/geoValidationMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
-  throw new Error('Falla en la configuración de GeoIP: variables de entorno faltantes');
+  throw new Error(
+    'Falla en la configuración de GeoIP: variables de entorno faltantes',
+  );
 }
 
 // Security Middleware (DEBE IR PRIMERO)
@@ -53,10 +64,12 @@ app.use(securityHeaders);
 app.use(additionalSecurityHeaders);
 
 // CORS - configured for secure cookie handling
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true // Allow cookies to be sent
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true, // Allow cookies to be sent
+  }),
+);
 
 // Cookie parser for httpOnly cookies
 import cookieParser from 'cookie-parser';
@@ -75,6 +88,9 @@ app.use('/api/auth', apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
 app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
+
+// Developer profile routes (Steamworks - gestión de perfil)
+app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
@@ -97,63 +113,63 @@ app.use('/api/inventory', inventoryRoutes);
 const games = [
   {
     id: 1,
-    title: "Space Explorer",
+    title: 'Space Explorer',
     price: 49.99,
     rating: 4.8,
-    description: "Explora galaxias lejanas en esta aventura épica",
-    genre: "Aventura",
-    releaseDate: "2025-03-15",
-    discount: 0
+    description: 'Explora galaxias lejanas en esta aventura épica',
+    genre: 'Aventura',
+    releaseDate: '2025-03-15',
+    discount: 0,
   },
   {
     id: 2,
-    title: "Medieval Quest",
+    title: 'Medieval Quest',
     price: 39.99,
     rating: 4.5,
-    description: "Una aventura medieval llena de acción y magia",
-    genre: "RPG",
-    releaseDate: "2024-11-20",
-    discount: 20
+    description: 'Una aventura medieval llena de acción y magia',
+    genre: 'RPG',
+    releaseDate: '2024-11-20',
+    discount: 20,
   },
   {
     id: 3,
-    title: "Racing Legends",
+    title: 'Racing Legends',
     price: 29.99,
     rating: 4.7,
-    description: "La mejor experiencia de carreras del año",
-    genre: "Racing",
-    releaseDate: "2025-01-05",
-    discount: 15
+    description: 'La mejor experiencia de carreras del año',
+    genre: 'Racing',
+    releaseDate: '2025-01-05',
+    discount: 15,
   },
   {
     id: 4,
-    title: "Puzzle Master",
+    title: 'Puzzle Master',
     price: 19.99,
     rating: 4.3,
-    description: "Desafía tu mente con puzzles increíbles",
-    genre: "Puzzle",
-    releaseDate: "2024-09-10",
-    discount: 0
+    description: 'Desafía tu mente con puzzles increíbles',
+    genre: 'Puzzle',
+    releaseDate: '2024-09-10',
+    discount: 0,
   },
   {
     id: 5,
-    title: "Battle Royale",
+    title: 'Battle Royale',
     price: 0,
     rating: 4.6,
-    description: "100 jugadores, solo uno puede ganar",
-    genre: "Shooter",
-    releaseDate: "2024-06-01",
-    discount: 0
+    description: '100 jugadores, solo uno puede ganar',
+    genre: 'Shooter',
+    releaseDate: '2024-06-01',
+    discount: 0,
   },
   {
     id: 6,
-    title: "City Builder",
+    title: 'City Builder',
     price: 44.99,
     rating: 4.9,
-    description: "Construye la ciudad de tus sueños",
-    genre: "Simulación",
-    releaseDate: "2025-02-28",
-    discount: 10
+    description: 'Construye la ciudad de tus sueños',
+    genre: 'Simulación',
+    releaseDate: '2025-02-28',
+    discount: 10,
   },
 ];
 
@@ -162,14 +178,15 @@ app.use('/api/trade', tradeRoutes);
 
 const featuredGame = {
   id: 7,
-  title: "Cyberpunk Adventures",
+  title: 'Cyberpunk Adventures',
   price: 59.99,
   discount: 30,
   rating: 4.8,
-  description: "Sumérgete en un mundo futurista lleno de peligro y tecnología",
-  genre: "Acción/RPG",
-  releaseDate: "2025-12-10",
-  image: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&h=400&fit=crop"
+  description: 'Sumérgete en un mundo futurista lleno de peligro y tecnología',
+  genre: 'Acción/RPG',
+  releaseDate: '2025-12-10',
+  image:
+    'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&h=400&fit=crop',
 };
 
 // Rutas
@@ -180,8 +197,8 @@ app.get('/', (req, res) => {
     endpoints: {
       games: '/api/games',
       featuredGame: '/api/featured',
-      gameById: '/api/games/:id'
-    }
+      gameById: '/api/games/:id',
+    },
   });
 });
 
@@ -192,21 +209,21 @@ app.get('/api/games', (req, res) => {
   let filteredGames = [...games];
 
   if (genre) {
-    filteredGames = filteredGames.filter(game =>
-      game.genre.toLowerCase().includes(genre.toLowerCase())
+    filteredGames = filteredGames.filter((game) =>
+      game.genre.toLowerCase().includes(genre.toLowerCase()),
     );
   }
 
   if (minRating) {
-    filteredGames = filteredGames.filter(game =>
-      game.rating >= parseFloat(minRating)
+    filteredGames = filteredGames.filter(
+      (game) => game.rating >= parseFloat(minRating),
     );
   }
 
   res.json({
     success: true,
     count: filteredGames.length,
-    games: filteredGames
+    games: filteredGames,
   });
 });
 
@@ -214,25 +231,25 @@ app.get('/api/games', (req, res) => {
 app.get('/api/featured', (req, res) => {
   res.json({
     success: true,
-    game: featuredGame
+    game: featuredGame,
   });
 });
 
 // Obtener juego por ID
 app.get('/api/games/:id', (req, res) => {
   const { id } = req.params;
-  const game = games.find(g => g.id === parseInt(id));
+  const game = games.find((g) => g.id === parseInt(id));
 
   if (!game) {
     return res.status(404).json({
       success: false,
-      message: 'Juego no encontrado'
+      message: 'Juego no encontrado',
     });
   }
 
   res.json({
     success: true,
-    game
+    game,
   });
 });
 
@@ -243,19 +260,20 @@ app.get('/api/search', (req, res) => {
   if (!q) {
     return res.status(400).json({
       success: false,
-      message: 'Parámetro de búsqueda requerido'
+      message: 'Parámetro de búsqueda requerido',
     });
   }
 
-  const results = games.filter(game =>
-    game.title.toLowerCase().includes(q.toLowerCase()) ||
-    game.description.toLowerCase().includes(q.toLowerCase())
+  const results = games.filter(
+    (game) =>
+      game.title.toLowerCase().includes(q.toLowerCase()) ||
+      game.description.toLowerCase().includes(q.toLowerCase()),
   );
 
   res.json({
     success: true,
     count: results.length,
-    games: results
+    games: results,
   });
 });
 
@@ -274,7 +292,7 @@ app.use('/api/search', criticalRateLimiter);
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Ruta no encontrada'
+    message: 'Ruta no encontrada',
   });
 });
 
@@ -315,7 +333,9 @@ const gracefulShutdown = (signal) => {
 
   // Forzar cierre después de 10 segundos si no se completa
   const forceShutdownTimeout = setTimeout(() => {
-    console.error('⚠️ No se pudo cerrar el servidor de forma graceful, forzando cierre...');
+    console.error(
+      '⚠️ No se pudo cerrar el servidor de forma graceful, forzando cierre...',
+    );
     process.exit(1);
   }, 10000);
 

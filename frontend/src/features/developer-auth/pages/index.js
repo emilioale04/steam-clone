@@ -5,3 +5,4 @@
 export { LoginDesarrolladorPage } from './LoginDesarrolladorPage';
 export { RegisterDesarrolladorPage } from './RegisterDesarrolladorPage';
 export { SteamworksDashboardPage } from './SteamworksDashboardPage';
+export { EditarPerfilPage } from './EditarPerfilPage';
