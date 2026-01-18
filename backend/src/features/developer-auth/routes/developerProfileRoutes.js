@@ -34,4 +34,25 @@ router.put(
   developerProfileController.actualizarInformacionBancaria,
 );
 
+// === MFA Management ===
+// Obtener estado de MFA
+router.get('/mfa/status', developerProfileController.obtenerEstadoMFA);
+
+// Iniciar setup de MFA (generar QR)
+router.post('/mfa/setup', authLimiter, developerProfileController.setupMFA);
+
+// Verificar y activar MFA
+router.post(
+  '/mfa/verify',
+  authLimiter,
+  developerProfileController.verificarYActivarMFA,
+);
+
+// Deshabilitar MFA
+router.delete(
+  '/mfa/disable',
+  authLimiter,
+  developerProfileController.deshabilitarMFA,
+);
+
 export default router;

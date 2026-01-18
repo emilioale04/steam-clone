@@ -192,4 +192,143 @@ export const developerProfileController = {
       });
     }
   },
+
+  /**
+   * Obtener estado de MFA del desarrollador
+   */
+  async obtenerEstadoMFA(req, res) {
+    try {
+      const desarrolladorId = req.user.id;
+
+      const status = await mfaService.checkMFAStatus(
+        desarrolladorId,
+        'developer',
+      );
+
+      res.status(200).json({
+        success: true,
+        data: status,
+      });
+    } catch (error) {
+      console.error('Error al obtener estado MFA:', error);
+      res.status(500).json({
+        success: false,
+        mensaje: error.message || 'Error al obtener estado de MFA',
+      });
+    }
+  },
+
+  /**
+   * Iniciar setup de MFA (generar QR y secreto)
+   */
+  async setupMFA(req, res) {
+    try {
+      const desarrolladorId = req.user.id;
+      const email = req.user.email;
+
+      const result = await mfaService.generateMFASecret(
+        desarrolladorId,
+        email,
+        'developer',
+      );
+
+      res.status(200).json({
+        success: true,
+        mensaje:
+          'MFA configurado. Escanea el código QR con Microsoft Authenticator.',
+        data: {
+          qrCode: result.qrCode,
+          manualEntryKey: result.manualEntryKey,
+        },
+      });
+    } catch (error) {
+      console.error('Error al configurar MFA:', error);
+      res.status(500).json({
+        success: false,
+        mensaje: error.message || 'Error al configurar MFA',
+      });
+    }
+  },
+
+  /**
+   * Verificar código TOTP y activar MFA
+   */
+  async verificarYActivarMFA(req, res) {
+    try {
+      const desarrolladorId = req.user.id;
+      const { codigo } = req.body;
+
+      if (!codigo) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Código de verificación requerido',
+        });
+      }
+
+      const result = await mfaService.verifyAndEnableMFA(
+        desarrolladorId,
+        codigo,
+        'developer',
+      );
+
+      res.status(200).json({
+        success: true,
+        mensaje:
+          'MFA activado exitosamente. Guarda tus códigos de respaldo en un lugar seguro.',
+        data: {
+          backupCodes: result.backupCodes,
+        },
+      });
+    } catch (error) {
+      console.error('Error al verificar y activar MFA:', error);
+      res.status(400).json({
+        success: false,
+        mensaje: error.message || 'Código de verificación inválido',
+      });
+    }
+  },
+
+  /**
+   * Deshabilitar MFA (requiere código MFA actual)
+   */
+  async deshabilitarMFA(req, res) {
+    try {
+      const desarrolladorId = req.user.id;
+      const { codigo } = req.body;
+
+      if (!codigo) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Código MFA requerido para deshabilitar',
+        });
+      }
+
+      // Verificar código antes de deshabilitar
+      const valido = await mfaService.verifyTOTP(
+        desarrolladorId,
+        codigo,
+        'developer',
+      );
+
+      if (!valido) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Código MFA inválido',
+        });
+      }
+
+      await mfaService.disableMFA(desarrolladorId, 'developer');
+
+      res.status(200).json({
+        success: true,
+        mensaje: 'MFA deshabilitado exitosamente',
+      });
+    } catch (error) {
+      console.error('Error al deshabilitar MFA:', error);
+      res.status(500).json({
+        success: false,
+        mensaje: error.message || 'Error al deshabilitar MFA',
+      });
+    }
+  },
 };
