@@ -63,10 +63,22 @@ export const myAppsService = {
         query = query.eq('estado_revision', filters.estado_revision);
       }
 
-      // Aplicar búsqueda por nombre si se proporciona
+      // Aplicar búsqueda por nombre si se proporciona (sanitizada)
       if (filters.search && filters.search.trim().length > 0) {
         const searchTerm = filters.search.trim();
-        query = query.or(`nombre_juego.ilike.%${searchTerm}%,descripcion_corta.ilike.%${searchTerm}%`);
+
+        // Longitud máxima para evitar abuso
+        if (searchTerm.length > 100) {
+          throw new Error('El término de búsqueda excede el límite máximo de 100 caracteres');
+        }
+
+        // Allowlist: alfanumérico, espacios, acentos comunes y puntuación básica
+        const sanitizedSearch = searchTerm.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ'.,!?()-]/g, '');
+
+        // Si tras sanear queda vacío, no aplicamos filtro
+        if (sanitizedSearch.length > 0) {
+          query = query.or(`nombre_juego.ilike.%${sanitizedSearch}%,descripcion_corta.ilike.%${sanitizedSearch}%`);
+        }
       }
 
       // Ordenar por fecha de creación (más recientes primero)
