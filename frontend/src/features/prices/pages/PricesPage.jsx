@@ -1,10 +1,14 @@
 import React from 'react';
 import { usePricesFeature } from '../hooks/usePricesFeature';
+import { useDiscountFeature } from '../hooks/useDiscountFeature';
 import { GameSelector } from '../components/GameSelector';
 import { PriceEditor } from '../components/PriceEditor';
+import { DiscountEditor } from '../components/DiscountEditor';
 import { AlertTriangle } from 'lucide-react'; // Para el banner ocre
 
+
 export function PricesPage() {
+  // Precio
   const {
     apps,
     selectedGameId,
@@ -12,11 +16,30 @@ export function PricesPage() {
     selectedGame,
     price,
     setPrice,
-    loading,
-    error,
-    success,
+    loading: loadingPrice,
+    error: errorPrice,
+    success: successPrice,
     handleUpdatePrice
   } = usePricesFeature();
+
+  // Descuento
+  const {
+    discount,
+    setDiscount,
+    loading: loadingDiscount,
+    error: errorDiscount,
+    success: successDiscount,
+    handleUpdateDiscount,
+    selectedGame: selectedGameDiscount,
+    selectedGameId: selectedGameIdDiscount,
+    setSelectedGameId: setSelectedGameIdDiscount
+  } = useDiscountFeature();
+
+  // Sincronizar selección de juego en ambos hooks
+  const handleSelectGame = (id) => {
+    setSelectedGameId(id);
+    setSelectedGameIdDiscount(id);
+  };
 
   return (
     <div className="bg-[#1e2a38] rounded-lg border border-[#2a3f5f] p-6 mb-6">
@@ -38,8 +61,8 @@ export function PricesPage() {
         <h2 className="text-[#66c0f4] text-lg font-semibold mb-6">Configurar Precio</h2>
 
         {/* Feedback de Operación */}
-        {error && <div className="bg-red-900/40 border border-red-500 text-red-200 p-3 rounded mb-4 text-sm">{error}</div>}
-        {success && <div className="bg-green-900/40 border border-green-500 text-green-200 p-3 rounded mb-4 text-sm">{success}</div>}
+        {(errorPrice || errorDiscount) && <div className="bg-red-900/40 border border-red-500 text-red-200 p-3 rounded mb-4 text-sm">{errorPrice || errorDiscount}</div>}
+        {(successPrice || successDiscount) && <div className="bg-green-900/40 border border-green-500 text-green-200 p-3 rounded mb-4 text-sm">{successPrice || successDiscount}</div>}
 
         <div className="space-y-6">
           {/* Selector de Juego */}
@@ -47,7 +70,7 @@ export function PricesPage() {
             <GameSelector
               apps={apps}
               selectedGameId={selectedGameId}
-              onSelect={setSelectedGameId}
+              onSelect={handleSelectGame}
             />
           </div>
 
@@ -57,10 +80,22 @@ export function PricesPage() {
             price={price}
             setPrice={setPrice}
             onSubmit={handleUpdatePrice}
-            loading={loading}
+            loading={loadingPrice}
             // Deshabilitado si el precio no cumple el rango C12 o no hay juego
             disabled={!selectedGame || Number(price) < 0 || Number(price) > 1000}
           />
+
+          {/*Componente DiscountEditor*/}
+          <DiscountEditor
+            selectedGame={selectedGameDiscount}
+            discount={discount}
+            setDiscount={setDiscount}
+            onSubmit={handleUpdateDiscount}
+            loading={loadingDiscount}
+            // Deshabilitado si el descuento no cumple el rango o no hay juego
+            disabled={!selectedGameDiscount || Number(discount) < 0 || Number(discount) > 1}
+          />
+
         </div>
       </div>
     </div>
