@@ -30,6 +30,9 @@ import registerCommunityRoutes from './src/features/community/index.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
+// Import pricing routes (Grupo 2 - Gestión de Precios)
+import { pricingRoutes } from './src/features/pricing/index.js';
+
 // Import security middleware (Grupo 2 - Seguridad)
 import {
   securityHeaders,
@@ -94,6 +97,10 @@ app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
+
+// Pricing routes (Grupo 2 - Gestión de Precios RF-010)
+app.use('/api/pricing', pricingRoutes);
+
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
 

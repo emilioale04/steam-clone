@@ -42,14 +42,16 @@ export function useDiscountFeature() {
 
   const handleUpdateDiscount = async (mfaCode) => {
     if (!selectedGameId) {
-      setError('Selecciona un juego');
-      return;
+      const errorMsg = 'Selecciona un juego';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const discountValue = Number(discount);
     if (isNaN(discountValue) || discountValue < 0 || discountValue > 1) {
-      setError('El descuento debe estar entre 0 y 1 (ej: 0.25 = 25%)');
-      return;
+      const errorMsg = 'El descuento debe estar entre 0 y 1 (ej: 0.25 = 25%)';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
 
     setLoading(true);
@@ -58,7 +60,7 @@ export function useDiscountFeature() {
 
     try {
       const result = await updateAppDiscount(selectedGameId, discountValue, mfaCode);
-      setSuccess(result.mensaje || 'Descuento actualizado correctamente');
+      setSuccess(`✅ ¡Descuento actualizado exitosamente a ${(discountValue * 100).toFixed(0)}%!`);
       
       // Actualizar el descuento en la lista local
       setApps(prevApps => 
@@ -69,7 +71,9 @@ export function useDiscountFeature() {
         )
       );
     } catch (err) {
-      setError(err.message || 'Error al actualizar el descuento');
+      const errorMsg = err.message || 'Error al actualizar el descuento';
+      setError(errorMsg);
+      throw new Error(errorMsg); // Propagar error para que el modal lo muestre
     } finally {
       setLoading(false);
     }

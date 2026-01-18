@@ -14,7 +14,7 @@ import {
   updatePrice, 
   updateDiscount 
 } from '../controllers/priceController.js';
-import { requireDesarrollador, requireMfaVerificado } from '../../developer-auth/middleware/developerAuthMiddleware.js';
+import { requireDesarrollador } from '../../developer-auth/middleware/developerAuthMiddleware.js';
 import { criticalActionsLimiter } from '../../../shared/middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -47,8 +47,8 @@ router.get(
  * PUT /api/pricing/update-price
  * Actualiza el precio de una aplicación
  * 
- * Requiere: JWT + MFA verificado (C14)
- * Body: { appId, newPrice }
+ * Requiere: JWT + MFA verificado en controlador (C14)
+ * Body: { appId, newPrice, codigoMFA }
  * 
  * Restricciones:
  * - Solo 10 cambios por hora (rate limiting)
@@ -58,7 +58,6 @@ router.put(
   '/update-price',
   criticalActionsLimiter,
   requireDesarrollador,
-  requireMfaVerificado,
   updatePrice
 );
 
@@ -66,14 +65,13 @@ router.put(
  * PUT /api/pricing/update-discount
  * Actualiza el descuento de una aplicación
  * 
- * Requiere: JWT + MFA verificado (C14)
- * Body: { appId, newDiscount }
+ * Requiere: JWT + MFA verificado en controlador (C14)
+ * Body: { appId, newDiscount, codigoMFA }
  */
 router.put(
   '/update-discount',
   criticalActionsLimiter,
   requireDesarrollador,
-  requireMfaVerificado,
   updateDiscount
 );
 

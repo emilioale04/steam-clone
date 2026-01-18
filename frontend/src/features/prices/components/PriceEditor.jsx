@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MFAVerificationModal } from './MFAVerificationModal';
 
 export function PriceEditor({
   selectedGame,
@@ -9,17 +10,20 @@ export function PriceEditor({
   disabled
 }) {
   const [showMfaModal, setShowMfaModal] = useState(false);
-  const [mfaCode, setMfaCode] = useState('');
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
     setShowMfaModal(true);
   };
 
-  const handleMfaConfirm = () => {
-    setShowMfaModal(false);
-    onSubmit(mfaCode);
-    setMfaCode('');
+  const handleMfaVerify = async (codigoMFA) => {
+    try {
+      await onSubmit(codigoMFA);
+      setShowMfaModal(false);
+    } catch (error) {
+      // El error se maneja en el modal
+      throw error;
+    }
   };
 
   // SIEMPRE renderiza el formulario, aunque no haya juego seleccionado
@@ -54,34 +58,14 @@ export function PriceEditor({
           </button>
         </div>
       </form>
-      {showMfaModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-xs">
-            <h3 className="text-lg font-bold text-white mb-4">Verificación MFA</h3>
-            <input
-              type="text"
-              value={mfaCode}
-              onChange={e => setMfaCode(e.target.value)}
-              placeholder="Código MFA"
-              className="w-full bg-slate-900 border border-slate-600 p-2 rounded mb-4 text-white"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                className="bg-gray-500 hover:bg-gray-400 text-white px-4 py-2 rounded"
-                onClick={() => setShowMfaModal(false)}
-                type="button"
-              >Cancelar</button>
-              <button
-                className="bg-lime-600 hover:bg-lime-500 text-white px-4 py-2 rounded font-medium"
-                onClick={handleMfaConfirm}
-                disabled={!mfaCode}
-                type="button"
-              >Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
+
+      <MFAVerificationModal
+        isOpen={showMfaModal}
+        onClose={() => setShowMfaModal(false)}
+        onVerify={handleMfaVerify}
+        title="Confirmar Cambio de Precio"
+        loading={loading}
+      />
     </>
   );
 }

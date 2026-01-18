@@ -56,23 +56,22 @@ export async function fetchAppDetails(appId) {
  * 
  * @param {string} appId - ID de la aplicación
  * @param {number} newPrice - Nuevo precio (0-1000 USD)
- * @param {string} mfaCode - Código MFA para verificación
+ * @param {string} codigoMFA - Código MFA para verificación
  */
-export async function updateAppPrice(appId, newPrice, mfaCode) {
+export async function updateAppPrice(appId, newPrice, codigoMFA) {
   const response = await fetch(`${API_URL}/pricing/update-price`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
-      'X-MFA-Code': mfaCode
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ appId, newPrice: Number(newPrice) })
+    body: JSON.stringify({ appId, newPrice: Number(newPrice), codigoMFA })
   });
 
   const data = await response.json();
   
   if (!response.ok) {
-    throw new Error(data.mensaje || data.error || 'Error al actualizar precio');
+    throw new Error(data.message || data.mensaje || data.error || 'Error al actualizar precio');
   }
 
   return data;
@@ -84,23 +83,22 @@ export async function updateAppPrice(appId, newPrice, mfaCode) {
  * 
  * @param {string} appId - ID de la aplicación
  * @param {number} newDiscount - Nuevo descuento (0-1, ej: 0.25 = 25%)
- * @param {string} mfaCode - Código MFA para verificación
+ * @param {string} codigoMFA - Código MFA para verificación
  */
-export async function updateAppDiscount(appId, newDiscount, mfaCode) {
+export async function updateAppDiscount(appId, newDiscount, codigoMFA) {
   const response = await fetch(`${API_URL}/pricing/update-discount`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
-      'X-MFA-Code': mfaCode
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ appId, newDiscount: Number(newDiscount) })
+    body: JSON.stringify({ appId, newDiscount: Number(newDiscount), codigoMFA })
   });
 
   const data = await response.json();
   
   if (!response.ok) {
-    throw new Error(data.mensaje || data.error || 'Error al actualizar descuento');
+    throw new Error(data.message || data.mensaje || data.error || 'Error al actualizar descuento');
   }
 
   return data;

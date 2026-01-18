@@ -42,8 +42,9 @@ export function usePricesFeature() {
 
   const handleUpdatePrice = async (mfaCode) => {
     if (!selectedGameId || !price) {
-      setError('Selecciona un juego y un precio válido');
-      return;
+      const errorMsg = 'Selecciona un juego y un precio válido';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
 
     setLoading(true);
@@ -52,7 +53,7 @@ export function usePricesFeature() {
 
     try {
       const result = await updateAppPrice(selectedGameId, price, mfaCode);
-      setSuccess(result.mensaje || 'Precio actualizado correctamente');
+      setSuccess(`✅ ¡Precio actualizado exitosamente a $${Number(price).toFixed(2)} USD!`);
       
       // Actualizar el precio en la lista local
       setApps(prevApps => 
@@ -63,7 +64,9 @@ export function usePricesFeature() {
         )
       );
     } catch (err) {
-      setError(err.message || 'Error al actualizar el precio');
+      const errorMsg = err.message || 'Error al actualizar el precio';
+      setError(errorMsg);
+      throw new Error(errorMsg); // Propagar error para que el modal lo muestre
     } finally {
       setLoading(false);
     }

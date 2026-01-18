@@ -7,6 +7,7 @@
 
 import pricingService from '../services/pricingService.js';
 import { auditService, ACCIONES_AUDITORIA, RESULTADOS } from '../../../shared/services/auditService.js';
+import mfaService from '../../mfa/services/mfaService.js';
 
 /**
  * GET /api/pricing/my-apps
@@ -30,7 +31,7 @@ export const getDeveloperApps = async (req, res) => {
 
     res.json({
       success: true,
-      data: result.apps,
+      apps: result.apps,
       total: result.total,
       message: result.total === 0 
         ? 'No tienes aplicaciones aprobadas para gestionar precios' 
@@ -104,7 +105,7 @@ export const getAppDetails = async (req, res) => {
 export const updatePrice = async (req, res) => {
   try {
     const developerId = req.user.id;
-    const { appId, newPrice } = req.body;
+    const { appId, newPrice, codigoMFA } = req.body;
 
     // Validación de parámetros requeridos
     if (!appId) {
@@ -118,6 +119,34 @@ export const updatePrice = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Se requiere el nuevo precio'
+      });
+    }
+
+    // Verificación MFA obligatoria (C14)
+    if (!codigoMFA) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código MFA requerido para actualizar precios',
+        requiresMFA: true
+      });
+    }
+
+    // Verificar código MFA
+    const mfaValido = await mfaService.verifyTOTP(developerId, codigoMFA, 'developer');
+    if (!mfaValido) {
+      await auditService.registrarEvento({
+        desarrolladorId: developerId,
+        accion: ACCIONES_AUDITORIA.ACTUALIZAR_PRECIO,
+        recurso: `aplicacion:${appId}`,
+        detalles: { error: 'Código MFA inválido' },
+        resultado: RESULTADOS.FALLIDO,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: 'Código MFA inválido'
       });
     }
 
@@ -188,7 +217,7 @@ export const updatePrice = async (req, res) => {
 export const updateDiscount = async (req, res) => {
   try {
     const developerId = req.user.id;
-    const { appId, newDiscount } = req.body;
+    const { appId, newDiscount, codigoMFA } = req.body;
 
     // Validación de parámetros requeridos
     if (!appId) {
@@ -202,6 +231,34 @@ export const updateDiscount = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Se requiere el nuevo descuento'
+      });
+    }
+
+    // Verificación MFA obligatoria (C14)
+    if (!codigoMFA) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código MFA requerido para actualizar descuentos',
+        requiresMFA: true
+      });
+    }
+
+    // Verificar código MFA
+    const mfaValido = await mfaService.verifyTOTP(developerId, codigoMFA, 'developer');
+    if (!mfaValido) {
+      await auditService.registrarEvento({
+        desarrolladorId: developerId,
+        accion: 'actualizar_descuento',
+        recurso: `aplicacion:${appId}`,
+        detalles: { error: 'Código MFA inválido' },
+        resultado: RESULTADOS.FALLIDO,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: 'Código MFA inválido'
       });
     }
 
