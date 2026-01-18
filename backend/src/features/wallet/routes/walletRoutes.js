@@ -12,6 +12,9 @@ const router = express.Router();
 // GET /api/wallet/balance - Obtener balance actual
 router.get('/balance', requireAuth, walletController.getBalance);
 
+// GET /api/wallet/account-status - Obtener estado de cuenta (limitada o no)
+router.get('/account-status', requireAuth, walletController.getAccountStatus);
+
 // POST /api/wallet/reload - Recargar billetera
 router.post('/reload', requireAuth, walletController.reloadWallet);
 

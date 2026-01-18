@@ -1,5 +1,6 @@
 import supabase from '../../../shared/config/supabase.js';
 import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
+import { privacyService } from './privacyService.js';
 
 const ALLOWED_STATUSES = {
 	PENDING: 'Pendiente',
@@ -170,6 +171,22 @@ export const tradeService = {
 };
 
 export const tradeOfferService = {
+	/**
+	 * Obtiene información del trade para verificaciones
+	 * @param {string} tradeId 
+	 * @returns {Promise<Object>}
+	 */
+	async getTradeInfo(tradeId) {
+		const { data, error } = await supabase
+			.from('trade')
+			.select('id, offerer_id, status')
+			.eq('id', tradeId)
+			.single();
+		
+		if (error) throw error;
+		return data;
+	},
+
 	async postTradeOffer(offererId, tradeId, itemId) {
 		try {
 			// Validar UUIDs
@@ -181,6 +198,24 @@ export const tradeOfferService = {
 			}
 			if (!isValidUUID(itemId)) {
 				throw new Error('ID de item inválido');
+			}
+
+			// Obtener información del trade para verificar privacidad
+			const tradeInfo = await this.getTradeInfo(tradeId);
+			if (!tradeInfo) {
+				throw new Error('Trade no encontrado');
+			}
+			if (tradeInfo.status !== 'Pendiente') {
+				throw new Error('Este intercambio ya no está disponible');
+			}
+
+			// Verificar privacidad: ¿El dueño del trade acepta ofertas de este usuario?
+			const privacyCheck = await privacyService.canSendTrade(offererId, tradeInfo.offerer_id);
+			if (!privacyCheck.allowed) {
+				const error = new Error(privacyCheck.reason || 'No puedes enviar ofertas a este usuario');
+				error.code = 'PRIVACY_RESTRICTED';
+				error.isPrivacyError = true;
+				throw error;
 			}
 
 			// Verificar límite de ofertas por trade

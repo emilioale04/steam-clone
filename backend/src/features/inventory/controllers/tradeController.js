@@ -130,8 +130,27 @@ export const tradeController = {
 				data: tradeOffer,
 			});
 		} catch (error) {
-			res.status(error.message.includes('permiso') ? 403 : 500).json({
+			// Determinar código de estado apropiado
+			let statusCode = 500;
+			let errorCode = 'INTERNAL_ERROR';
+			
+			if (error.code === 'PRIVACY_RESTRICTED' || error.isPrivacyError) {
+				statusCode = 403;
+				errorCode = 'PRIVACY_RESTRICTED';
+			} else if (error.message.includes('permiso')) {
+				statusCode = 403;
+				errorCode = 'FORBIDDEN';
+			} else if (error.message.includes('no encontrado') || error.message.includes('no está disponible')) {
+				statusCode = 404;
+				errorCode = 'NOT_FOUND';
+			} else if (error.message.includes('límite') || error.message.includes('Ya has ofertado')) {
+				statusCode = 400;
+				errorCode = 'BAD_REQUEST';
+			}
+
+			res.status(statusCode).json({
 				success: false,
+				code: errorCode,
 				message: error.message,
 			});
 		}

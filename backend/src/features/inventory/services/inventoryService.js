@@ -1,44 +1,16 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { privacyService } from './privacyService.js';
 
 export const inventoryService = {
     /**
      * Valida si un usuario puede ver el inventario de otro (DAC Engine)
+     * Delegado al privacyService centralizado
      * @param {string} viewerId - ID del usuario que intenta ver
      * @param {string} ownerId - ID del dueño del inventario
      * @returns {Promise<boolean>}
      */
     async canViewInventory(viewerId, ownerId) {
-        if (viewerId === ownerId) return true;
-
-        // Obtener la privacidad del perfil del dueño
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('inventory_privacy')
-            .eq('id', ownerId)
-            .single();
-
-        if (profileError || !profile) return false;
-
-        const privacy = profile.inventory_privacy;
-
-        if (privacy === 'Public') return true;
-        if (privacy === 'Private') return false;
-
-        if (privacy === 'Friends') {
-            if (!viewerId) return false;
-
-            // Verificar si son amigos en la tabla friendships
-            const { data: friendship, error: friendshipError } = await supabase
-                .from('friendships')
-                .select('status')
-                .or(`and(user_id1.eq.${viewerId},user_id2.eq.${ownerId}),and(user_id1.eq.${ownerId},user_id2.eq.${viewerId})`)
-                .eq('status', 'accepted')
-                .single();
-
-            return !!friendship;
-        }
-
-        return false;
+        return privacyService.canViewInventory(viewerId, ownerId);
     },
 
     /**

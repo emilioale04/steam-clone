@@ -17,6 +17,7 @@ import { adminRoutes } from './src/features/admin/index.js';
 // Import inventory routes (Esteban - Gestión de Inventario)
 import { inventoryRoutes } from './src/features/inventory/index.js';
 import { tradeRoutes } from './src/features/inventory/index.js';
+import { privacyRoutes } from './src/features/inventory/index.js';
 
 // Import wallet routes (Gestión de Billetera)
 import { walletRoutes } from './src/features/wallet/index.js';
@@ -109,6 +110,13 @@ app.use('/api/wallet', apiLimiter, walletRoutes);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);
+
+// Trade routes
+app.use('/api/trade', tradeRoutes);
+
+// Privacy routes (Configuración de privacidad)
+app.use('/api/privacy', apiLimiter, privacyRoutes);
+
 // Datos de ejemplo
 const games = [
   {

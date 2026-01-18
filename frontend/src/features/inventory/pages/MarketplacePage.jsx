@@ -7,6 +7,7 @@ import { useInventory } from '../hooks/useInventory';
 import { tradeService } from '../services/tradeService';
 import { useTrade } from '../hooks/useTrade';
 import { useWallet } from '../../wallet/hooks/useWallet';
+import { LimitedAccountBanner } from '../../wallet';
 import { validatePrice, sanitizePriceInput, formatPriceOnBlur, getPriceValidationState, PRICE_CONFIG, MARKETPLACE_LIMITS, TRADE_LIMITS } from '../utils/priceValidation';
 
 export const MarketplacePage = () => {
@@ -225,21 +226,21 @@ export const MarketplacePage = () => {
   const handleTradeOffer = (tradeId, itemId) => {
      postTradeOffer(tradeId, itemId)
       .then((response) => {setSelectedSellItem(null); setShowTradeOfferModal(false);showSuccessMessage(response)})
-      .catch(() => showErrorMessage())
+      .catch((error) => showErrorMessage(error.message || 'Error al enviar la oferta'))
       .finally(() => {refetch();});
   };
 
   const handleAcceptOffer = (tradeId) => {
      acceptTrade(tradeId)
       .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
-      .catch(() => showErrorMessage())
+      .catch((error) => showErrorMessage(error.message || 'Error al aceptar la oferta'))
       .finally(()=> fetchData())
     };
     
     const handleRejectOffer = (tradeId) => {
       rejectTradeOffer(tradeId)
       .then((response) => {setShowTradeOfferForMeModal(false);showSuccessMessage(response)})
-      .catch(() => showErrorMessage())
+      .catch((error) => showErrorMessage(error.message || 'Error al rechazar la oferta'))
       .finally(()=> fetchData())
   };
 
@@ -657,6 +658,9 @@ export const MarketplacePage = () => {
 
   return (
     <div className="min-h-screen bg-[#1b2838] text-white">
+      {/* Banner de cuenta limitada */}
+      {user && <LimitedAccountBanner />}
+      
       {/* Page Header */}
       <div className="bg-[#171a21] py-8 shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
@@ -1590,7 +1594,7 @@ export const MarketplacePage = () => {
                                   if (confirmed) {
                                     cancelTradeById(trade.id)
                                       .then((response) => showSuccessMessage(response))
-                                      .catch(() => showErrorMessage())
+                                      .catch((error) => showErrorMessage(error.message || 'Error al cancelar el intercambio'))
                                       .finally(() => {
                                         fetchData();
                                         fetchTradeLimitsStatus(); // Actualizar límites
@@ -1690,7 +1694,7 @@ export const MarketplacePage = () => {
                                   if (confirmed) {
                                     cancelTradeOffer(offer.id)
                                       .then((response) => showSuccessMessage(response))
-                                      .catch(() => showErrorMessage())
+                                      .catch((error) => showErrorMessage(error.message || 'Error al cancelar la oferta'))
                                       .finally(() => {
                                         fetchData();
                                       });

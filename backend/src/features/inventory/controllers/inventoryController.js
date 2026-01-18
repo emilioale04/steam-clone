@@ -1,4 +1,5 @@
 import { inventoryService } from '../services/inventoryService.js';
+import { privacyService } from '../services/privacyService.js';
 import { validatePrice, isValidUUID, MARKETPLACE_LIMITS } from '../config/priceConfig.js';
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 
@@ -200,7 +201,7 @@ export const inventoryController = {
             // Obtener el precio del item ANTES de verificar límite
             const { data: listing, error: listingError } = await supabase
                 .from('marketplace_listings')
-                .select('price')
+                .select('price, seller_id')
                 .eq('id', listingId)
                 .eq('status', 'Active')
                 .single();
@@ -209,6 +210,16 @@ export const inventoryController = {
                 return res.status(404).json({
                     success: false,
                     message: 'Artículo no encontrado o ya no está disponible'
+                });
+            }
+
+            // Verificar privacidad del marketplace: ¿El vendedor acepta compras de este usuario?
+            const privacyCheck = await privacyService.canPurchaseFrom(buyerId, listing.seller_id);
+            if (!privacyCheck.allowed) {
+                return res.status(403).json({
+                    success: false,
+                    code: 'PRIVACY_RESTRICTED',
+                    message: privacyCheck.reason || 'No puedes comprar de este vendedor'
                 });
             }
 
