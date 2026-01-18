@@ -70,15 +70,18 @@ export const myAppsService = {
         // Validación de seguridad para prevenir inyección
         // Limitar longitud máxima
         if (searchTerm.length > 100) {
-          throw new Error('El término de búsqueda es demasiado largo');
+          throw new Error('El término de búsqueda excede el límite máximo de 100 caracteres');
         }
         
         // Sanitizar el término de búsqueda
-        // Permitir: letras (incluyendo acentos), números, espacios y algunos caracteres comunes
+        // Paso 1: Permitir solo caracteres seguros (letras con acentos, números, espacios y puntuación común)
         // Remover caracteres especiales que podrían ser interpretados como operadores de consulta
-        const sanitizedSearch = searchTerm
-          .replace(/[%_\\]/g, '\\$&')  // Escapar caracteres especiales de SQL LIKE
-          .replace(/[^\w\sáéíóúñÁÉÍÓÚÑ\-'.,!?()]/g, '');  // Permitir solo caracteres seguros
+        const allowlistedSearch = searchTerm
+          .replace(/[^\w\sáéíóúñÁÉÍÓÚÑ'.,!?()-]/g, '');  // Permitir solo caracteres seguros
+        
+        // Paso 2: Escapar caracteres especiales de SQL LIKE
+        const sanitizedSearch = allowlistedSearch
+          .replace(/[%_\\]/g, '\\$&');  // Escapar %, _, y \
         
         // Solo aplicar búsqueda si queda contenido después de sanitizar
         if (sanitizedSearch.length > 0) {
