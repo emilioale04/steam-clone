@@ -10,6 +10,35 @@ const API_URL = 'http://localhost:3000/api';
 export const newAppService = {
   
   /**
+   * Obtiene las categorías de contenido disponibles
+   * GET /api/new-app/categorias
+   * 
+   * @returns {Promise<Array>} - Lista de categorías activas
+   */
+  async obtenerCategorias() {
+    try {
+      const response = await fetch(`${API_URL}/new-app/categorias`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.mensaje || 'Error al obtener categorías');
+      }
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error en obtenerCategorias:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Crea una nueva aplicación (juego) para un desarrollador
    * POST /api/new-app
    * 

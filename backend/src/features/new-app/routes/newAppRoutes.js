@@ -29,6 +29,9 @@ const upload = multer({
 // Middleware de autenticación de desarrollador en todas las rutas
 router.use(requireDesarrollador);
 
+// GET /api/new-app/categorias - Obtener categorías de contenido
+router.get('/categorias', newAppController.obtenerCategorias);
+
 // POST /api/new-app - Crear nueva aplicación
 router.post(
   '/',

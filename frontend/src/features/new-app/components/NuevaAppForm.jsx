@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { newAppService } from '../services/newAppService';
 
 /**
@@ -17,14 +17,35 @@ export const NuevaAppForm = () => {
     nombre_juego: '',
     descripcion_corta: '',
     descripcion_larga: '',
+    categoria_id: '',
   });
 
   const [buildFile, setBuildFile] = useState(null);
   const [portadaFile, setPortadaFile] = useState(null);
+  const [categorias, setCategorias] = useState([]);
   
   const [loading, setLoading] = useState(false);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Cargar categorías al montar el componente
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      try {
+        setLoadingCategorias(true);
+        const categoriasData = await newAppService.obtenerCategorias();
+        setCategorias(categoriasData);
+      } catch (err) {
+        console.error('Error al cargar categorías:', err);
+        setError('No se pudieron cargar las categorías');
+      } finally {
+        setLoadingCategorias(false);
+      }
+    };
+    
+    cargarCategorias();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -98,6 +119,11 @@ export const NuevaAppForm = () => {
       return;
     }
 
+    if (!formData.categoria_id) {
+      setError('Debes seleccionar una categoría');
+      return;
+    }
+
     if (!buildFile) {
       setError('Debes subir el archivo de build de tu juego');
       return;
@@ -116,6 +142,7 @@ export const NuevaAppForm = () => {
       data.append('nombre_juego', formData.nombre_juego.trim());
       data.append('descripcion_corta', formData.descripcion_corta.trim());
       data.append('descripcion_larga', formData.descripcion_larga.trim());
+      data.append('categoria_id', formData.categoria_id);
       data.append('build_file', buildFile);
       data.append('portada_file', portadaFile);
 
@@ -128,6 +155,7 @@ export const NuevaAppForm = () => {
         nombre_juego: '',
         descripcion_corta: '',
         descripcion_larga: '',
+        categoria_id: '',
       });
       setBuildFile(null);
       setPortadaFile(null);
@@ -213,6 +241,30 @@ export const NuevaAppForm = () => {
             disabled={loading}
           />
           {/*<small className="form-help">Opcional. Puedes editarla más tarde.</small>*/}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="categoria_id">
+            Categoría <span className="required">*</span>
+          </label>
+          <select
+            id="categoria_id"
+            name="categoria_id"
+            value={formData.categoria_id}
+            onChange={handleInputChange}
+            required
+            disabled={loading || loadingCategorias}
+          >
+            <option value="">Selecciona una categoría...</option>
+            {categorias.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>
+                {categoria.nombre_categoria}
+              </option>
+            ))}
+          </select>
+          <small className="form-help">
+            {loadingCategorias ? 'Cargando categorías...' : 'Selecciona la categoría que mejor describe tu juego'}
+          </small>
         </div>
 
         <div className="form-group">
@@ -332,6 +384,7 @@ export const NuevaAppForm = () => {
         }
 
         .form-group input[type="text"],
+        .form-group select,
         .form-group textarea {
           width: 100%;
           padding: 0.75rem;
@@ -340,6 +393,10 @@ export const NuevaAppForm = () => {
           font-size: 1rem;
           font-family: inherit;
           background: white;
+        }
+
+        .form-group select {
+          cursor: pointer;
         }
 
         input[type="file"] {

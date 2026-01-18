@@ -41,6 +41,23 @@ export const validarCrearAplicacion = (req, res, next) => {
     });
   }
 
+  // Validar categoria_id (obligatorio)
+  if (!req.body.categoria_id) {
+    return res.status(400).json({
+      success: false,
+      mensaje: 'La categoría es obligatoria'
+    });
+  }
+
+  // Validar que categoria_id sea un UUID válido
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(req.body.categoria_id)) {
+    return res.status(400).json({
+      success: false,
+      mensaje: 'ID de categoría inválido'
+    });
+  }
+
   // C13: Validar tamaño de archivos
   if (req.files?.build_file) {
     const buildFile = req.files.build_file[0];

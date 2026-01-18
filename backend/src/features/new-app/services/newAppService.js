@@ -58,6 +58,33 @@ async function generarAppIdUnico() {
 export const newAppService = {
   
   /**
+   * GET: Obtiene las categorías de contenido activas
+   * 
+   * @returns {Promise<Array>} - Lista de categorías activas
+   */
+  async obtenerCategorias() {
+    try {
+      const { data: categorias, error } = await supabaseAdmin
+        .from('categorias_contenido')
+        .select('id, nombre_categoria, descripcion')
+        .eq('activa', true)
+        .is('deleted_at', null)
+        .order('nombre_categoria', { ascending: true });
+
+      if (error) {
+        console.error('[NEW_APP] Error al obtener categorías:', error);
+        throw new Error('Error al obtener categorías');
+      }
+
+      return categorias || [];
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en obtenerCategorias:', error);
+      throw error;
+    }
+  },
+
+  /**
    * CREATE: Crea una nueva aplicación para un desarrollador
    * 
    * Validaciones:
@@ -85,16 +112,32 @@ export const newAppService = {
         throw new Error('Desarrollador no encontrado');
       }
 
-      // 2. Generar AppID único
+      // 2. Validar que la categoría exista y esté activa
+      if (datosApp.categoria_id) {
+        const { data: categoria, error: catError } = await supabaseAdmin
+          .from('categorias_contenido')
+          .select('id')
+          .eq('id', datosApp.categoria_id)
+          .eq('activa', true)
+          .is('deleted_at', null)
+          .single();
+
+        if (catError || !categoria) {
+          throw new Error('Categoría no válida o inactiva');
+        }
+      }
+
+      // 3. Generar AppID único
       const appId = await generarAppIdUnico();
 
-      // 3. Preparar datos de la aplicación
+      // 4. Preparar datos de la aplicación
       const datosInsert = {
         app_id: appId,
         desarrollador_id: desarrolladorId,
         nombre_juego: datosApp.nombre_juego,
         descripcion_corta: datosApp.descripcion_corta || null,
         descripcion_larga: datosApp.descripcion_larga || null,
+        categoria_id: datosApp.categoria_id || null,
         estado_revision: 'borrador',
         pago_registro_completado: false, // Se actualizará cuando se confirme el pago
         monto_pago_registro: 100.00,

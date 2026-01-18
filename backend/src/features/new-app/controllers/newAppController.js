@@ -9,6 +9,29 @@ import { newAppService } from '../services/newAppService.js';
 export const newAppController = {
   
   /**
+   * GET /api/new-app/categorias
+   * Obtiene las categorías de contenido activas
+   */
+  async obtenerCategorias(req, res) {
+    try {
+      const categorias = await newAppService.obtenerCategorias();
+
+      return res.status(200).json({
+        success: true,
+        data: categorias
+      });
+
+    } catch (error) {
+      console.error('[CONTROLLER] Error en obtenerCategorias:', error);
+      
+      return res.status(500).json({
+        success: false,
+        mensaje: 'Error interno al obtener categorías'
+      });
+    }
+  },
+
+  /**
    * POST /api/new-app
    * Crea una nueva aplicación
    */
@@ -21,6 +44,7 @@ export const newAppController = {
         nombre_juego: req.body.nombre_juego,
         descripcion_corta: req.body.descripcion_corta,
         descripcion_larga: req.body.descripcion_larga,
+        categoria_id: req.body.categoria_id,
       };
 
       // Validar nombre del juego
@@ -28,6 +52,14 @@ export const newAppController = {
         return res.status(400).json({
           success: false,
           mensaje: 'El nombre del juego debe tener al menos 3 caracteres'
+        });
+      }
+
+      // Validar categoría
+      if (!datosApp.categoria_id) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Debes seleccionar una categoría'
         });
       }
 
