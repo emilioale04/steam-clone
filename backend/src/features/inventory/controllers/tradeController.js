@@ -1,13 +1,41 @@
 import { tradeOfferService, tradeService } from '../services/tradeService.js';
+import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
 
 export const tradeController = {
+	/**
+	 * Obtener estado de límites de trading para el usuario autenticado
+	 */
+	async getTradeLimitsStatus(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const status = await tradeService.getTradeLimitsStatus(userId);
+			res.json({
+				success: true,
+				...status,
+				maxOffersPerTrade: TRADE_LIMITS.MAX_OFFERS_PER_TRADE
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
+			});
+		}
+	},
+
 	/**
 	 * Obtener trades activos
 	 */
 	async getActiveTrades(req, res) {
 		try {
 			const { userId } = req.params;
-			const viewerId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
+			const viewerId = req.user?.id;
 
 			const trades = await tradeService.getAllActiveTrades();
 
@@ -29,7 +57,7 @@ export const tradeController = {
 	async postTrade(req, res) {
 		try {
 			const { offererId, itemId } = req.body;
-			const requesterId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
+			const requesterId = req.user?.id;
 
 			// if (offererId !== requesterId) {
 			// 	console.log(offererId, requesterId);
@@ -54,10 +82,10 @@ export const tradeController = {
 
 	async acceptTrade(req, res) {
 		try {
-			const { tradeId } = req.params;
+			const { tradeOfferId } = req.params;
 			const requesterId = req.user?.id;
 
-			const result = await tradeService.acceptTrade(tradeId, requesterId);
+			const result = await tradeService.acceptTrade(tradeOfferId);
 			res.json({
 				success: true,
 				data: result,
@@ -73,8 +101,8 @@ export const tradeController = {
 	async cancelTrade(req, res) {
 		try {
 			const { tradeId } = req.params;
-			const requesterId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
-			const result = await tradeService.canceltradeById(requesterId, tradeId);
+			const requesterId = req.user?.id;
+			const result = await tradeService.cancelTradeById(tradeId);
 			res.json({
 				success: true,
 				data: result,
@@ -89,12 +117,12 @@ export const tradeController = {
 
 	async postTradeOffer(req, res) {
 		try {
-			const { tradeId, offeredItemId } = req.body;
-			const requesterId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
+			const { offererId, tradeId, itemId } = req.body;
+			const requesterId = req.user?.id;
 			const tradeOffer = await tradeOfferService.postTradeOffer(
 				requesterId,
 				tradeId,
-				offeredItemId
+				itemId
 			);
 
 			res.json({
@@ -102,8 +130,27 @@ export const tradeController = {
 				data: tradeOffer,
 			});
 		} catch (error) {
-			res.status(error.message.includes('permiso') ? 403 : 500).json({
+			// Determinar código de estado apropiado
+			let statusCode = 500;
+			let errorCode = 'INTERNAL_ERROR';
+			
+			if (error.code === 'PRIVACY_RESTRICTED' || error.isPrivacyError) {
+				statusCode = 403;
+				errorCode = 'PRIVACY_RESTRICTED';
+			} else if (error.message.includes('permiso')) {
+				statusCode = 403;
+				errorCode = 'FORBIDDEN';
+			} else if (error.message.includes('no encontrado') || error.message.includes('no está disponible')) {
+				statusCode = 404;
+				errorCode = 'NOT_FOUND';
+			} else if (error.message.includes('límite') || error.message.includes('Ya has ofertado')) {
+				statusCode = 400;
+				errorCode = 'BAD_REQUEST';
+			}
+
+			res.status(statusCode).json({
 				success: false,
+				code: errorCode,
 				message: error.message,
 			});
 		}
@@ -113,7 +160,7 @@ export const tradeController = {
 		try {
 			const { tradeId } = req.params;
 			const requesterId = req.user?.id;
-			const offers = await tradeOfferService.getOffersForTrade(requesterId, tradeId);
+			const offers = await tradeService.getOffers(tradeId);
 
 			res.json({
 				success: true,
@@ -127,11 +174,28 @@ export const tradeController = {
 		}
 	},
 
-	async cancelTradeOffer(req, res) {
+	async getTradeOffersByItemId(req, res) {
+		try {
+			const { itemId } = req.params;
+			const requesterId = req.user?.id;
+			const offers = await tradeOfferService.getTradeOfferByItemId(itemId);
+			res.json({
+				success: true,
+				data: offers,
+			});
+		} catch (error) {
+			res.status(error.message.includes('permiso') ? 403 : 500).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	},
+
+	async rejectTradeOffer(req, res) {
 		try {
 			const { offerId } = req.params;
-			const requesterId = req.user?.id; // Asumiendo que el middleware de auth pone el user en req
-			const result = await tradeOfferService.cancelTradeOffer(requesterId, offerId);
+			const requesterId = req.user?.id;
+			const result = await tradeOfferService.rejectTradeOfferServ(offerId);
 
 			res.json({
 				success: true,
@@ -141,6 +205,50 @@ export const tradeController = {
 			res.status(error.message.includes('permiso') ? 403 : 500).json({
 				success: false,
 				message: error.message,
+			});
+		}
+	},
+
+	async cancelTradeOffer(req, res) {
+		try {
+			const { offerId } = req.params;
+			const requesterId = req.user?.id;
+			const result = await tradeOfferService.cancelTradeOfferServ(offerId);
+
+			res.json({
+				success: true,
+				data: result,
+			});
+		} catch (error) {
+			res.status(error.message.includes('permiso') ? 403 : 500).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	},
+
+	/**
+	 * Obtener las ofertas que el usuario autenticado ha realizado
+	 */
+	async getMyOffers(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const offers = await tradeOfferService.getMyOffers(userId);
+			res.json({
+				success: true,
+				data: offers
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
 			});
 		}
 	},

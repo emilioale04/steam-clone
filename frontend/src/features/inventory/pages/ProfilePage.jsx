@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Users, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw } from 'lucide-react';
+import { User, Users, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw, Wallet } from 'lucide-react';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
+import { WalletCard } from '../../wallet';
+import { PrivacySettings } from '../components/PrivacySettings';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -107,6 +109,17 @@ export const ProfilePage = () => {
             Resumen
           </button>
           <button
+            onClick={() => setActiveTab('wallet')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'wallet'
+                ? 'bg-[#2a475e] text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Wallet size={16} />
+            Billetera
+          </button>
+          <button
             onClick={() => setActiveTab('inventory')}
             className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'inventory'
@@ -115,6 +128,17 @@ export const ProfilePage = () => {
             }`}
           >
             Inventario
+          </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'privacy'
+                ? 'bg-[#2a475e] text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Shield size={16} />
+            Privacidad
           </button>
         </div>
 
@@ -166,16 +190,19 @@ export const ProfilePage = () => {
                   <ChevronRight className="text-gray-400" size={20} />
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-[#1b2838] rounded-lg opacity-60 cursor-not-allowed">
+                <button
+                  onClick={() => setActiveTab('privacy')}
+                  className="w-full flex items-center justify-between p-4 bg-[#1b2838] rounded-lg hover:bg-[#2a475e] transition-colors group"
+                >
                   <div className="flex items-center gap-3">
-                    <Shield className="text-gray-400" size={24} />
-                    <div>
+                    <Shield className="text-purple-400" size={24} />
+                    <div className="text-left">
                       <div className="text-white font-medium">Privacidad</div>
-                      <div className="text-gray-400 text-sm">Próximamente</div>
+                      <div className="text-gray-400 text-sm">Configura tu privacidad</div>
                     </div>
                   </div>
-                  <ChevronRight className="text-gray-400" size={20} />
-                </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-white transition-colors" size={20} />
+                </button>
               </div>
             </div>
 
@@ -231,6 +258,10 @@ export const ProfilePage = () => {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'wallet' && (
+          <WalletCard />
         )}
 
         {activeTab === 'inventory' && (
@@ -310,6 +341,10 @@ export const ProfilePage = () => {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'privacy' && (
+          <PrivacySettings />
         )}
       </div>
     </div>

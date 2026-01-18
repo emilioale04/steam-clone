@@ -6,7 +6,11 @@
 
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
 import { sessionService } from '../../../shared/services/sessionService.js';
-import { auditService, ACCIONES_AUDITORIA, RESULTADOS } from '../../../shared/services/auditService.js';
+import {
+  auditService,
+  ACCIONES_AUDITORIA,
+  RESULTADOS,
+} from '../../../shared/services/auditService.js';
 
 /**
  * Middleware: Requiere autenticación de desarrollador
@@ -15,25 +19,51 @@ import { auditService, ACCIONES_AUDITORIA, RESULTADOS } from '../../../shared/se
  */
 export const requireDesarrollador = async (req, res, next) => {
   try {
-    // Obtener token del header Authorization
+    // Obtener token del header Authorization o de cookies
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.session_token) {
+      token = req.cookies.session_token;
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
-        mensaje: 'Token de autorización no proporcionado'
+        mensaje: 'Token de autorización no proporcionado',
       });
     }
 
-    const token = authHeader.split(' ')[1];
-
     // Verificar token con Supabase
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
       return res.status(401).json({
         success: false,
-        mensaje: 'Token inválido o expirado'
+        mensaje: 'Token inválido o expirado',
+      });
+    }
+
+    // Verificar que el email esté confirmado
+    if (!user.email_confirmed_at) {
+      await auditService.registrarAccesoNoAutorizado(
+        user.id,
+        `desarrollador:${user.email}`,
+        req.ip || req.connection.remoteAddress,
+        req.get('user-agent'),
+        'Intento de acceso con email no verificado',
+      );
+
+      return res.status(403).json({
+        success: false,
+        code: 'EMAIL_NOT_VERIFIED',
+        mensaje:
+          'Debes verificar tu correo electrónico para acceder a esta función',
       });
     }
 
@@ -46,12 +76,12 @@ export const requireDesarrollador = async (req, res, next) => {
         `desarrollador:${user.email}`,
         req.ip || req.connection.remoteAddress,
         req.get('user-agent'),
-        'Sesión inválida o expirada en BD'
+        'Sesión inválida o expirada en BD',
       );
 
       return res.status(401).json({
         success: false,
-        mensaje: 'Sesión inválida o expirada'
+        mensaje: 'Sesión inválida o expirada',
       });
     }
 
@@ -70,12 +100,12 @@ export const requireDesarrollador = async (req, res, next) => {
         `desarrollador:${user.email}`,
         req.ip || req.connection.remoteAddress,
         req.get('user-agent'),
-        'No es un desarrollador registrado o cuenta inactiva'
+        'No es un desarrollador registrado o cuenta inactiva',
       );
 
       return res.status(403).json({
         success: false,
-        mensaje: 'Acceso denegado: No es un desarrollador registrado'
+        mensaje: 'Acceso denegado: No es un desarrollador registrado',
       });
     }
 
@@ -85,10 +115,13 @@ export const requireDesarrollador = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('[MIDDLEWARE] Error en verificación de desarrollador:', error);
+    console.error(
+      '[MIDDLEWARE] Error en verificación de desarrollador:',
+      error,
+    );
     return res.status(500).json({
       success: false,
-      mensaje: 'Error interno de autenticación'
+      mensaje: 'Error interno de autenticación',
     });
   }
 };
@@ -101,10 +134,13 @@ export const requireDesarrolladorAdmin = (req, res, next) => {
   // Primero verificar que sea desarrollador
   requireDesarrollador(req, res, (err) => {
     if (err) {
-      console.error('[MIDDLEWARE] Error en verificación de desarrollador (admin):', err);
+      console.error(
+        '[MIDDLEWARE] Error en verificación de desarrollador (admin):',
+        err,
+      );
       return res.status(500).json({
         success: false,
-        mensaje: 'Error interno de autenticación'
+        mensaje: 'Error interno de autenticación',
       });
     }
 
@@ -112,7 +148,7 @@ export const requireDesarrolladorAdmin = (req, res, next) => {
     if (!req.desarrollador || req.desarrollador.rol !== 'desarrollador_admin') {
       return res.status(403).json({
         success: false,
-        mensaje: 'Acceso denegado: Requiere permisos de administrador'
+        mensaje: 'Acceso denegado: Requiere permisos de administrador',
       });
     }
 
@@ -129,7 +165,7 @@ export const requireMfaVerificado = async (req, res, next) => {
     if (!req.desarrollador) {
       return res.status(401).json({
         success: false,
-        mensaje: 'Desarrollador no autenticado'
+        mensaje: 'Desarrollador no autenticado',
       });
     }
 
@@ -142,7 +178,7 @@ export const requireMfaVerificado = async (req, res, next) => {
       if (!token) {
         return res.status(401).json({
           success: false,
-          mensaje: 'Token no proporcionado'
+          mensaje: 'Token no proporcionado',
         });
       }
 
@@ -160,18 +196,18 @@ export const requireMfaVerificado = async (req, res, next) => {
           desarrolladorId: req.user.id,
           accion: ACCIONES_AUDITORIA.MFA_FALLIDO,
           resultado: RESULTADOS.FALLIDO,
-          detalles: { 
+          detalles: {
             razon: 'Operación de alto riesgo requiere MFA verificado',
-            operacion: req.path 
+            operacion: req.path,
           },
           ipAddress: req.ip || req.connection.remoteAddress,
-          userAgent: req.get('user-agent')
+          userAgent: req.get('user-agent'),
         });
 
         return res.status(403).json({
           success: false,
           mensaje: 'Esta operación requiere verificación MFA',
-          mfaRequired: true
+          mfaRequired: true,
         });
       }
     }
@@ -181,7 +217,7 @@ export const requireMfaVerificado = async (req, res, next) => {
     console.error('[MIDDLEWARE] Error en verificación MFA:', error);
     return res.status(500).json({
       success: false,
-      mensaje: 'Error en verificación de seguridad'
+      mensaje: 'Error en verificación de seguridad',
     });
   }
 };

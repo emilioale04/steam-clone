@@ -12,7 +12,7 @@ import { developerAuthService } from '../services/developerAuthService.js';
 function extractRequestMetadata(req) {
   return {
     ip_address: req.ip || req.connection.remoteAddress || 'unknown',
-    user_agent: req.get('user-agent') || 'unknown'
+    user_agent: req.get('user-agent') || 'unknown',
   };
 }
 
@@ -29,21 +29,21 @@ export const developerAuthController = {
       if (!datosRegistro.email || !datosRegistro.password) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Email y contraseña son requeridos'
+          mensaje: 'Email y contraseña son requeridos',
         });
       }
 
       if (!datosRegistro.nombre_legal || !datosRegistro.pais) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Nombre legal y país son requeridos'
+          mensaje: 'Nombre legal y país son requeridos',
         });
       }
 
       if (!datosRegistro.acepto_terminos) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Debe aceptar los términos y condiciones'
+          mensaje: 'Debe aceptar los términos y condiciones',
         });
       }
 
@@ -51,7 +51,7 @@ export const developerAuthController = {
       if (datosRegistro.password.length < 8) {
         return res.status(400).json({
           success: false,
-          mensaje: 'La contraseña debe tener al menos 8 caracteres'
+          mensaje: 'La contraseña debe tener al menos 8 caracteres',
         });
       }
 
@@ -60,18 +60,18 @@ export const developerAuthController = {
 
       const resultado = await developerAuthService.registrarDesarrollador(
         datosRegistro,
-        requestMetadata
+        requestMetadata,
       );
 
       res.status(201).json({
         success: true,
         data: resultado,
-        mensaje: 'Desarrollador registrado exitosamente'
+        mensaje: 'Desarrollador registrado exitosamente',
       });
     } catch (error) {
       res.status(400).json({
         success: false,
-        mensaje: error.message
+        mensaje: error.message,
       });
     }
   },
@@ -87,7 +87,7 @@ export const developerAuthController = {
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Email y contraseña son requeridos'
+          mensaje: 'Email y contraseña son requeridos',
         });
       }
 
@@ -95,20 +95,42 @@ export const developerAuthController = {
       const requestMetadata = extractRequestMetadata(req);
 
       const resultado = await developerAuthService.iniciarSesion(
-        email, 
+        email,
         password,
-        requestMetadata
+        requestMetadata,
       );
+
+      // Establecer cookie httpOnly con el token
+      res.cookie('session_token', resultado.session.access_token, {
+        httpOnly: true,
+        secure: false, // En producción cambiar a true con HTTPS
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
 
       res.status(200).json({
         success: true,
         data: resultado,
-        mensaje: 'Inicio de sesión exitoso'
+        mensaje: 'Inicio de sesión exitoso',
       });
     } catch (error) {
+      // Manejar error de email no verificado
+      if (
+        error.code === 'EMAIL_NOT_VERIFIED' ||
+        error.message === 'EMAIL_NOT_VERIFIED'
+      ) {
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          mensaje:
+            'Debes verificar tu correo electrónico antes de iniciar sesión. Por favor, revisa tu bandeja de entrada.',
+        });
+      }
+
       res.status(401).json({
         success: false,
-        mensaje: error.message
+        mensaje: error.message,
       });
     }
   },
@@ -125,14 +147,51 @@ export const developerAuthController = {
 
       await developerAuthService.cerrarSesion(userId, requestMetadata);
 
+      // Limpiar cookie
+      res.clearCookie('session_token');
+
       res.status(200).json({
         success: true,
-        mensaje: 'Sesión cerrada exitosamente'
+        mensaje: 'Sesión cerrada exitosamente',
       });
     } catch (error) {
       res.status(400).json({
         success: false,
-        mensaje: error.message
+        mensaje: error.message,
+      });
+    }
+  },
+
+  /**
+   * POST /api/desarrolladores/auth/reenviar-verificacion
+   * Reenvía el correo de verificación de email
+   */
+  async reenviarVerificacion(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Email es requerido',
+        });
+      }
+
+      const requestMetadata = extractRequestMetadata(req);
+
+      const resultado = await developerAuthService.reenviarCorreoVerificacion(
+        email,
+        requestMetadata,
+      );
+
+      res.status(200).json({
+        success: true,
+        mensaje: resultado.mensaje,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        mensaje: error.message,
       });
     }
   },
@@ -147,12 +206,12 @@ export const developerAuthController = {
 
       res.status(200).json({
         success: true,
-        data: resultado
+        data: resultado,
       });
     } catch (error) {
       res.status(401).json({
         success: false,
-        mensaje: error.message
+        mensaje: error.message,
       });
     }
   },
@@ -168,7 +227,7 @@ export const developerAuthController = {
       if (!email) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Email es requerido'
+          mensaje: 'Email es requerido',
         });
       }
 
@@ -176,13 +235,15 @@ export const developerAuthController = {
 
       res.status(200).json({
         success: true,
-        mensaje: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
+        mensaje:
+          'Si el email existe, recibirás instrucciones para restablecer tu contraseña',
       });
     } catch (error) {
       // No revelar si el email existe o no (seguridad)
       res.status(200).json({
         success: true,
-        mensaje: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
+        mensaje:
+          'Si el email existe, recibirás instrucciones para restablecer tu contraseña',
       });
     }
   },
@@ -198,32 +259,32 @@ export const developerAuthController = {
       if (!password) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Nueva contraseña es requerida'
+          mensaje: 'Nueva contraseña es requerida',
         });
       }
 
       if (password.length < 8) {
         return res.status(400).json({
           success: false,
-          mensaje: 'La contraseña debe tener al menos 8 caracteres'
+          mensaje: 'La contraseña debe tener al menos 8 caracteres',
         });
       }
 
       const resultado = await developerAuthService.actualizarPassword(
         password,
         accessToken,
-        refreshToken
+        refreshToken,
       );
 
       res.status(200).json({
         success: true,
         data: resultado,
-        mensaje: 'Contraseña actualizada exitosamente'
+        mensaje: 'Contraseña actualizada exitosamente',
       });
     } catch (error) {
       res.status(400).json({
         success: false,
-        mensaje: error.message
+        mensaje: error.message,
       });
     }
   },
@@ -241,17 +302,17 @@ export const developerAuthController = {
         data: {
           esDesarrollador: true,
           rol: resultado.desarrollador.rol,
-          cuenta_activa: resultado.desarrollador.cuenta_activa
-        }
+          cuenta_activa: resultado.desarrollador.cuenta_activa,
+        },
       });
     } catch (error) {
       res.status(401).json({
         success: false,
         data: {
-          esDesarrollador: false
+          esDesarrollador: false,
         },
-        mensaje: error.message
+        mensaje: error.message,
       });
     }
-  }
+  },
 };
