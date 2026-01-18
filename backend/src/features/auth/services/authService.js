@@ -2,28 +2,28 @@ import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
 
 export const authService = {
   async signUp(email, password, userData = {}) {
-    // Usar supabaseAdmin para registro ya que no requiere sesión previa
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    // signUp envía email de verificación automáticamente
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      email_confirm: false, // Requiere verificación
-      user_metadata: userData
+      options: {
+        data: userData,
+        emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
+      }
     });
     
     if (error) {
-      // Si el usuario ya existe
       if (error.message.includes('already') || error.message.includes('exists')) {
         throw new Error('Este correo electrónico ya está registrado');
       }
       throw error;
     }
 
-    // Ensure we have a valid new user before creating profile
     if (!data.user || !data.user.id) {
       throw new Error('Error al crear el usuario');
     }
 
-    // Create profile entry for the new user using admin client (bypasses RLS)
+    // Crear perfil usando admin client (bypasses RLS)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -40,29 +40,14 @@ export const authService = {
 
     if (profileError) {
       console.error('[AUTH] Error creating profile:', profileError);
-      // Clean up: delete the auth user since profile creation failed
       try {
         await supabaseAdmin.auth.admin.deleteUser(data.user.id);
       } catch (cleanupError) {
-        console.error('[AUTH] Error cleaning up user after profile failure:', cleanupError);
+        console.error('[AUTH] Error cleaning up user:', cleanupError);
       }
       throw new Error('Error al crear el perfil de usuario. Por favor, intenta de nuevo.');
     }
 
-    // Enviar email de verificación manualmente
-    const { error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email: email,
-      options: {
-        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
-      }
-    });
-
-    if (inviteError) {
-      console.error('[AUTH] Error sending verification email:', inviteError);
-    }
-
-    // Return data with email verification pending flag
     return {
       user: data.user,
       emailVerificationPending: true
