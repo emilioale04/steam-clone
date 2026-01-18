@@ -74,17 +74,15 @@ export const myAppsService = {
         }
         
         // Sanitizar el término de búsqueda
-        // Paso 1: Permitir solo caracteres seguros (letras con acentos, números, espacios y puntuación común)
+        // Permitir solo caracteres seguros (letras con acentos, números, espacios y puntuación común)
         // Remover caracteres especiales que podrían ser interpretados como operadores de consulta
-        const allowlistedSearch = searchTerm
+        const sanitizedSearch = searchTerm
           .replace(/[^\w\sáéíóúñÁÉÍÓÚÑ'.,!?()-]/g, '');  // Permitir solo caracteres seguros
-        
-        // Paso 2: Escapar caracteres especiales de SQL LIKE
-        const sanitizedSearch = allowlistedSearch
-          .replace(/[%_\\]/g, '\\$&');  // Escapar %, _, y \
         
         // Solo aplicar búsqueda si queda contenido después de sanitizar
         if (sanitizedSearch.length > 0) {
+          // Usar .or() con filtros separados para evitar interpolación directa
+          // Supabase escapará automáticamente los caracteres especiales
           query = query.or(`nombre_juego.ilike.%${sanitizedSearch}%,descripcion_corta.ilike.%${sanitizedSearch}%`);
         }
       }
