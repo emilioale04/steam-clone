@@ -1,6 +1,34 @@
 import { tradeOfferService, tradeService } from '../services/tradeService.js';
+import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
 
 export const tradeController = {
+	/**
+	 * Obtener estado de límites de trading para el usuario autenticado
+	 */
+	async getTradeLimitsStatus(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const status = await tradeService.getTradeLimitsStatus(userId);
+			res.json({
+				success: true,
+				...status,
+				maxOffersPerTrade: TRADE_LIMITS.MAX_OFFERS_PER_TRADE
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
+			});
+		}
+	},
+
 	/**
 	 * Obtener trades activos
 	 */
@@ -176,6 +204,32 @@ export const tradeController = {
 			res.status(error.message.includes('permiso') ? 403 : 500).json({
 				success: false,
 				message: error.message,
+			});
+		}
+	},
+
+	/**
+	 * Obtener las ofertas que el usuario autenticado ha realizado
+	 */
+	async getMyOffers(req, res) {
+		try {
+			const userId = req.user?.id;
+			if (!userId) {
+				return res.status(401).json({
+					success: false,
+					message: 'Usuario no autenticado'
+				});
+			}
+
+			const offers = await tradeOfferService.getMyOffers(userId);
+			res.json({
+				success: true,
+				data: offers
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message: error.message
 			});
 		}
 	},

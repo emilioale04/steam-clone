@@ -1,4 +1,5 @@
 import { authService } from '../services/authService.js';
+import supabase from '../../../shared/config/supabase.js';
 
 export const authController = {
   async register(req, res) {
@@ -117,7 +118,34 @@ export const authController = {
 
   async getUser(req, res) {
     try {
-      const user = await authService.getCurrentUser();
+      // Obtener token de la cookie httpOnly
+      const token = req.cookies?.access_token;
+      
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'No autenticado'
+        });
+      }
+
+      // Verificar token con Supabase (stateless)
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error || !user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido o expirado'
+        });
+      }
+
+      // Verificar que el email esté confirmado
+      if (!user.email_confirmed_at) {
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          message: 'Email no verificado'
+        });
+      }
       
       res.status(200).json({
         success: true,

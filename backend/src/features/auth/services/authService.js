@@ -2,21 +2,20 @@ import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
 
 export const authService = {
   async signUp(email, password, userData = {}) {
-    const { data, error } = await supabase.auth.signUp({
+    // Usar supabaseAdmin para registro ya que no requiere sesión previa
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: userData,
-        // Email confirmation redirect URL
-        emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
-      }
+      email_confirm: false, // Requiere verificación
+      user_metadata: userData
     });
     
-    if (error) throw error;
-
-    // Check if email already exists - Supabase returns user with empty identities array
-    if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
-      throw new Error('Este correo electrónico ya está registrado');
+    if (error) {
+      // Si el usuario ya existe
+      if (error.message.includes('already') || error.message.includes('exists')) {
+        throw new Error('Este correo electrónico ya está registrado');
+      }
+      throw error;
     }
 
     // Ensure we have a valid new user before creating profile
@@ -48,14 +47,28 @@ export const authService = {
       throw new Error('Error al crear el perfil de usuario. Por favor, intenta de nuevo.');
     }
 
+    // Enviar email de verificación manualmente
+    const { error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      options: {
+        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
+      }
+    });
+
+    if (inviteError) {
+      console.error('[AUTH] Error sending verification email:', inviteError);
+    }
+
     // Return data with email verification pending flag
     return {
-      ...data,
+      user: data.user,
       emailVerificationPending: true
     };
   },
 
   async signIn(email, password) {
+    // signInWithPassword es stateless cuando persistSession: false
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -72,11 +85,12 @@ export const authService = {
   },
 
   async resendVerificationEmail(email) {
-    const { data, error } = await supabase.auth.resend({
+    // Usar admin para reenviar verificación
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
+        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?verified=true`
       }
     });
     
@@ -84,26 +98,37 @@ export const authService = {
     return data;
   },
 
+  // signOut ya no necesita hacer nada en el servidor
+  // porque no hay sesión persistida - solo el cliente borra su cookie
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // No-op: la sesión se maneja via cookies en el cliente
+    // El backend simplemente invalida la cookie
+    return;
   },
 
+  // Esta función no se usa porque el middleware valida el token directamente
+  // Mantenida por compatibilidad
   async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
+    // NOTA: Esta función NO debe usarse en producción
+    // El usuario se obtiene del token en el middleware
+    console.warn('[AUTH] getCurrentUser called - should use token validation instead');
+    return null;
   },
 
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return session;
+    // NOTA: No hay sesión persistida en el servidor
+    console.warn('[AUTH] getSession called - sessions are managed via httpOnly cookies');
+    return null;
   },
 
   async resetPasswordRequest(email) {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`
+    // Usar admin para generar link de reset
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`
+      }
     });
     
     if (error) throw error;
@@ -111,20 +136,18 @@ export const authService = {
   },
 
   async updatePassword(newPassword, accessToken, refreshToken) {
-    // Establecer la sesión primero usando los tokens
-    if (accessToken && refreshToken) {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      });
-      
-      if (sessionError) throw sessionError;
+    // Verificar el token primero
+    const { data: { user }, error: verifyError } = await supabase.auth.getUser(accessToken);
+    
+    if (verifyError || !user) {
+      throw new Error('Token inválido o expirado');
     }
 
-    // Ahora actualizar la contraseña
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    // Usar admin para actualizar la contraseña directamente
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    );
     
     if (error) throw error;
     return data;

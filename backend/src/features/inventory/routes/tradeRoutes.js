@@ -4,6 +4,12 @@ import { tradeController } from '../controllers/tradeController.js';
 
 const tradeRouter = express.Router();
 
+// Obtener estado de límites de trading del usuario autenticado
+tradeRouter.get('/limits', requireAuth, tradeController.getTradeLimitsStatus);
+
+// Obtener todas las ofertas que el usuario ha realizado
+tradeRouter.get('/my-offers', requireAuth, tradeController.getMyOffers);
+
 // Obtener todos los trades activos
 tradeRouter.get('/actives', tradeController.getActiveTrades);
 // Postear intercambio
