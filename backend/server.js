@@ -1,4 +1,5 @@
 import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
 
@@ -65,15 +66,16 @@ import geoValidationMiddleware  from './src/shared/middleware/geoValidationMiddl
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
-  throw new Error(
-    'Falla en la configuración de GeoIP: variables de entorno faltantes',
-  );
-}
+//if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
+//  throw new Error(
+//    'Falla en la configuración de GeoIP: variables de entorno faltantes',
+//  );
+//}
 
 // Security Middleware (DEBE IR PRIMERO)
 // RNF-002: HTTPS/TLS headers
 // Security Headers: HSTS, CSP, X-Frame-Options, etc.
+app.use(express.json());
 app.use(securityHeaders);
 app.use(additionalSecurityHeaders);
 
