@@ -1,5 +1,8 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { limitedAccountService } from '../../../shared/services/limitedAccountService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('WalletService');
 
 /**
  * Wallet Service
@@ -149,7 +152,7 @@ export const walletService = {
             .gte('created_at', today.toISOString());
 
         if (error) {
-            console.error('Error al obtener recargas diarias:', error);
+            logger.error('Error al obtener recargas diarias:', { error });
             return 0;
         }
 
@@ -196,7 +199,7 @@ export const walletService = {
             if (dailyTotal + amount > this.LIMITS.MAX_DAILY_RELOAD) {
                 const remaining = this.LIMITS.MAX_DAILY_RELOAD - dailyTotal;
                 throw new Error(
-                    `Has alcanzado el límite diario de recarga. ` +
+                    'Has alcanzado el límite diario de recarga. ' +
                     `Puedes recargar hasta $${remaining.toFixed(2)} más hoy.`
                 );
             }
@@ -211,7 +214,7 @@ export const walletService = {
             });
 
             if (error) {
-                console.error('Error en reload_wallet RPC:', error);
+                logger.error('Error en reload_wallet RPC:', { error });
                 
                 // Fallback a transacción manual si RPC no existe
                 if (error.code === 'PGRST202' || error.message.includes('not find')) {
@@ -389,7 +392,7 @@ export const walletService = {
             });
 
             if (error) {
-                console.error('Error en process_payment RPC:', error);
+                logger.error('Error en process_payment RPC:', { error });
                 
                 // Fallback si RPC no existe
                 if (error.code === 'PGRST202' || error.message.includes('not find')) {

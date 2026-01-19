@@ -105,6 +105,7 @@ export const tradeService = {
 			credentials: 'include',
 		});
 		const data = await response.json();
+		// console.log("Datos recibidos en el service:", data.data);
 		if (!data.success) throw new Error(data.message);
 		return data.data;
 	},

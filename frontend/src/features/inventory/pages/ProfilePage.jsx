@@ -225,7 +225,7 @@ export const ProfilePage = () => {
                         <Package size={20} className="text-gray-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium truncate">Item #{item.steam_item_id}</div>
+                        <div className="text-white font-medium truncate">{item.name || 'Item Desconocido'}</div>
                         <div className="flex gap-2 mt-1">
                           {item.is_tradeable && !item.is_locked && (
                             <span className="text-green-400 text-xs flex items-center gap-1">
@@ -311,7 +311,7 @@ export const ProfilePage = () => {
                       )}
                     </div>
                     <div className="p-2">
-                      <h3 className="text-white text-xs font-medium truncate">Item #{item.steam_item_id}</h3>
+                      <h3 className="text-white text-xs font-medium truncate">{item.name || 'Item Desconocido'}</h3>
                     </div>
                   </div>
                 ))}

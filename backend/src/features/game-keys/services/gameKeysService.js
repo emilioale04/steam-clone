@@ -34,13 +34,18 @@ export const gameKeysService = {
       // 1. Verificar que la aplicación pertenece al desarrollador (C18)
       const { data: app, error: appError } = await supabaseAdmin
         .from('aplicaciones_desarrolladores')
-        .select('id, nombre_juego, desarrollador_id')
+        .select('id, nombre_juego, desarrollador_id, estado_revision')
         .eq('id', juegoId)
         .eq('desarrollador_id', desarrolladorId)
         .single();
       
       if (appError || !app) {
         throw new Error('No tienes permisos para generar llaves de esta aplicación');
+      }
+      
+      // Validar que la aplicación esté aprobada
+      if (app.estado_revision !== 'aprobado') {
+        throw new Error('Solo puedes generar llaves para aplicaciones aprobadas');
       }
       
       // 2. Verificar límite de llaves totales (C10) - MÁXIMO 5 LLAVES POR APLICACIÓN

@@ -1,5 +1,8 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { privacyService } from './privacyService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('InventoryService');
 
 export const inventoryService = {
     /**
@@ -25,11 +28,24 @@ export const inventoryService = {
             throw new Error('No tienes permiso para ver este inventario');
         }
 
-        // Modificamos el select para incluir listings activos y trades activos
+        // Modificamos el select para incluir datos de items_aplicaciones y listings activos
         const { data, error } = await supabase
             .from('items')
             .select(`
-                *,
+                id,
+                owner_id,
+                is_locked,
+                acquired_at,
+                updated_at,
+                item_aplicacion_id,
+                items_aplicaciones (
+                    id,
+                    aplicacion_id,
+                    nombre,
+                    is_tradeable,
+                    is_marketable,
+                    activo
+                ),
                 marketplace_listings (
                     id, 
                     price, 
@@ -38,7 +54,10 @@ export const inventoryService = {
             `)
             .eq('owner_id', ownerId);
 
-        if (error) throw error;
+        if (error) {
+            logger.error('Error fetching inventory:', { error });
+            throw error;
+        }
 
         // Obtener trades activos del usuario (donde el item está en intercambio)
         const { data: activeTrades, error: tradesError } = await supabase
@@ -48,7 +67,7 @@ export const inventoryService = {
             .eq('status', 'Pendiente');
 
         if (tradesError) {
-            console.error('Error fetching active trades:', tradesError);
+            logger.error('Error fetching active trades:', { error: tradesError });
         }
 
         // Obtener trade_offers activos del usuario
@@ -59,7 +78,7 @@ export const inventoryService = {
             .eq('status', 'Pendiente');
 
         if (offersError) {
-            console.error('Error fetching active trade offers:', offersError);
+            logger.error('Error fetching active trade offers:', { error: offersError });
         }
 
         // Crear mapas para búsqueda rápida
@@ -73,17 +92,27 @@ export const inventoryService = {
             offersMap.set(offer.item_id, offer);
         });
 
-        // Procesamos para dejar solo el listing activo y trade activo en propiedades
+        // Procesamos para aplanar la estructura y mantener compatibilidad
         return data.map(item => {
             const activeListing = item.marketplace_listings?.find(l => l.status === 'Active');
             const activeTrade = tradesMap.get(item.id) || null;
             const activeTradeOffer = offersMap.get(item.id) || null;
             
-            // Limpiamos la propiedad original para no enviar basura
-            const { marketplace_listings, ...itemFields } = item;
+            // Aplanar la estructura para compatibilidad con frontend
+            // Nota: items_aplicaciones viene del join con la tabla del mismo nombre
+            const itemApp = item.items_aplicaciones;
+            const { marketplace_listings, items_aplicaciones, ...itemFields } = item;
             
             return {
                 ...itemFields,
+                // Datos de la plantilla del item (items_aplicaciones)
+                name: itemApp?.nombre,
+                is_tradeable: itemApp?.is_tradeable,
+                is_marketable: itemApp?.is_marketable,
+                activo: itemApp?.activo,
+                aplicacion_id: itemApp?.aplicacion_id,
+                item_aplicacion_id: itemApp?.id,
+                // Estados activos
                 active_listing: activeListing || null,
                 active_trade: activeTrade,
                 active_trade_offer: activeTradeOffer
@@ -99,7 +128,22 @@ export const inventoryService = {
     async getItemById(itemId, viewerId) {
         const { data: item, error } = await supabase
             .from('items')
-            .select('*')
+            .select(`
+                id,
+                owner_id,
+                is_locked,
+                acquired_at,
+                updated_at,
+                item_aplicacion_id,
+                items_aplicaciones (
+                    id,
+                    aplicacion_id,
+                    nombre,
+                    is_tradeable,
+                    is_marketable,
+                    activo
+                )
+            `)
             .eq('id', itemId)
             .single();
 
@@ -111,36 +155,63 @@ export const inventoryService = {
             throw new Error('No tienes permiso para ver este item');
         }
 
-        return item;
+        // Aplanar la estructura para compatibilidad
+        const itemApp = item.items_aplicaciones;
+        const { items_aplicaciones, ...itemFields } = item;
+        
+        return {
+            ...itemFields,
+            name: itemApp?.nombre,
+            is_tradeable: itemApp?.is_tradeable,
+            is_marketable: itemApp?.is_marketable,
+            activo: itemApp?.activo,
+            aplicacion_id: itemApp?.aplicacion_id,
+            item_aplicacion_id: itemApp?.id
+        };
     },
 
     /**
      * Sincroniza el inventario local con Steam (Simulación de API central)
+     * Ahora usa la nueva estructura con items_aplicaciones
      * @param {string} userId 
-     * @param {Array} steamItems - Items de Steam con estructura { steam_item_id, is_tradeable, is_marketable }
+     * @param {Array} steamItems - Items con item_aplicacion_id
      */
     async syncWithSteam(userId, steamItems) {
         // 1. Obtener items actuales del usuario
         const { data: currentItems } = await supabase
             .from('items')
-            .select('steam_item_id')
+            .select('id, item_aplicacion_id')
             .eq('owner_id', userId);
 
-        const currentSteamIds = currentItems?.map(item => item.steam_item_id) || [];
+        const currentAppIds = currentItems?.map(item => item.item_aplicacion_id).filter(Boolean) || [];
 
-        // 2. Identificar nuevos items
-        const newItems = steamItems.filter(item => !currentSteamIds.includes(item.steam_item_id));
+        // 2. Identificar nuevos items (item_aplicacion_ids que el usuario no tiene)
+        const newAppIds = steamItems
+            .map(item => item.item_aplicacion_id)
+            .filter(appId => !currentAppIds.includes(appId));
 
-        if (newItems.length > 0) {
+        if (newAppIds.length === 0) {
+            return { success: true, syncedCount: 0 };
+        }
+
+        // 3. Verificar que los item_aplicacion_ids existen y están activos
+        const { data: validApps, error: appError } = await supabase
+            .from('items_aplicaciones')
+            .select('id')
+            .in('id', newAppIds)
+            .eq('activo', true);
+
+        if (appError) throw appError;
+
+        if (validApps && validApps.length > 0) {
+            // 4. Crear las instancias de items para el usuario
             const { error } = await supabase
                 .from('items')
                 .insert(
-                    newItems.map(item => ({
+                    validApps.map(app => ({
                         owner_id: userId,
-                        steam_item_id: item.steam_item_id,
-                        is_tradeable: item.is_tradeable ?? true,
-                        is_marketable: item.is_marketable ?? true,
-                        is_locked: item.is_locked ?? false
+                        item_aplicacion_id: app.id,
+                        is_locked: false
                     }))
                 );
 
@@ -149,7 +220,7 @@ export const inventoryService = {
 
         return {
             success: true,
-            syncedCount: newItems.length
+            syncedCount: validApps?.length || 0
         };
     },
 
@@ -164,7 +235,7 @@ export const inventoryService = {
             .eq('status', 'active');
 
         if (error) {
-            console.error("Error contando listings activos:", error);
+            logger.error('Error contando listings activos:', { error });
             throw new Error(error.message);
         }
 
@@ -183,7 +254,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error("Error en transacción venta:", error);
+            logger.error('Error en transacción venta:', { error });
             throw new Error(error.message);
         }
 
@@ -210,7 +281,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error("Error en transacción cancelación:", error);
+            logger.error('Error en transacción cancelación:', { error });
             throw new Error(error.message);
         }
 
@@ -238,7 +309,7 @@ export const inventoryService = {
 
         // Verificar ownership (CRÍTICO para seguridad)
         if (listing.seller_id !== userId) {
-            console.warn(`Intento no autorizado de actualizar precio. User: ${userId}, Listing owner: ${listing.seller_id}`);
+            logger.warn(`Intento no autorizado de actualizar precio. User: ${userId}, Listing owner: ${listing.seller_id}`);
             throw new Error('Esta publicación no te pertenece');
         }
 
@@ -271,7 +342,7 @@ export const inventoryService = {
             .single();
 
         if (updateError) {
-            console.error('Error actualizando precio:', updateError);
+            logger.error('Error actualizando precio:', { error: updateError });
             throw new Error('Error al actualizar el precio');
         }
 
@@ -284,9 +355,10 @@ export const inventoryService = {
 
     /**
      * Obtiene todos los items listados en el mercado
+     * Usa la nueva estructura con items_aplicaciones
      */
     async getMarketListings() {
-        // Obtenemos listings activos con datos del item y del vendedor
+        // Obtenemos listings activos con datos del item, items_aplicaciones y del vendedor
         const { data, error } = await supabase
             .from('marketplace_listings')
             .select(`
@@ -296,10 +368,14 @@ export const inventoryService = {
                 seller_id,
                 items:item_id (
                     id,
-                    name, 
-                    steam_item_id,
-                    is_tradeable,
-                    is_marketable
+                    is_locked,
+                    items_aplicaciones (
+                        id,
+                        nombre,
+                        is_tradeable,
+                        is_marketable,
+                        aplicacion_id
+                    )
                 ),
                 profiles:seller_id (
                     username
@@ -309,25 +385,28 @@ export const inventoryService = {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error("Error fetching market listings:", error);
+            logger.error('Error fetching market listings:', { error });
             throw error;
         }
 
         // Mapear para estructura que espera el frontend
-        return data.map(listing => ({
-            id: listing.id, // ID del listing, no del item
-            itemId: listing.items?.id,
-            steam_item_id: listing.items?.steam_item_id,
-            name: listing.items?.name || `Item`,
-            price: listing.price,
-            seller: listing.profiles?.username || 'Desconocido',
-            seller_id: listing.seller_id, // Agregamos el ID del vendedor para validación
-            sellerValid: true,
-            image: null, // Si tuvieras columna de imagen
-            is_tradeable: listing.items?.is_tradeable,
-            is_marketable: listing.items?.is_marketable,
-            listing_date: listing.created_at
-        }));
+        return data.map(listing => {
+            const itemApp = listing.items?.items_aplicaciones;
+            return {
+                id: listing.id, // ID del listing, no del item
+                itemId: listing.items?.id,
+                item_aplicacion_id: itemApp?.id,
+                name: itemApp?.nombre || 'Item',
+                price: listing.price,
+                seller: listing.profiles?.username || 'Desconocido',
+                seller_id: listing.seller_id,
+                sellerValid: true,
+                is_tradeable: itemApp?.is_tradeable,
+                is_marketable: itemApp?.is_marketable,
+                aplicacion_id: itemApp?.aplicacion_id,
+                listing_date: listing.created_at
+            };
+        });
     },
 
     /**
@@ -356,7 +435,7 @@ export const inventoryService = {
             .gte('created_at', today.toISOString());
 
         if (error) {
-            console.error('Error obteniendo compras del día:', error);
+            logger.error('Error obteniendo compras del día:', { error });
             return 0;
         }
 
@@ -390,7 +469,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error('Error en purchase_marketplace_item RPC:', error);
+            logger.error('Error en purchase_marketplace_item RPC:', { error });
             
             // Manejar errores específicos de forma amigable
             if (error.message.includes('Fondos insuficientes')) {

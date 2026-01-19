@@ -65,7 +65,7 @@ export const developerProfileService = {
           titular_cuenta: datosBancariosDescifrados.titular_banco,
         },
         metadatos: {
-          ultima_modificacion: desarrollador.ultima_modificacion,
+          ultima_actualizacion_datos: desarrollador.ultima_actualizacion_datos,
           mfa_habilitado: desarrollador.mfa_habilitado,
         },
       };
@@ -112,12 +112,14 @@ export const developerProfileService = {
       // === VALIDAR RESTRICCIÓN DE 5 DÍAS (Política ABAC - RF-003) ===
       const { data: desarrollador } = await supabaseAdmin
         .from('desarrolladores')
-        .select('ultima_modificacion')
+        .select('ultima_actualizacion_datos')
         .eq('id', desarrolladorId)
         .single();
 
-      if (desarrollador?.ultima_modificacion) {
-        const ultimaModificacion = new Date(desarrollador.ultima_modificacion);
+      if (desarrollador?.ultima_actualizacion_datos) {
+        const ultimaModificacion = new Date(
+          desarrollador.ultima_actualizacion_datos,
+        );
         const ahora = new Date();
         const diferenciaDias = Math.floor(
           (ahora - ultimaModificacion) / (1000 * 60 * 60 * 24),
@@ -133,7 +135,7 @@ export const developerProfileService = {
             resultado: RESULTADOS.FALLIDO,
             detalles: {
               razon: `Restricción de 5 días no cumplida (faltan ${diasRestantes} días)`,
-              ultima_modificacion: ultimaModificacion.toISOString(),
+              ultima_actualizacion_datos: ultimaModificacion.toISOString(),
             },
             ipAddress: requestMetadata.ip_address,
             userAgent: requestMetadata.user_agent,
@@ -152,10 +154,10 @@ export const developerProfileService = {
         .update({
           nombre_legal: nombreSanitizado,
           telefono: telefonoSanitizado,
-          ultima_modificacion: new Date().toISOString(),
+          ultima_actualizacion_datos: new Date().toISOString(),
         })
         .eq('id', desarrolladorId)
-        .select('nombre_legal, telefono, ultima_modificacion')
+        .select('nombre_legal, telefono, ultima_actualizacion_datos')
         .single();
 
       if (error) {
@@ -233,12 +235,14 @@ export const developerProfileService = {
       // === VALIDAR RESTRICCIÓN DE 5 DÍAS (Política ABAC - RF-003) ===
       const { data: desarrollador } = await supabaseAdmin
         .from('desarrolladores')
-        .select('ultima_modificacion')
+        .select('ultima_actualizacion_datos')
         .eq('id', desarrolladorId)
         .single();
 
-      if (desarrollador?.ultima_modificacion) {
-        const ultimaModificacion = new Date(desarrollador.ultima_modificacion);
+      if (desarrollador?.ultima_actualizacion_datos) {
+        const ultimaModificacion = new Date(
+          desarrollador.ultima_actualizacion_datos,
+        );
         const ahora = new Date();
         const diferenciaDias = Math.floor(
           (ahora - ultimaModificacion) / (1000 * 60 * 60 * 24),
@@ -254,7 +258,7 @@ export const developerProfileService = {
             resultado: RESULTADOS.FALLIDO,
             detalles: {
               razon: `Restricción de 5 días no cumplida (faltan ${diasRestantes} días)`,
-              ultima_modificacion: ultimaModificacion.toISOString(),
+              ultima_actualizacion_datos: ultimaModificacion.toISOString(),
             },
             ipAddress: requestMetadata.ip_address,
             userAgent: requestMetadata.user_agent,
@@ -281,10 +285,10 @@ export const developerProfileService = {
           banco: datosBancariosCifrados.nombre_banco,
           numero_cuenta: datosBancariosCifrados.cuenta_bancaria, // Cifrado
           titular_cuenta: datosBancariosCifrados.titular_banco,
-          ultima_modificacion: new Date().toISOString(),
+          ultima_actualizacion_datos: new Date().toISOString(),
         })
         .eq('id', desarrolladorId)
-        .select('banco, ultima_modificacion')
+        .select('banco, ultima_actualizacion_datos')
         .single();
 
       if (error) {
@@ -319,7 +323,7 @@ export const developerProfileService = {
 
       return {
         banco: bancoSanitizado,
-        ultima_modificacion: actualizado.ultima_modificacion,
+        ultima_actualizacion_datos: actualizado.ultima_actualizacion_datos,
       };
     } catch (error) {
       console.error('Error en actualizarInformacionBancaria:', error);

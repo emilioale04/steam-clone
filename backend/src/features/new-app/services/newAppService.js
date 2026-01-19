@@ -138,8 +138,7 @@ export const newAppService = {
         descripcion_corta: datosApp.descripcion_corta || null,
         descripcion_larga: datosApp.descripcion_larga || null,
         categoria_id: datosApp.categoria_id || null,
-        estado_revision: 'borrador',
-        pago_registro_completado: false, // Se actualizará cuando se confirme el pago
+        pago_registro_completado: true, // Se actualizará cuando se confirme el pago
         monto_pago_registro: 100.00,
       };
 
@@ -219,7 +218,23 @@ export const newAppService = {
         throw new Error('Error al crear la aplicación en la base de datos');
       }
 
-      // 6. Registrar auditoría
+      // 6. Crear registro de revisión automáticamente (RF-005)
+      const { data: revision, error: revisionError } = await supabaseAdmin
+        .from('revisiones_juegos')
+        .insert({
+          id_juego: nuevaApp.id,
+          estado: 'pendiente'
+        })
+        .select('*')
+        .single();
+
+      if (revisionError) {
+        console.error('[NEW_APP] Error al crear registro de revisión:', revisionError);
+      } else {
+        console.log('Registro de revisión creado:', revision.id, '- Estado:', revision.estado); 
+      }
+
+      // 7. Registrar auditoría
       await supabaseAdmin.from('auditoria_eventos').insert({
         usuario_id: desarrolladorId,
         tipo_usuario: 'desarrollador',
@@ -234,7 +249,7 @@ export const newAppService = {
         }
       });
 
-      // 7. Retornar aplicación creada
+      // 8. Retornar aplicación creada
       return {
         id: nuevaApp.id,
         app_id: nuevaApp.app_id,
@@ -245,11 +260,15 @@ export const newAppService = {
         pago_registro_completado: nuevaApp.pago_registro_completado,
         monto_pago_registro: nuevaApp.monto_pago_registro,
         created_at: nuevaApp.created_at,
+        revision: {
+          estado: revision?.estado || 'pendiente',
+          id: revision?.id || null
+        },
         archivos_subidos: {
           ejecutable: buildPublicUrl,
           portada: portadaPublicUrl
         },
-        mensaje: 'Aplicación creada exitosamente. Se requiere pago de $100 USD para activar el AppID.'
+        mensaje: 'Aplicación creada exitosamente y enviada a revisión. Se requiere pago de $100 USD para activar el AppID.'
       };
 
     } catch (error) {
@@ -321,7 +340,7 @@ export const newAppService = {
    * 
    * Validaciones:
    * - La aplicación debe pertenecer al desarrollador (C18)
-   * - Solo se puede editar si está en estado "borrador"
+   * - Solo se puede editar si está en estado "pendiente"
    * 
    * @param {string} appId - ID de la aplicación
    * @param {string} desarrolladorId - UUID del desarrollador autenticado
@@ -334,8 +353,8 @@ export const newAppService = {
       // 1. Verificar propiedad y estado (C18)
       const aplicacion = await this.obtenerAplicacion(appId, desarrolladorId);
 
-      if (aplicacion.estado_revision !== 'borrador') {
-        throw new Error('Solo se pueden editar aplicaciones en estado "borrador"');
+      if (aplicacion.estado_revision !== 'pendiente') {
+        throw new Error('Solo se pueden editar aplicaciones en estado "pendiente"');
       }
 
       // 2. Preparar datos de actualización
@@ -457,9 +476,153 @@ export const newAppService = {
   },
 
   /**
+   * UPDATE: Actualiza las etiquetas de una aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {Array<string>} etiquetas - Array de etiquetas
+   * @returns {Promise<Object>} - Aplicación actualizada
+   */
+  async actualizarEtiquetas(appId, desarrolladorId, etiquetas) {
+    try {
+      // 1. Verificar propiedad (C18)
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // 2. Validar etiquetas
+      if (!Array.isArray(etiquetas)) {
+        throw new Error('Las etiquetas deben ser un array');
+      }
+
+      if (etiquetas.length > 10) {
+        throw new Error('Máximo 10 etiquetas permitidas');
+      }
+
+      // Limpiar y validar cada etiqueta
+      const etiquetasLimpias = etiquetas
+        .map(e => e.toString().trim().toLowerCase())
+        .filter(e => e.length > 0 && e.length <= 30);
+
+      // 3. Actualizar en la base de datos
+      const { data: appActualizada, error } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .update({
+          etiquetas: etiquetasLimpias,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appId)
+        .eq('desarrollador_id', desarrolladorId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[NEW_APP] Error al actualizar etiquetas:', error);
+        throw new Error('Error al actualizar etiquetas');
+      }
+
+      return appActualizada;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en actualizarEtiquetas:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * UPDATE: Actualiza el precio base de una aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {number} precio - Precio en USD (0-1000)
+   * @returns {Promise<Object>} - Aplicación actualizada
+   */
+  async actualizarPrecio(appId, desarrolladorId, precio) {
+    try {
+      // 1. Verificar propiedad (C18)
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // 2. Validar precio
+      const precioNumerico = parseFloat(precio);
+
+      if (isNaN(precioNumerico) || precioNumerico < 0) {
+        throw new Error('El precio debe ser un número válido mayor o igual a 0');
+      }
+
+      if (precioNumerico > 1000) {
+        throw new Error('El precio máximo permitido es $1000 USD');
+      }
+
+      // 3. Actualizar en la base de datos
+      const { data: appActualizada, error } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .update({
+          precio_base_usd: precioNumerico,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appId)
+        .eq('desarrollador_id', desarrolladorId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[NEW_APP] Error al actualizar precio:', error);
+        throw new Error('Error al actualizar precio');
+      }
+
+      return appActualizada;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en actualizarPrecio:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * UPDATE: Actualiza la descripción larga de una aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {string} descripcionLarga - Nueva descripción larga
+   * @returns {Promise<Object>} - Aplicación actualizada
+   */
+  async actualizarDescripcionLarga(appId, desarrolladorId, descripcionLarga) {
+    try {
+      // 1. Verificar propiedad (C18)
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // 2. Validar descripción
+      if (descripcionLarga && descripcionLarga.length > 2000) {
+        throw new Error('La descripción no puede exceder los 2000 caracteres');
+      }
+
+      // 3. Actualizar en la base de datos
+      const { data: appActualizada, error } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .update({
+          descripcion_larga: descripcionLarga || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appId)
+        .eq('desarrollador_id', desarrolladorId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[NEW_APP] Error al actualizar descripción:', error);
+        throw new Error('Error al actualizar descripción');
+      }
+
+      return appActualizada;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en actualizarDescripcionLarga:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Procesa el pago de registro de una aplicación
    * Actualiza pago_registro_completado = true
-   * 
+   *
    * @param {string} appId - ID de la aplicación
    * @param {string} desarrolladorId - UUID del desarrollador
    * @returns {Promise<Object>} - Aplicación con pago confirmado
@@ -491,6 +654,290 @@ export const newAppService = {
 
     } catch (error) {
       console.error('[NEW_APP] Error en procesarPagoRegistro:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * GET: Obtiene las reseñas de una aplicación (sin respuesta del desarrollador)
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @returns {Promise<Array>} - Lista de reseñas pendientes de respuesta
+   */
+  async obtenerReseniasAplicacion(appId, desarrolladorId) {
+    try {
+      // Verificar propiedad de la app
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // Obtener reseñas de la tabla resenas_juegos
+      const { data: resenias, error } = await supabaseAdmin
+        .from('resenas_juegos')
+        .select(`
+          id,
+          usuario_id,
+          rating,
+          titulo,
+          comentario,
+          recomendado,
+          respuesta_desarrollador,
+          fecha_respuesta,
+          visible,
+          created_at,
+          profiles!resenas_juegos_usuario_id_fkey (
+            id,
+            username
+          )
+        `)
+        .eq('aplicacion_id', appId)
+        .eq('visible', true)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[NEW_APP] Error al obtener reseñas:', error);
+        throw new Error('Error al obtener reseñas');
+      }
+
+      // Formatear reseñas
+      const reseniasFormateadas = (resenias || []).map(r => ({
+        id: r.id,
+        usuario: r.profiles?.username || 'Usuario',
+        avatar: null,
+        rating: r.rating,
+        titulo: r.titulo,
+        comentario: r.comentario,
+        recomendado: r.recomendado,
+        fecha: r.created_at,
+        respuesta_desarrollador: r.respuesta_desarrollador,
+        fecha_respuesta: r.fecha_respuesta
+      }));
+
+      return reseniasFormateadas;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en obtenerReseniasAplicacion:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * POST: Responder a una reseña de la aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {string} resenaId - ID de la reseña
+   * @param {string} respuesta - Texto de la respuesta
+   * @returns {Promise<Object>} - Reseña actualizada
+   */
+  async responderResenia(appId, desarrolladorId, resenaId, respuesta) {
+    try {
+      // Verificar propiedad de la app
+      const app = await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // Verificar que la app esté aprobada o publicada
+      if (!['aprobado', 'publicado'].includes(app.estado_revision)) {
+        throw new Error('Solo puedes responder reseñas de aplicaciones aprobadas o publicadas');
+      }
+
+      // Verificar que la reseña pertenece a esta app
+      const { data: resena, error: resenaError } = await supabaseAdmin
+        .from('resenas_juegos')
+        .select('id, aplicacion_id, respuesta_desarrollador')
+        .eq('id', resenaId)
+        .eq('aplicacion_id', appId)
+        .is('deleted_at', null)
+        .single();
+
+      if (resenaError || !resena) {
+        throw new Error('Reseña no encontrada');
+      }
+
+      if (resena.respuesta_desarrollador) {
+        throw new Error('Esta reseña ya tiene una respuesta');
+      }
+
+      // Validar respuesta
+      if (!respuesta || respuesta.trim().length < 10) {
+        throw new Error('La respuesta debe tener al menos 10 caracteres');
+      }
+
+      if (respuesta.length > 1000) {
+        throw new Error('La respuesta no puede exceder los 1000 caracteres');
+      }
+
+      // Actualizar reseña con la respuesta
+      const { data: resenaActualizada, error } = await supabaseAdmin
+        .from('resenas_juegos')
+        .update({
+          respuesta_desarrollador: respuesta.trim(),
+          desarrollador_respuesta_id: desarrolladorId,
+          fecha_respuesta: new Date().toISOString()
+        })
+        .eq('id', resenaId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[NEW_APP] Error al responder reseña:', error);
+        throw new Error('Error al guardar la respuesta');
+      }
+
+      return resenaActualizada;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en responderResenia:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * GET: Obtiene los anuncios de una aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @returns {Promise<Array>} - Lista de anuncios
+   */
+  async obtenerAnunciosAplicacion(appId, desarrolladorId) {
+    try {
+      // Verificar propiedad de la app
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      const { data: anuncios, error } = await supabaseAdmin
+        .from('anuncios_desarrollador')
+        .select('*')
+        .eq('aplicacion_id', appId)
+        .eq('activo', true)
+        .is('deleted_at', null)
+        .order('fecha_publicacion', { ascending: false });
+
+      if (error) {
+        console.error('[NEW_APP] Error al obtener anuncios:', error);
+        throw new Error('Error al obtener anuncios');
+      }
+
+      return anuncios || [];
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en obtenerAnunciosAplicacion:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * POST: Crear un nuevo anuncio para la aplicación
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {Object} datosAnuncio - Datos del anuncio
+   * @returns {Promise<Object>} - Anuncio creado
+   */
+  async crearAnuncioAplicacion(appId, desarrolladorId, datosAnuncio) {
+    try {
+      // Verificar propiedad de la app
+      const app = await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // Verificar que la app esté aprobada o publicada
+      if (!['aprobado', 'publicado'].includes(app.estado_revision)) {
+        throw new Error('Solo puedes publicar anuncios en aplicaciones aprobadas o publicadas');
+      }
+
+      // Validar datos del anuncio (mínimo 3 caracteres según constraint de la BD)
+      if (!datosAnuncio.titulo || datosAnuncio.titulo.trim().length < 3) {
+        throw new Error('El título debe tener al menos 3 caracteres');
+      }
+
+      if (datosAnuncio.titulo.length > 255) {
+        throw new Error('El título no puede exceder los 255 caracteres');
+      }
+
+      // Contenido mínimo 10 caracteres según constraint de la BD
+      if (!datosAnuncio.contenido || datosAnuncio.contenido.trim().length < 10) {
+        throw new Error('El contenido debe tener al menos 10 caracteres');
+      }
+
+      if (datosAnuncio.contenido.length > 5000) {
+        throw new Error('El contenido no puede exceder los 5000 caracteres');
+      }
+
+      // Tipos válidos según constraint de la BD: noticia, evento, parche, actualizacion, promocion
+      const tiposValidos = ['noticia', 'evento', 'parche', 'actualizacion', 'promocion'];
+      if (!tiposValidos.includes(datosAnuncio.tipo)) {
+        throw new Error('Tipo de anuncio no válido');
+      }
+
+      // Crear anuncio en tabla anuncios_desarrollador
+      const { data: nuevoAnuncio, error } = await supabaseAdmin
+        .from('anuncios_desarrollador')
+        .insert({
+          aplicacion_id: appId,
+          desarrollador_id: desarrolladorId,
+          titulo: datosAnuncio.titulo.trim(),
+          contenido: datosAnuncio.contenido.trim(),
+          tipo: datosAnuncio.tipo,
+          activo: true,
+          fecha_publicacion: new Date().toISOString()
+        })
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('[NEW_APP] Error al crear anuncio:', error);
+        throw new Error('Error al crear el anuncio');
+      }
+
+      return nuevoAnuncio;
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en crearAnuncioAplicacion:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * DELETE: Eliminar un anuncio (soft delete)
+   *
+   * @param {string} appId - ID de la aplicación
+   * @param {string} desarrolladorId - UUID del desarrollador autenticado
+   * @param {string} anuncioId - ID del anuncio
+   * @returns {Promise<Object>} - Confirmación
+   */
+  async eliminarAnuncioAplicacion(appId, desarrolladorId, anuncioId) {
+    try {
+      // Verificar propiedad de la app
+      await this.obtenerAplicacion(appId, desarrolladorId);
+
+      // Verificar que el anuncio existe y pertenece a la app
+      const { data: anuncio, error: anuncioError } = await supabaseAdmin
+        .from('anuncios_desarrollador')
+        .select('id')
+        .eq('id', anuncioId)
+        .eq('aplicacion_id', appId)
+        .is('deleted_at', null)
+        .single();
+
+      if (anuncioError || !anuncio) {
+        throw new Error('Anuncio no encontrado');
+      }
+
+      // Soft delete
+      const { error } = await supabaseAdmin
+        .from('anuncios_desarrollador')
+        .update({
+          deleted_at: new Date().toISOString(),
+          activo: false
+        })
+        .eq('id', anuncioId);
+
+      if (error) {
+        console.error('[NEW_APP] Error al eliminar anuncio:', error);
+        throw new Error('Error al eliminar el anuncio');
+      }
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('[NEW_APP] Error en eliminarAnuncioAplicacion:', error);
       throw error;
     }
   }

@@ -45,3 +45,5 @@ coverage/
 *.tmp
 temp/
 tmp/
+
+reports/

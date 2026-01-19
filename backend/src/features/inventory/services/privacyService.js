@@ -1,4 +1,7 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('PrivacyService');
 
 // Constantes de validación
 const VALID_PRIVACY_LEVELS = ['public', 'friends', 'private'];
@@ -47,7 +50,7 @@ export const privacyService = {
             .single();
 
         if (error) {
-            console.error('Error obteniendo configuración de privacidad:', error);
+            logger.error('Error obteniendo configuración de privacidad:', { error });
             throw new Error('Error al obtener configuración de privacidad');
         }
 
@@ -110,7 +113,7 @@ export const privacyService = {
             .single();
 
         if (error) {
-            console.error('Error actualizando configuración de privacidad:', error);
+            logger.error('Error actualizando configuración de privacidad:', { error });
             throw new Error('Error al actualizar configuración de privacidad');
         }
 
@@ -145,7 +148,7 @@ export const privacyService = {
             .maybeSingle();
 
         if (error) {
-            console.error('Error verificando amistad:', error);
+            logger.error('Error verificando amistad:', { error });
             return false;
         }
 

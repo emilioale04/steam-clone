@@ -30,8 +30,16 @@ import registerCommunityRoutes from './src/features/community/index.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
+
+// Import pricing routes (Grupo 2 - Gestión de Precios)
+import { pricingRoutes } from './src/features/pricing/index.js';
+
 // Import new app routes (Creación de Aplicaciones - RF-004)
 import { newAppRoutes } from './src/features/new-app/index.js';
+import { appItemsRoutes } from './src/features/app-items/index.js';
+
+// Import my-apps routes (Mis Aplicaciones - Steamworks Dashboard)
+import { myAppsRoutes } from './src/features/my-apps/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import {
@@ -52,7 +60,7 @@ import { notificationService } from './src/shared/services/notificationService.j
 
 // Import limited account validation middleware
 import { limitedAccountValidationMiddleware } from './src/shared/middleware/limitedAccountValidationMiddleware.js';
-import { geoValidationMiddleware } from './src/shared/middleware/geoValidationMiddleware.js';
+import geoValidationMiddleware  from './src/shared/middleware/geoValidationMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -90,19 +98,28 @@ app.use(sanitizeBodyMiddleware);
 // Rate limiting for auth routes only (C7: RNF-007)
 
 // Auth routes (usuarios normales)
-app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
 
 // Developer profile routes (Steamworks - gestión de perfil)
-app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
 
+
+// Pricing routes (Grupo 2 - Gestión de Precios RF-010)
+app.use('/api/pricing', pricingRoutes);
+
 // New App routes (Creación de Aplicaciones - RF-004)
 app.use('/api/new-app', newAppRoutes);
+app.use('/api/app-items', apiLimiter, appItemsRoutes);
+
+// My Apps routes (Mis Aplicaciones - Steamworks Dashboard)
+app.use('/api/my-apps', apiLimiter, myAppsRoutes);
+
 
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
@@ -119,7 +136,7 @@ app.use('/api/wallet', apiLimiter, walletRoutes);
 app.use('/api/inventory', inventoryRoutes);
 
 // Trade routes
-app.use('/api/trade', tradeRoutes);
+app.use('/api/trade', geoValidationMiddleware, tradeRoutes);
 
 // Privacy routes (Configuración de privacidad)
 app.use('/api/privacy', apiLimiter, privacyRoutes);
@@ -292,8 +309,19 @@ app.get('/api/search', (req, res) => {
   });
 });
 
-// Middleware de validación geográfica
-app.use(geoValidationMiddleware);
+// Middleware de validación geográfica (aplicado antes de las rutas protegidas)
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
+
+// Developer auth routes (Steamworks - desarrolladores)
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
+
+// Developer profile routes (Steamworks - gestión de perfil)
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
+
+// Aplicar geoValidationMiddleware a rutas críticas
+app.use('/api/trade', geoValidationMiddleware, criticalRateLimiter, tradeRoutes);
+app.use('/api/inventory', geoValidationMiddleware, criticalRateLimiter, inventoryRoutes);
+app.use('/api/search', geoValidationMiddleware, criticalRateLimiter);
 
 // Middleware de validación de cuentas limitadas
 app.use(limitedAccountValidationMiddleware);

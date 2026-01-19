@@ -78,7 +78,7 @@ export const GestionLlavesPage = ({ mostrarHeader = true }) => {
       setJuegos(juegosConLlaves);
       
       if (juegosConLlaves.length === 0) {
-        mostrarMensaje('No tienes aplicaciones registradas. Crea una aplicación primero.', 'info');
+        mostrarMensaje('No tienes aplicaciones aprobadas. Las aplicaciones deben ser aprobadas por un administrador antes de generar llaves.', 'info');
       } else if (juegosConLlaves.length > 0) {
         setJuegoSeleccionado(juegosConLlaves[0].id);
       }
