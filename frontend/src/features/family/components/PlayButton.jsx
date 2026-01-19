@@ -29,6 +29,7 @@ export const PlayButton = ({ game }) => {
 
     const handleClick = () => {
         if (!isDisabled) {
+            alert(`¡Lanzando ${game.title}! El juego se está abriendo en una nueva ventana.`);
             console.log(`Lanzando juego: ${game.title}`);
             // Add launch logic here
         }

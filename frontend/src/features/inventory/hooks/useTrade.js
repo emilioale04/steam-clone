@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { tradeService } from '../services/tradeService';
+// import { tradeService } from '../services/tradeService';
+import { mockTradeService as tradeService } from '../services/mockTradeService';
 
 export const useTrade = (userId) => {
 	const [trades, setTrades] = useState([]);

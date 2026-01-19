@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { User } from 'lucide-react';
-import { ROLES } from '../../auth/context/AuthContext';
+import { ROLES } from '../../../shared/context/AuthContext';
 import { PlayButton } from '../../family';
 import { ReviewSection } from '../../reviews';
 

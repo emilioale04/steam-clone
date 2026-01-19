@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { MessageSquare, ThumbsUp, ThumbsDown, Send, Pencil, Trash2, X, Check } from 'lucide-react';
 import { ReviewModerator } from './ReviewModerator';
@@ -6,16 +6,30 @@ import { useAuth, ROLES } from '../../auth'; // Import ROLES
 
 export const ReviewSection = ({ gameId }) => {
     const { user, hasRole } = useAuth(); // Destructure hasRole
-    const [reviews, setReviews] = useState([
-        { id: 1, userId: 'gamer1', user: ' Gamer123', content: '¡Gran juego! Totalmente recomendado.', recommended: true, date: '2024-01-15' },
-        { id: 2, userId: 'hater1', user: 'Hater_007', content: 'No es de mi agrado.', recommended: false, date: '2024-02-01' },
-    ]);
+    const [reviews, setReviews] = useState([]);
+    const [reviewsLoading, setReviewsLoading] = useState(true);
     const [newReview, setNewReview] = useState('');
     const [isRecommended, setIsRecommended] = useState(true);
 
-    // State for editing
-    const [editingId, setEditingId] = useState(null);
-    const [editContent, setEditContent] = useState('');
+    // Initial demo data
+    const DEMO_REVIEWS = [
+        { id: 1, gameId: '1', userId: 'gamer1', user: ' Gamer123', content: '¡Cyberpunk ahora sí es una obra maestra!', recommended: true, date: '2024-01-15' },
+        { id: 2, gameId: '1', userId: 'hater1', user: 'Hater_007', content: 'Aún tiene bugs menores pero es jugable.', recommended: true, date: '2024-02-01' },
+        { id: 3, gameId: '2', userId: 'hater1', user: 'EldenFan', content: 'GOTY indiscutible. La dificultad es perfecta.', recommended: true, date: '2024-02-05' },
+        { id: 4, gameId: '3', userId: 'gamer1', user: 'FarmerJoe', content: 'Muy relajante, pierdo la noción del tiempo.', recommended: true, date: '2024-01-20' },
+    ];
+
+    useEffect(() => {
+        // Simulate API fetch for reviews
+        setReviewsLoading(true);
+        const timer = setTimeout(() => {
+            const filtered = DEMO_REVIEWS.filter(r => r.gameId === String(gameId));
+            setReviews(filtered);
+            setReviewsLoading(false);
+        }, 600);
+
+        return () => clearTimeout(timer);
+    }, [gameId]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -23,7 +37,8 @@ export const ReviewSection = ({ gameId }) => {
 
         const review = {
             id: Date.now(),
-            userId: user?.id || 'temp-id', // Store userId for ownership check
+            gameId: String(gameId),
+            userId: user?.id || 'temp-id',
             user: user?.username || 'Anónimo',
             content: newReview,
             recommended: isRecommended,
@@ -33,6 +48,10 @@ export const ReviewSection = ({ gameId }) => {
         setReviews([review, ...reviews]);
         setNewReview('');
     };
+
+    // State for editing
+    const [editingId, setEditingId] = useState(null);
+    const [editContent, setEditContent] = useState('');
 
     const handleDelete = (id) => {
         // Allow if Moderator OR if Owner
@@ -128,81 +147,87 @@ export const ReviewSection = ({ gameId }) => {
 
             {/* Reviews List */}
             <div className="space-y-4">
-                {reviews.map((review) => {
-                    const isOwner = user && review.userId === user.id; // Check ownership using user.id
-                    // Assuming Mock users have IDs like 'mock-user-123' or similar. 
-                    // Since standard user creation in mockAuthService sends `id: 'mock-user-123'`, 
-                    // we should set initial state userId to match for testing if possible.
+                {reviewsLoading ? (
+                    <div className="flex flex-col items-center py-8 gap-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#66c0f4]"></div>
+                        <p className="text-[#8091a2] animate-pulse">Cargando reseñas...</p>
+                    </div>
+                ) : (
+                    <>
+                        {reviews.map((review) => {
+                            const isOwner = user && review.userId === user.id;
 
-                    return (
-                        <div key={review.id} className="bg-[#16202d] p-4 rounded border-l-4 border-l-[#16202d] hover:border-l-[#66c0f4] transition-all">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-1 rounded ${review.recommended ? 'bg-[#1b2838] text-[#66c0f4]' : 'bg-[#1b2838] text-red-500'}`}>
-                                        {review.recommended ? <ThumbsUp size={24} /> : <ThumbsDown size={24} />}
+                            return (
+                                <div key={review.id} className="bg-[#16202d] p-4 rounded border-l-4 border-l-[#16202d] hover:border-l-[#66c0f4] transition-all">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1 rounded ${review.recommended ? 'bg-[#1b2838] text-[#66c0f4]' : 'bg-[#1b2838] text-red-500'}`}>
+                                                {review.recommended ? <ThumbsUp size={24} /> : <ThumbsDown size={24} />}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-base text-[#c1dbf4]">{review.user}</div>
+                                                <div className="text-xs text-[#8091a2]">{review.date}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons for Owner */}
+                                        {isOwner && !isLimited && !editingId && (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => startEditing(review)}
+                                                    className="text-[#8091a2] hover:text-white p-1"
+                                                    title="Editar"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(review.id)}
+                                                    className="text-[#8091a2] hover:text-red-400 p-1"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <div className="font-bold text-base text-[#c1dbf4]">{review.user}</div>
-                                        <div className="text-xs text-[#8091a2]">{review.date}</div>
-                                    </div>
+
+                                    {/* Edit Mode vs View Mode */}
+                                    {editingId === review.id ? (
+                                        <div className="mt-2">
+                                            <textarea
+                                                value={editContent}
+                                                onChange={(e) => setEditContent(e.target.value)}
+                                                className="w-full bg-[#2a3f5a] text-white p-2 rounded border border-[#66c0f4] outline-none min-h-[80px]"
+                                            />
+                                            <div className="flex justify-end gap-2 mt-2">
+                                                <button
+                                                    onClick={cancelEditing}
+                                                    className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white flex items-center gap-1"
+                                                >
+                                                    <X size={14} /> Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={() => saveEdit(review.id)}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm text-white flex items-center gap-1"
+                                                >
+                                                    <Check size={14} /> Guardar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2 text-[#acb2b8] leading-relaxed break-words whitespace-pre-wrap">
+                                            {review.content}
+                                        </div>
+                                    )}
+
+                                    <ReviewModerator reviewId={review.id} onDelete={handleDelete} />
                                 </div>
-
-                                {/* Action Buttons for Owner */}
-                                {isOwner && !isLimited && !editingId && (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => startEditing(review)}
-                                            className="text-[#8091a2] hover:text-white p-1"
-                                            title="Editar"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(review.id)}
-                                            className="text-[#8091a2] hover:text-red-400 p-1"
-                                            title="Eliminar"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Edit Mode vs View Mode */}
-                            {editingId === review.id ? (
-                                <div className="mt-2">
-                                    <textarea
-                                        value={editContent}
-                                        onChange={(e) => setEditContent(e.target.value)}
-                                        className="w-full bg-[#2a3f5a] text-white p-2 rounded border border-[#66c0f4] outline-none min-h-[80px]"
-                                    />
-                                    <div className="flex justify-end gap-2 mt-2">
-                                        <button
-                                            onClick={cancelEditing}
-                                            className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white flex items-center gap-1"
-                                        >
-                                            <X size={14} /> Cancelar
-                                        </button>
-                                        <button
-                                            onClick={() => saveEdit(review.id)}
-                                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm text-white flex items-center gap-1"
-                                        >
-                                            <Check size={14} /> Guardar
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="mt-2 text-[#acb2b8] leading-relaxed break-words whitespace-pre-wrap">
-                                    {review.content}
-                                </div>
-                            )}
-
-                            <ReviewModerator reviewId={review.id} onDelete={handleDelete} />
-                        </div>
-                    )
-                })}
-                {reviews.length === 0 && (
-                    <p className="text-[#8091a2] italic">Aún no hay reseñas.</p>
+                            )
+                        })}
+                        {reviews.length === 0 && (
+                            <p className="text-[#8091a2] italic text-center py-4">Aún no hay reseñas para este juego.</p>
+                        )}
+                    </>
                 )}
             </div>
         </div>

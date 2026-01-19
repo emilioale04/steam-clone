@@ -148,5 +148,13 @@ export const mockInventoryService = {
             newBalance: 1000 - listing.price, // Mock balance
             transactionId: `tx-${Date.now()}`
         };
+    },
+
+    async buyGame(userId, gameId) {
+        await this._delay();
+        return {
+            success: true,
+            message: 'Juego comprado con éxito y añadido a tu biblioteca (Mock)'
+        };
     }
 };

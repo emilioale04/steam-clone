@@ -1,7 +1,15 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../../features/auth/services/authService';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+// import { authService } from '../../features/auth/services/authService';
+import { mockAuthService as authService } from '../../features/auth/services/mockAuthService';
 
 const AuthContext = createContext(null);
+
+export const ROLES = {
+  LIMITED: 'Limitado',
+  STANDARD: 'Estándar',
+  FAMILY: 'Familiar',
+  DEVELOPER: 'Developer',
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -17,7 +25,11 @@ export const AuthProvider = ({ children }) => {
   const checkUser = async () => {
     try {
       const data = await authService.getCurrentUser();
-      setUser(data.data);
+      const userData = data.data;
+      if (userData && !userData.role) {
+        userData.role = ROLES.STANDARD;
+      }
+      setUser(userData || null);
     } catch (err) {
       setUser(null);
     } finally {
@@ -42,17 +54,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const clearEmailVerificationPending = () => {
-    setEmailVerificationPending(false);
-    setPendingEmail(null);
-  };
-
   const login = async (email, password) => {
     try {
       setError(null);
       const data = await authService.login(email, password);
-      // Token is now stored in httpOnly cookie by backend (not accessible via JS)
-      setUser(data.data.user);
+      const userData = data.data.user;
+      if (!userData.role) userData.role = ROLES.STANDARD;
+      setUser(userData);
       return data;
     } catch (err) {
       setError(err.message);
@@ -72,19 +80,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const clearEmailVerificationPending = () => {
+    setEmailVerificationPending(false);
+    setPendingEmail(null);
+  };
+
+  const hasRole = (requiredRoles) => {
+    if (!user) return false;
+    if (Array.isArray(requiredRoles)) {
+      return requiredRoles.includes(user.role);
+    }
+    return user.role === requiredRoles;
+  };
+
+  const debugSetRole = (role) => {
+    if (user && Object.values(ROLES).includes(role)) {
+      setUser({ ...user, role });
+    }
+  };
+
+  const value = useMemo(() => ({
+    user,
+    loading,
+    error,
+    emailVerificationPending,
+    pendingEmail,
+    register,
+    login,
+    logout,
+    clearEmailVerificationPending,
+    isAuthenticated: !!user,
+    hasRole,
+    debugSetRole,
+    ROLES
+  }), [user, loading, error, emailVerificationPending, pendingEmail]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      error,
-      emailVerificationPending,
-      pendingEmail,
-      register,
-      login,
-      logout,
-      clearEmailVerificationPending,
-      isAuthenticated: !!user
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

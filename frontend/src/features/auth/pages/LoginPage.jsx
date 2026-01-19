@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { LoginForm } from '../components';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { authService } from '../services/authService';
+// import { authService } from '../services/authService';
+import { mockAuthService as authService } from '../services/mockAuthService';
 
 export const LoginPage = () => {
   const { login, error } = useAuth();
@@ -40,7 +41,7 @@ export const LoginPage = () => {
 
   const handleResendVerification = async () => {
     if (!unverifiedEmail) return;
-    
+
     setResendLoading(true);
     setResendSuccess(false);
     try {
@@ -63,7 +64,7 @@ export const LoginPage = () => {
           ¡Tu correo ha sido verificado correctamente! Ya puedes iniciar sesión.
         </div>
       )}
-      
+
       {emailNotVerifiedError && (
         <div style={styles.warningMessage}>
           <svg style={styles.warningIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -79,7 +80,7 @@ export const LoginPage = () => {
                 ✓ Correo de verificación reenviado. Revisa tu bandeja de entrada.
               </p>
             ) : (
-              <button 
+              <button
                 onClick={handleResendVerification}
                 disabled={resendLoading}
                 style={styles.resendButton}
@@ -90,7 +91,7 @@ export const LoginPage = () => {
           </div>
         </div>
       )}
-      
+
       <LoginForm onSubmit={handleLogin} error={emailNotVerifiedError ? null : error} />
       <p style={{ textAlign: 'center' }}>
         <Link to="/forgot-password">Forgot password?</Link>

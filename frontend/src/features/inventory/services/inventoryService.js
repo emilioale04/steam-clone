@@ -72,7 +72,7 @@ export const inventoryService = {
         const data = await response.json();
         /* Si falla, lanzamos error para que el frontend capture */
         if (!data.success) throw new Error(data.message || 'Error al vender item');
-        
+
         return {
             success: true,
             listing: data.listing // El backend debe devolver el objeto listing creado
@@ -171,7 +171,7 @@ export const inventoryService = {
         });
 
         const data = await response.json();
-        
+
         if (!data.success) {
             const error = new Error(data.message || 'Error al realizar la compra');
             error.statusCode = response.status;
@@ -186,5 +186,23 @@ export const inventoryService = {
             newBalance: data.data?.newBalance,
             transactionId: data.data?.transactionId
         };
+    },
+
+    /**
+     * Compra un juego para la biblioteca
+     * @param {string} userId 
+     * @param {string} gameId 
+     */
+    async buyGame(userId, gameId) {
+        const response = await fetch(`${API_URL}/inventory/buy-game`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ userId, gameId })
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Error al comprar juego');
+        return data;
     }
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { walletService } from '../services/walletService';
+// import { walletService } from '../services/walletService';
+import { mockWalletService as walletService } from '../services/mockWalletService';
 
 /**
  * Hook para gestionar la billetera del usuario
@@ -11,7 +12,7 @@ export const useWallet = () => {
     const [error, setError] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [transactionsLoading, setTransactionsLoading] = useState(false);
-    
+
     // Referencias para prevenir operaciones duplicadas
     const isReloading = useRef(false);
     const isPaying = useRef(false);
@@ -40,9 +41,9 @@ export const useWallet = () => {
     const reloadWallet = useCallback(async (amount) => {
         // Prevenir doble-click
         if (isReloading.current) {
-            return { 
-                success: false, 
-                error: 'Operación en proceso. Por favor espera.' 
+            return {
+                success: false,
+                error: 'Operación en proceso. Por favor espera.'
             };
         }
 
@@ -51,25 +52,25 @@ export const useWallet = () => {
 
         try {
             const result = await walletService.reloadWallet(amount);
-            
+
             // Actualizar balance con el valor del servidor
             setBalance(result.newBalance);
-            
+
             // Refrescar transacciones si ya se habían cargado
             if (transactions.length > 0) {
                 fetchTransactions();
             }
 
-            return { 
-                success: true, 
+            return {
+                success: true,
                 newBalance: result.newBalance,
                 transactionId: result.transactionId
             };
         } catch (err) {
             setError(err.message);
-            return { 
-                success: false, 
-                error: err.message 
+            return {
+                success: false,
+                error: err.message
             };
         } finally {
             // Liberar el bloqueo después de un pequeño delay
@@ -90,9 +91,9 @@ export const useWallet = () => {
     const processPayment = useCallback(async (amount, description, referenceType = null, referenceId = null) => {
         // Prevenir doble-click
         if (isPaying.current) {
-            return { 
-                success: false, 
-                error: 'Pago en proceso. No realices múltiples clicks.' 
+            return {
+                success: false,
+                error: 'Pago en proceso. No realices múltiples clicks.'
             };
         }
 
@@ -118,17 +119,17 @@ export const useWallet = () => {
                 referenceType,
                 referenceId
             );
-            
+
             // Actualizar con el balance real del servidor
             setBalance(result.newBalance);
-            
+
             // Refrescar transacciones
             if (transactions.length > 0) {
                 fetchTransactions();
             }
 
-            return { 
-                success: true, 
+            return {
+                success: true,
                 newBalance: result.newBalance,
                 transactionId: result.transactionId
             };
@@ -136,9 +137,9 @@ export const useWallet = () => {
             // Revertir el estado optimista en caso de error
             setBalance(previousBalance);
             setError(err.message);
-            return { 
-                success: false, 
-                error: err.message 
+            return {
+                success: false,
+                error: err.message
             };
         } finally {
             setTimeout(() => {
@@ -185,16 +186,16 @@ export const useWallet = () => {
         error,
         transactions,
         transactionsLoading,
-        
+
         // Acciones
         reloadWallet,
         processPayment,
         fetchBalance,
         fetchTransactions,
-        
+
         // Helpers
         hasSufficientFunds,
-        
+
         // Estado de operaciones
         isReloading: isReloading.current,
         isPaying: isPaying.current

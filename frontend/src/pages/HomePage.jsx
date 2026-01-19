@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Search, User, ShoppingCart, Gamepad2, Star, LogOut, Menu, X } from 'lucide-react'
-import { useAuth } from '../shared/context/AuthContext';
+import { Search, User, ShoppingCart, Gamepad2, Star, LogOut, Menu, X, Lock } from 'lucide-react'
+import { useAuth, ROLES } from '../shared/context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { inventoryService } from '../features/inventory/services/inventoryService';
+// import { inventoryService } from '../features/inventory/services/inventoryService';
+import { mockInventoryService as inventoryService } from '../features/inventory/services/mockInventoryService';
+import { mockGameService } from '../features/inventory/services/mockGameService';
+import { PlayButton } from '../features/family';
+import { ReviewSection } from '../features/reviews';
+import { DevTestZone } from '../features/dev/components/DevTestZone';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -10,9 +15,11 @@ export const HomePage = () => {
   const [featuredGame, setFeaturedGame] = useState(null);
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [isDemoBusy, setIsDemoBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, debugSetRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,19 +28,14 @@ export const HomePage = () => {
 
   const fetchData = async () => {
     try {
-      const [featuredRes, gamesRes] = await Promise.all([
-        fetch(`${API_URL}/featured`),
-        fetch(`${API_URL}/games`)
-      ]);
+      const featuredRes = await mockGameService.getFeaturedGame();
+      const gamesRes = await mockGameService.getGames();
 
-      const featuredData = await featuredRes.json();
-      const gamesData = await gamesRes.json();
-
-      if (featuredData.success) {
-        setFeaturedGame(featuredData.game);
+      if (featuredRes.success) {
+        setFeaturedGame(featuredRes.game);
       }
-      if (gamesData.success) {
-        setGames(gamesData.games);
+      if (gamesRes.success) {
+        setGames(gamesRes.games);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -47,8 +49,7 @@ export const HomePage = () => {
     if (!searchQuery.trim()) return;
 
     try {
-      const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
-      const data = await response.json();
+      const data = await mockGameService.searchGames(searchQuery);
 
       if (data.success) {
         setGames(data.games);
@@ -70,6 +71,11 @@ export const HomePage = () => {
   const handleBuyGame = async (gameId, gameTitle) => {
     if (!user) {
       alert("Por favor, inicia sesión para comprar juegos.");
+      return;
+    }
+
+    if (user.role === ROLES.LIMITED) {
+      alert("Tu cuenta es Limitada. No tienes permiso para realizar compras en la tienda.");
       return;
     }
 
@@ -285,11 +291,11 @@ export const HomePage = () => {
               </div>
 
               <button
-                onClick={() => handleBuyGame(featuredGame.id, featuredGame.title)}
+                onClick={() => setSelectedGame(featuredGame)}
                 className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2"
               >
-                <ShoppingCart size={20} />
-                {featuredGame.price === 0 ? "Jugar Gratis" : "Comprar Ahora"}
+                <Star size={20} />
+                Ver Detalles
               </button>
             </div>
           </div>
@@ -307,6 +313,7 @@ export const HomePage = () => {
           {games.map((game) => (
             <div
               key={game.id}
+              onClick={() => setSelectedGame(game)}
               className="group bg-[#16202d] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 shadow-lg hover:shadow-2xl"
             >
               <div className="relative h-48 bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center overflow-hidden">
@@ -351,9 +358,11 @@ export const HomePage = () => {
                       e.stopPropagation();
                       handleBuyGame(game.id, game.title);
                     }}
-                    className="bg-blue-600 hover:bg-blue-500 p-2 rounded-lg transition-colors group-hover:scale-110 transform duration-200"
+                    disabled={user?.role === ROLES.LIMITED}
+                    className={`${user?.role === ROLES.LIMITED ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 hover:scale-110'} p-2 rounded-lg transition-all transform duration-200`}
+                    title={user?.role === ROLES.LIMITED ? "Cuenta Limitada" : "Comprar"}
                   >
-                    <ShoppingCart className="text-white" size={18} />
+                    {user?.role === ROLES.LIMITED ? <Lock className="text-gray-300" size={18} /> : <ShoppingCart className="text-white" size={18} />}
                   </button>
                 </div>
               </div>
@@ -361,6 +370,88 @@ export const HomePage = () => {
           ))}
         </div>
       </section>
+
+      {/* Development Testing Zone - Visible for any logged in user in this prototype */}
+      {user && (
+        <DevTestZone
+          user={user}
+          debugSetRole={debugSetRole}
+          featuredGame={featuredGame}
+          isDemoBusy={isDemoBusy}
+          setIsDemoBusy={setIsDemoBusy}
+        />
+      )}
+
+      {/* Game Details Modal */}
+      {selectedGame && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#1b2838] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border border-[#2a475e] relative">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedGame(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white p-2 hover:bg-[#2a475e] rounded-full transition-all z-10"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="flex flex-col md:flex-row">
+              {/* Game Artwork / Banner Side */}
+              <div className="md:w-2/5 bg-gradient-to-br from-blue-900 to-purple-900 h-64 md:h-auto flex items-center justify-center relative">
+                <Gamepad2 size={120} className="text-white/20" />
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <span className="bg-blue-600 px-3 py-1 rounded text-sm font-bold uppercase tracking-wider">{selectedGame.genre}</span>
+                </div>
+              </div>
+
+              {/* Game Info Side */}
+              <div className="md:w-3/5 p-6 sm:p-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="fill-yellow-400 text-yellow-400" size={20} />
+                  <span className="text-white font-bold text-lg">{selectedGame.rating}</span>
+                </div>
+                <h2 className="text-white text-3xl font-bold mb-4">{selectedGame.title}</h2>
+                <p className="text-gray-300 mb-8 text-lg leading-relaxed">{selectedGame.description}</p>
+
+                <div className="flex flex-wrap items-center justify-between gap-6 p-6 bg-[#16202d] rounded-xl border border-[#2a475e]">
+                  <div className="flex flex-col">
+                    <span className="text-gray-400 text-sm mb-1">Precio</span>
+                    {selectedGame.discount > 0 ? (
+                      <div className="flex items-center gap-3">
+                        <span className="bg-green-600 text-white px-2 py-1 rounded text-sm font-bold">-{selectedGame.discount}%</span>
+                        <div className="flex flex-col">
+                          <span className="text-gray-500 line-through text-xs">${selectedGame.price}</span>
+                          <span className="text-green-400 text-2xl font-bold">${calculateDiscountedPrice(selectedGame.price, selectedGame.discount)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-white text-2xl font-bold">${selectedGame.price}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <PlayButton game={{ ...selectedGame, ownerId: 'mock-owner-id', is_busy: false }} />
+                    <button
+                      onClick={() => handleBuyGame(selectedGame.id, selectedGame.title)}
+                      disabled={user?.role === ROLES.LIMITED}
+                      className={`${user?.role === ROLES.LIMITED ? 'bg-gray-600 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-500'} text-white px-6 py-3 rounded-sm font-bold transition-all flex items-center gap-2`}
+                    >
+                      {user?.role === ROLES.LIMITED ? <Lock size={20} /> : <ShoppingCart size={20} />}
+                      {user?.role === ROLES.LIMITED ? "Acceso Limitado" : "Comprar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Reviews Section at bottom of modal */}
+            <div className="border-t border-[#2a475e] bg-[#171a21]/50">
+              <div className="p-6 sm:p-8">
+                <ReviewSection gameId={selectedGame.id} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
