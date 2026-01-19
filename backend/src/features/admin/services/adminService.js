@@ -272,6 +272,66 @@ const adminService = {
   },
 
   /**
+   * Obtener logs de admin
+   */
+  getLogsAdmin: async (limit = 50, offset = 0) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('audit_logs_admin')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error al obtener logs de admin:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtener logs de desarrolladores
+   */
+  getLogsDesarrolladores: async (limit = 50, offset = 0) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('logs_auditoria_desarrolladores')
+        .select('*')
+        .order('id', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error al obtener logs de desarrolladores:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtener logs de comunidad
+   */
+  getLogsComunidad: async (limit = 50, offset = 0) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('logs_comunidad')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error al obtener logs de comunidad:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Obtener bloqueos de países (RA-001)
    */
   getBloqueoPaises: async () => {

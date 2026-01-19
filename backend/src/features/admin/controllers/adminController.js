@@ -175,6 +175,27 @@ const adminController = {
   },
 
   /**
+   * Obtener logs de admin
+   */
+  getLogsAdmin: async (req, res) => {
+    try {
+      const { limit = 50, offset = 0 } = req.query;
+      const result = await adminService.getLogsAdmin(parseInt(limit), parseInt(offset));
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Error al obtener logs de admin:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener logs de admin',
+      });
+    }
+  },
+
+  /**
    * Obtener logs de desarrolladores
    */
   getLogsDesarrolladores: async (req, res) => {

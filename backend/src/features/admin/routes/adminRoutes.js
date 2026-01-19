@@ -14,6 +14,9 @@ router.get('/validate-session', adminMiddleware.verificarAdmin, adminController.
 
 // Audit Logs
 router.get('/audit-logs', adminMiddleware.verificarAdmin, adminController.getAuditLogs);
+router.get('/logs-admin', adminMiddleware.verificarAdmin, adminController.getLogsAdmin);
+router.get('/logs-desarrolladores', adminMiddleware.verificarAdmin, adminController.getLogsDesarrolladores);
+router.get('/logs-comunidad', adminMiddleware.verificarAdmin, adminController.getLogsComunidad);
 
 // Bloqueo de Países (RA-001)
 router.get('/bloqueos-paises', adminMiddleware.verificarAdmin, adminController.getBloqueoPaises);
