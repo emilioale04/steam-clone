@@ -7,6 +7,8 @@ export { GroupHomePage } from './pages/GroupHomePage';
 export { GroupAdminPage } from './pages/GroupAdminPage';
 export { GroupDiscussionsPage } from './pages';
 export { GroupThreadPage } from './pages';
+export { ReportViolationPage } from './pages';
+export { CreateAnnouncementPage } from './pages';
 export { default as GroupDetailsPage } from './pages/GroupDetailsPage';
 export { default as ForumPage } from './pages/ForumPage';
 

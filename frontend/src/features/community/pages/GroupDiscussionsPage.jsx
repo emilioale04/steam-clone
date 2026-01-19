@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Circle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Flag
 } from 'lucide-react';
 
 // ============================================================================
@@ -209,7 +210,7 @@ const ThreadRow = ({ thread, groupId, isPinned }) => {
   };
 
   return (
-    <tr className={`border-b border-gray-700/50 hover:bg-[#1e2a3a] transition-colors ${isPinned ? 'bg-[#1a2535]' : ''}`}>
+    <tr className={`group border-b border-gray-700/50 hover:bg-[#1e2a3a] transition-colors ${isPinned ? 'bg-[#1a2535]' : ''}`}>
       {/* Topic Column */}
       <td className={`py-4 px-4 ${isPinned ? 'border-l-2 border-cyan-500' : ''}`}>
         <div className="flex items-start gap-3">
@@ -273,6 +274,17 @@ const ThreadRow = ({ thread, groupId, isPinned }) => {
             )}
           </div>
         </div>
+      </td>
+
+      {/* Actions Column */}
+      <td className="py-4 px-2">
+        <Link
+          to={`/community/report/${thread.id}?type=thread&author=${encodeURIComponent(thread.author)}&group=${encodeURIComponent(groupId)}`}
+          className="p-2 text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+          title="Report this thread"
+        >
+          <Flag size={14} />
+        </Link>
       </td>
     </tr>
   );

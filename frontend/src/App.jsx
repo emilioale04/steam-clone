@@ -36,6 +36,8 @@ import {
   GroupAdminPage,
   GroupDiscussionsPage,
   GroupThreadPage,
+  ReportViolationPage,
+  CreateAnnouncementPage,
   ForumPage
 } from './features/community';
 
@@ -166,6 +168,24 @@ function App() {
         element={
           <ProtectedRoute>
             <ForumPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/report/:targetId"
+        element={
+          <ProtectedRoute>
+            <ReportViolationPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/announcements/create"
+        element={
+          <ProtectedRoute>
+            <CreateAnnouncementPage />
           </ProtectedRoute>
         }
       />

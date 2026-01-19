@@ -21,7 +21,8 @@ import {
   Code,
   Image,
   Smile,
-  AlertCircle
+  AlertCircle,
+  Flag
 } from 'lucide-react';
 
 // ============================================================================
@@ -237,7 +238,7 @@ const AuthorBadge = ({ type }) => {
   return <span className="text-sm">{badge.icon}</span>;
 };
 
-const PostCard = ({ post, isFirst }) => {
+const PostCard = ({ post, isFirst, groupId }) => {
   const [showActions, setShowActions] = useState(false);
 
   // Renderizar contenido con markdown básico (bold)
@@ -394,6 +395,13 @@ const PostCard = ({ post, isFirst }) => {
                 <Reply size={14} />
                 Reply
               </button>
+              <Link 
+                to={`/community/report/${post.id}?type=post&author=${encodeURIComponent(post.author?.username || 'Unknown')}&group=${encodeURIComponent(groupId || 'group')}`}
+                className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition-colors text-sm"
+              >
+                <Flag size={14} />
+                Report
+              </Link>
             </div>
           </div>
         </div>
@@ -728,7 +736,7 @@ const GroupThreadPage = () => {
         {/* Posts */}
         <div className="space-y-4">
           {posts.map((post, index) => (
-            <PostCard key={post.id} post={post} isFirst={index === 0} />
+            <PostCard key={post.id} post={post} isFirst={index === 0} groupId={groupId} />
           ))}
         </div>
 

@@ -6,3 +6,5 @@ export { GroupHomePage } from './GroupHomePage';
 export { GroupAdminPage } from './GroupAdminPage';
 export { default as GroupDiscussionsPage } from './GroupDiscussionsPage';
 export { default as GroupThreadPage } from './GroupThreadPage';
+export { default as ReportViolationPage } from './ReportViolationPage';
+export { default as CreateAnnouncementPage } from './CreateAnnouncementPage';
