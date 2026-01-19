@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-// import { walletService } from '../services/walletService';
-import { mockWalletService as walletService } from '../services/mockWalletService';
+import { walletService } from '../services/walletService';
+// import { mockWalletService as walletService } from '../services/mockWalletService';
 
 /**
  * Hook para gestionar la billetera del usuario

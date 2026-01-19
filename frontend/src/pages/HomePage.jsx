@@ -4,7 +4,8 @@ import { useAuth, ROLES } from '../shared/context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 // import { inventoryService } from '../features/inventory/services/inventoryService';
 import { mockInventoryService as inventoryService } from '../features/inventory/services/mockInventoryService';
-import { mockGameService } from '../features/inventory/services/mockGameService';
+import { gameService } from '../features/inventory/services/gameService';
+// import { mockGameService as gameService } from '../features/inventory/services/mockGameService';
 import { PlayButton } from '../features/family';
 import { ReviewSection } from '../features/reviews';
 import { DevTestZone } from '../features/dev/components/DevTestZone';
@@ -29,14 +30,16 @@ export const HomePage = () => {
 
   const fetchData = async () => {
     try {
-      const featuredRes = await mockGameService.getFeaturedGame();
-      const gamesRes = await mockGameService.getGames();
+      const [featuredData, gamesData] = await Promise.all([
+        gameService.getFeaturedGame(),
+        gameService.getGames()
+      ]);
 
-      if (featuredRes.success) {
-        setFeaturedGame(featuredRes.game);
+      if (featuredData.success) {
+        setFeaturedGame(featuredData.game);
       }
-      if (gamesRes.success) {
-        setGames(gamesRes.games);
+      if (gamesData.success) {
+        setGames(gamesData.games);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -50,7 +53,7 @@ export const HomePage = () => {
     if (!searchQuery.trim()) return;
 
     try {
-      const data = await mockGameService.searchGames(searchQuery);
+      const data = await gameService.searchGames(searchQuery);
 
       if (data.success) {
         setGames(data.games);

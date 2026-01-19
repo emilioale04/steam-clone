@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-// import { authService } from '../../features/auth/services/authService';
-import { mockAuthService as authService } from '../../features/auth/services/mockAuthService';
+import { authService } from '../../features/auth/services/authService';
+// import { mockAuthService as authService } from '../../features/auth/services/mockAuthService';
 
 const AuthContext = createContext(null);
 

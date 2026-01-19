@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { LoginForm } from '../components';
 import { useAuth } from '../../../shared/context/AuthContext';
-// import { authService } from '../services/authService';
-import { mockAuthService as authService } from '../services/mockAuthService';
+import { authService } from '../services/authService';
+// import { mockAuthService as authService } from '../services/mockAuthService';
 
 export const LoginPage = () => {
   const { login, error } = useAuth();
@@ -95,7 +95,7 @@ export const LoginPage = () => {
           </div>
         </div>
       )}
-      
+
       {geoBlockedError && (
         <div style={styles.warningMessage}>
           <svg style={styles.warningIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
