@@ -64,7 +64,12 @@ export const tradeService = {
 			.select(
 				`
       *,
-      item:item_id ( name, steam_item_id ),
+      item:item_id ( 
+        id,
+        items_aplicaciones (
+          nombre
+        )
+      ),
       offerer:offerer_id ( username ),
       receiver:receiver_id ( username )
     `
@@ -72,7 +77,15 @@ export const tradeService = {
 			.eq('status', 'Pendiente'); // Asegúrate que coincida con el texto en la DB
 
 		if (error) throw error;
-		return data;
+		
+		// Mapear para mantener compatibilidad con el frontend
+		return data.map(trade => ({
+			...trade,
+			item: trade.item ? {
+				id: trade.item.id,
+				name: trade.item.items_aplicaciones?.nombre
+			} : null
+		}));
 	},
 
 	async postTrade(offererId, itemId) {
@@ -91,13 +104,9 @@ export const tradeService = {
 				throw new Error(`Has alcanzado el límite máximo de ${TRADE_LIMITS.MAX_ACTIVE_TRADES} intercambios activos. Cancela alguno para crear más.`);
 			}
 
-			const expiryDate = new Date();
-			expiryDate.setDate(expiryDate.getDate() + TRADE_LIMITS.TRADE_EXPIRY_DAYS);
-
 			const { data, error } = await supabase.rpc('create_trade_and_lock_item', {
 				p_offerer_id: offererId,
 				p_item_id: itemId,
-				p_expiry_date: expiryDate.toISOString(),
 			});
 			if (error) throw error;
 
@@ -139,7 +148,23 @@ export const tradeService = {
 			console.error('Error de Supabase:', error.message);
 			throw error;
 		}
-		return data;
+
+		// Mapear para compatibilidad con el frontend
+		return data.map(offer => ({
+			id: offer.id,
+			trade_id: offer.trade_id,
+			item_id: offer.item_id,
+			offerer_id: offer.offerer_id,
+			status: offer.status,
+			item: {
+				id: offer.item_id,
+				name: offer.name,
+				steam_item_id: offer.steam_item_id
+			},
+			offerer: {
+				username: offer.username
+			}
+		}));
 	},
 
 	async cancelTradeById(tradeId) {
@@ -284,7 +309,7 @@ export const tradeOfferService = {
 
 	async cancelTradeOfferServ(id) {
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 5000));
+			await new Promise((resolve) => setTimeout(resolve, 1000));
 
 			const { error } = await supabase.rpc('cancel_trade_offer_and_unlock', {
 				offer_id_param: id,
@@ -314,11 +339,21 @@ export const tradeOfferService = {
 				.from('trade_offer')
 				.select(`
 					*,
-					item:item_id ( id, name, steam_item_id ),
+					item:item_id ( 
+						id, 
+						items_aplicaciones (
+							nombre
+						)
+					),
 					trade:trade_id (
 						id,
 						status,
-						item:item_id ( id, name, steam_item_id ),
+						item:item_id ( 
+							id, 
+							items_aplicaciones (
+								nombre
+							)
+						),
 						offerer:offerer_id ( id, username )
 					)
 				`)
@@ -327,7 +362,22 @@ export const tradeOfferService = {
 				.order('created_at', { ascending: false });
 
 			if (error) throw error;
-			return data || [];
+			
+			// Mapear para mantener compatibilidad con el frontend
+			return (data || []).map(offer => ({
+				...offer,
+				item: offer.item ? {
+					id: offer.item.id,
+					name: offer.item.items_aplicaciones?.nombre
+				} : null,
+				trade: offer.trade ? {
+					...offer.trade,
+					item: offer.trade.item ? {
+						id: offer.trade.item.id,
+						name: offer.trade.item.items_aplicaciones?.nombre
+					} : null
+				} : null
+			}));
 		} catch (error) {
 			console.error('Error getting user offers:', error);
 			throw error;

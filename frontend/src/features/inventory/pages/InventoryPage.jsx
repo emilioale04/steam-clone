@@ -14,7 +14,7 @@ export const InventoryPage = () => {
   const { postTrade , getTradeOffersByItemId, cancelTradeOffer, cancelTradeById} = useTrade();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-  const [sortBy, setSortBy] = useState('id'); // 'id', 'tradeable', 'marketable'
+  const [sortBy, setSortBy] = useState('name'); // 'name', 'tradeable', 'marketable'
   const [filterBy, setFilterBy] = useState('all'); // 'all', 'tradeable', 'marketable', 'locked'
 
   // Modal 
@@ -247,8 +247,10 @@ export const InventoryPage = () => {
   // Filter and sort inventory
   const filteredInventory = inventory
     ?.filter((item) => {
-      // Search filter
-      const matchesSearch = item.steam_item_id?.toString().includes(searchTerm);
+      // Search filter - buscar por nombre del item
+      const matchesSearch = !searchTerm || 
+        item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.app_name?.toLowerCase().includes(searchTerm.toLowerCase());
       
       // Status filter
       if (filterBy === 'tradeable') return matchesSearch && item.is_tradeable && !item.is_locked;
@@ -264,8 +266,8 @@ export const InventoryPage = () => {
       if (sortBy === 'marketable') {
         return (b.is_marketable ? 1 : 0) - (a.is_marketable ? 1 : 0);
       }
-      // Default: sort by steam_item_id
-      return (a.steam_item_id || 0) - (b.steam_item_id || 0);
+      // Default: sort by name
+      return (a.name || '').localeCompare(b.name || '');
     }) || [];
 
   if (loading) {
@@ -583,7 +585,7 @@ export const InventoryPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Buscar por Steam Item ID..."
+                placeholder="Buscar por nombre del item..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="bg-[#1b2838] text-white pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-full"
@@ -600,7 +602,7 @@ export const InventoryPage = () => {
                 <option value="all">Todos los items</option>
                 <option value="tradeable">Intercambiables</option>
                 <option value="marketable">Vendibles</option>
-                <option value="locked">Bloqueados</option>
+                <option value="locked">En transacción</option>
               </select>
             </div>
 
@@ -612,7 +614,7 @@ export const InventoryPage = () => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="bg-[#1b2838] text-white px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="id">Steam Item ID</option>
+                <option value="name">Nombre</option>
                 <option value="tradeable">Intercambiables primero</option>
                 <option value="marketable">Vendibles primero</option>
               </select>
