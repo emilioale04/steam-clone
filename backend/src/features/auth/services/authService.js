@@ -35,7 +35,9 @@ export const authService = {
         inventory_privacy: 'public',
         trade_privacy: 'public',
         marketplace_privacy: 'public',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        acepta_lopdp: true, 
+        fecha_consentimiento: new Date().toISOString()
       });
 
     if (profileError) {
