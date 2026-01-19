@@ -222,7 +222,15 @@ const pricingService = {
         };
       }
 
-      // 5. Actualizar precio
+      // 5. Validar que el precio sea diferente al actual
+      if (Number(app.precio_base_usd) === Number(newPrice)) {
+        return {
+          success: false,
+          error: 'El nuevo precio debe ser diferente al precio actual'
+        };
+      }
+
+      // 6. Actualizar precio
       const { data: updatedApp, error: updateError } = await supabaseAdmin
         .from('aplicaciones_desarrolladores')
         .update({
@@ -290,7 +298,16 @@ const pricingService = {
         };
       }
 
-      // 4. Actualizar descuento (no tiene restricción de 30 días)
+      // 4. Validar que el descuento sea diferente al actual
+      const currentDiscount = Number(app.descuento || 0);
+      if (currentDiscount === Number(newDiscount)) {
+        return {
+          success: false,
+          error: 'El nuevo descuento debe ser diferente al descuento actual'
+        };
+      }
+
+      // 5. Actualizar descuento (no tiene restricción de 30 días)
       const { data: updatedApp, error: updateError } = await supabaseAdmin
         .from('aplicaciones_desarrolladores')
         .update({
