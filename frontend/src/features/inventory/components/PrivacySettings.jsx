@@ -210,10 +210,10 @@ export const PrivacySettings = () => {
             {/* Secciones de privacidad */}
             <div className="space-y-6">
                 {/* Consentimiento de Grupos */}
-                <div className="bg-[#1b2838] rounded-lg p-4 border-2 border-purple-500/30">
+                <div className="bg-[#1b2838] rounded-lg p-4">
                     <div className="flex items-start gap-3 mb-4">
-                        <div className="bg-purple-600/20 p-2 rounded-lg">
-                            <Users className="text-purple-400" size={20} />
+                        <div className="p-2">
+                            <Users className="text-gray-400" size={20} />
                         </div>
                         <div className="flex-1">
                             <h3 className="text-white font-medium mb-1">Consentimiento de Grupos</h3>
@@ -228,8 +228,8 @@ export const PrivacySettings = () => {
                                 </div>
                             ) : groupConsent && groupConsent.estado_consentimiento ? (
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-green-400 bg-green-500/10 p-3 rounded-lg">
-                                        <Check size={18} />
+                                    <div className="flex items-center gap-2 text-green-400 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                                        <Check size={18} className="flex-shrink-0" />
                                         <div>
                                             <p className="font-medium">Consentimiento Activo</p>
                                             <p className="text-xs text-gray-400">
@@ -242,9 +242,9 @@ export const PrivacySettings = () => {
                                         </div>
                                     </div>
                                     
-                                    <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
-                                        <p className="text-yellow-400 text-sm mb-2 flex items-start gap-2">
-                                            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                                    <div className="bg-[#2a475e]/30 rounded-lg p-3 border border-gray-600/30">
+                                        <p className="text-gray-300 text-sm mb-3 flex items-start gap-2">
+                                            <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-gray-400" />
                                             <span>
                                                 Al revocar el consentimiento, serás removido automáticamente de todos los grupos 
                                                 y no podrás unirte a nuevos grupos hasta que vuelvas a otorgar el consentimiento.
@@ -253,7 +253,7 @@ export const PrivacySettings = () => {
                                         <button
                                             onClick={handleRevokeConsent}
                                             disabled={revokingConsent}
-                                            className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
+                                            className="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium"
                                         >
                                             {revokingConsent ? (
                                                 <>
@@ -271,8 +271,8 @@ export const PrivacySettings = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg">
-                                        <AlertCircle size={18} />
+                                    <div className="flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                                        <AlertCircle size={18} className="flex-shrink-0" />
                                         <div>
                                             <p className="font-medium">Consentimiento No Otorgado</p>
                                             <p className="text-xs text-gray-400">
@@ -284,7 +284,7 @@ export const PrivacySettings = () => {
                                     <button
                                         onClick={handleGrantConsent}
                                         disabled={loadingConsent}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
+                                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium"
                                     >
                                         {loadingConsent ? (
                                             <>
