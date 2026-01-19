@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, ChevronDown, ChevronUp, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import { useGroupDetails, useGroups } from '../hooks/useGroups';
 import { useAnnouncements } from '../hooks/useCommunity';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -10,6 +10,7 @@ import CreateForumModal from '../components/CreateForumModal';
 import CreateAnnouncementModal from '../components/CreateAnnouncementModal';
 import GroupSettingsForm from '../components/GroupSettingsForm';
 import ForumActions from '../components/ForumActions';
+import InviteMemberModal from '../components/InviteMemberModal';
 
 export default function GroupDetailsPage() {
     const { groupId } = useParams();
@@ -20,6 +21,7 @@ export default function GroupDetailsPage() {
     const [loadingForums, setLoadingForums] = useState(true);
     const [isCreateForumModalOpen, setIsCreateForumModalOpen] = useState(false);
     const [isCreateAnnouncementModalOpen, setIsCreateAnnouncementModalOpen] = useState(false);
+    const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
     const [joiningGroup, setJoiningGroup] = useState(false);
     const [leavingGroup, setLeavingGroup] = useState(false);
     const [isEditingRules, setIsEditingRules] = useState(false);
@@ -28,7 +30,7 @@ export default function GroupDetailsPage() {
     const [isOwnerSectionExpanded, setIsOwnerSectionExpanded] = useState(true);
     const [isModeratorsExpanded, setIsModeratorsExpanded] = useState(true);
     const [isMembersExpanded, setIsMembersExpanded] = useState(true);
-    const [isRequestsExpanded, setIsRequestsExpanded] = useState(true);
+    const [isAspirantesExpanded, setIsAspirantesExpanded] = useState(true);
     const { 
         group, 
         members, 
@@ -48,11 +50,15 @@ export default function GroupDetailsPage() {
     const { announcements, loading: loadingAnnouncements, createAnnouncement, updateAnnouncement, fetchAnnouncements } = useAnnouncements(groupId);
 
     useEffect(() => {
-        fetchGroupDetails();
-        fetchMembers();
-        fetchPendingRequests();
-        fetchAnnouncements();
-        loadForums();
+        const loadData = async () => {
+            await fetchGroupDetails();
+            // Intentar cargar datos adicionales, pero no bloquear si hay errores de acceso
+            fetchMembers().catch((err) => console.log('No se pudieron cargar miembros:', err.message));
+            fetchPendingRequests().catch((err) => console.log('No se pudieron cargar solicitudes:', err.message));
+            fetchAnnouncements().catch((err) => console.log('No se pudieron cargar anuncios:', err.message));
+            loadForums();
+        };
+        loadData();
     }, [fetchGroupDetails, fetchMembers, fetchPendingRequests, fetchAnnouncements]);
 
     const loadForums = async () => {
@@ -126,13 +132,14 @@ export default function GroupDetailsPage() {
             // Mostrar mensaje de éxito
             if (response.status === 'joined') {
                 alert('Te has unido al grupo exitosamente');
-            } else if (response.status === 'pending') {
-                alert('Solicitud enviada. Espera la aprobación de los moderadores');
+                // Solo refrescar si realmente se unió al grupo
+                await fetchGroupDetails();
+                await fetchMembers().catch(() => {});
+            } else if (response.status === 'requested' || response.status === 'pending') {
+                alert(response.message || 'Solicitud enviada. Espera la aprobación de los moderadores');
+                // Solo refrescar detalles del grupo para actualizar has_pending_request
+                await fetchGroupDetails();
             }
-            
-            // Refrescar los detalles del grupo para actualizar el estado de membresía
-            await fetchGroupDetails();
-            await fetchMembers();
         } catch (err) {
             console.error('Error joining group:', err);
             // Mostrar el mensaje de error específico del backend
@@ -193,6 +200,18 @@ export default function GroupDetailsPage() {
         }
     };
 
+    const handleInviteMember = async (targetUserId) => {
+        try {
+            const { groupService } = await import('../services/groupService');
+            await groupService.inviteUser(groupId, targetUserId);
+            alert('Invitación enviada exitosamente');
+            setIsInviteMemberModalOpen(false);
+        } catch (err) {
+            console.error('Error inviting member:', err);
+            alert(err.message || 'Error al enviar la invitación');
+        }
+    };
+
     if (loading && !group) {
         return (
             <div className="min-h-screen bg-[#1b2838] flex items-center justify-center">
@@ -201,7 +220,8 @@ export default function GroupDetailsPage() {
         );
     }
 
-    if (error) {
+    // Si hay error pero no hay grupo, mostrar error completo
+    if (error && !group) {
         return (
             <div className="min-h-screen bg-[#1b2838] flex items-center justify-center">
                 <div className="text-center">
@@ -223,6 +243,7 @@ export default function GroupDetailsPage() {
 
     const userRole = group.user_membership?.rol;
     const isMember = group.user_membership !== null && group.user_membership?.estado_membresia === 'activo';
+    const hasPendingRequest = group.has_pending_request === true;
     const isOwner = userRole === 'Owner';
     const isModerator = userRole === 'Moderator' || isOwner;
 
@@ -306,13 +327,21 @@ export default function GroupDetailsPage() {
 
                         {/* Actions */}
                         <div className="flex gap-2">
-                            {!isMember && (
+                            {!isMember && user && !hasPendingRequest && (
                                 <button 
                                     onClick={handleJoinGroup}
                                     disabled={joiningGroup}
                                     className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {joiningGroup ? 'Uniéndose...' : 'Unirse'}
+                                    {joiningGroup ? 'Enviando solicitud...' : (group.visibilidad === 'Restricted' ? 'Solicitar Unirse' : 'Unirse')}
+                                </button>
+                            )}
+                            {!isMember && user && hasPendingRequest && (
+                                <button 
+                                    disabled
+                                    className="px-6 py-2 bg-yellow-600 text-white rounded transition-colors font-semibold cursor-not-allowed opacity-75"
+                                >
+                                    Solicitud Pendiente
                                 </button>
                             )}
                             {isMember && !isOwner && (
@@ -337,7 +366,48 @@ export default function GroupDetailsPage() {
                     </div>
                 )}
 
-                {/* Tabs */}
+                {/* Mensaje informativo si no es miembro */}
+                {!isMember && user && (
+                    <div className="bg-gradient-to-r from-orange-900/30 to-orange-800/30 border border-orange-700/50 rounded-lg p-6 mb-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0">
+                                <Shield className="text-orange-400" size={32} />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-xl font-bold text-white mb-2">
+                                    {hasPendingRequest ? 'Solicitud Pendiente' : (group.visibilidad === 'Restricted' ? 'Grupo Restringido' : 'Grupo Cerrado')}
+                                </h3>
+                                <p className="text-gray-300 mb-3">
+                                    {hasPendingRequest 
+                                        ? 'Tu solicitud para unirte a este grupo está pendiente de aprobación por los moderadores. Te notificaremos cuando sea revisada.'
+                                        : (group.visibilidad === 'Restricted' 
+                                            ? 'Este es un grupo restringido. Debes enviar una solicitud y ser aprobado por los moderadores para acceder al contenido completo.'
+                                            : 'Este es un grupo cerrado. Solo puedes unirte mediante invitación de los moderadores.')}
+                                </p>
+                                {!hasPendingRequest && (
+                                    <button 
+                                        onClick={handleJoinGroup}
+                                        disabled={joiningGroup}
+                                        className="flex items-center gap-2 px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <UserPlus size={18} />
+                                        {joiningGroup ? 'Enviando solicitud...' : (group.visibilidad === 'Restricted' ? 'Enviar Solicitud de Ingreso' : 'Solicitar Invitación')}
+                                    </button>
+                                )}
+                                {hasPendingRequest && (
+                                    <div className="flex items-center gap-2 px-6 py-2 bg-yellow-600/50 text-yellow-100 rounded font-semibold">
+                                        <UserPlus size={18} />
+                                        Solicitud en Revisión
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Tabs - Solo visible para miembros */}
+                {isMember && (
+                <>
                 <div className="flex flex-wrap gap-3 mb-6">
                     <button
                         onClick={() => setActiveTab('forums')}
@@ -480,7 +550,16 @@ export default function GroupDetailsPage() {
                     <div className="space-y-6">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-2xl font-bold text-white">Miembros del Grupo</h2>
-                            <div className="relative">
+                            <div className="flex items-center gap-3">
+                                {isMember && (
+                                    <button
+                                        onClick={() => setIsInviteMemberModalOpen(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors font-semibold"
+                                    >
+                                        <UserPlus size={18} />
+                                        Invitar Miembros
+                                    </button>
+                                )}
                                 <input
                                     type="text"
                                     placeholder="Buscar miembros"
@@ -645,21 +724,24 @@ export default function GroupDetailsPage() {
                             </div>
                         )}
 
-                        {/* Solicitudes - Solo visible para Dueño/Moderadores en grupos Restricted o Closed */}
-                        {isModerator && (group.tipo_privacidad === 'Restricted' || group.tipo_privacidad === 'Closed') && pendingRequests && pendingRequests.length > 0 && (
+                        {/* Aspirantes - Solo visible para todos los miembros en grupos Restricted */}
+                        {isMember && group.visibilidad === 'Restricted' && pendingRequests && pendingRequests.length > 0 && (
                             <div>
                                 <button
-                                    onClick={() => setIsRequestsExpanded(!isRequestsExpanded)}
+                                    onClick={() => setIsAspirantesExpanded(!isAspirantesExpanded)}
                                     className="w-full text-lg font-semibold text-white mb-3 flex items-center justify-between hover:text-blue-400 transition-colors"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <UserPlus className="text-green-400" size={20} />
-                                        Solicitudes de Unión ({pendingRequests.length})
+                                        <UserPlus className="text-orange-400" size={20} />
+                                        Aspirantes ({pendingRequests.length})
                                     </div>
-                                    {isRequestsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                    {isAspirantesExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </button>
-                                {isRequestsExpanded && (
+                                {isAspirantesExpanded && (
                                 <div className="bg-[#2a475e] rounded-lg overflow-hidden">
+                                    <div className="p-4 border-b border-[#1b2838]">
+                                        <p className="text-gray-400 text-sm">Lista de perfiles que desean unirse al grupo</p>
+                                    </div>
                                     <div className="divide-y divide-[#1b2838]">
                                         {pendingRequests.map((request) => (
                                             <div key={request.id} className="p-4 flex items-center justify-between hover:bg-[#3a576e] transition-colors">
@@ -678,24 +760,26 @@ export default function GroupDetailsPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleJoinRequest(request.id, true)}
-                                                        className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded transition-colors font-semibold flex items-center gap-1"
-                                                        title="Aprobar solicitud"
-                                                    >
-                                                        <CheckCircle size={16} />
-                                                        Aprobar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleJoinRequest(request.id, false)}
-                                                        className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded transition-colors font-semibold flex items-center gap-1"
-                                                        title="Rechazar solicitud"
-                                                    >
-                                                        <XCircle size={16} />
-                                                        Rechazar
-                                                    </button>
-                                                </div>
+                                                {isModerator && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleJoinRequest(request.id, true)}
+                                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded transition-colors font-semibold flex items-center gap-1"
+                                                            title="Aprobar solicitud"
+                                                        >
+                                                            <CheckCircle size={16} />
+                                                            Aprobar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleJoinRequest(request.id, false)}
+                                                            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded transition-colors font-semibold flex items-center gap-1"
+                                                            title="Rechazar solicitud"
+                                                        >
+                                                            <XCircle size={16} />
+                                                            Rechazar
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -922,22 +1006,52 @@ export default function GroupDetailsPage() {
                         />
                     </div>
                 )}
+                </>
+                )}
+
+                {/* Mensaje para no miembros */}
+                {!isMember && user && (
+                    <div className="text-center py-12">
+                        <Users className="mx-auto text-gray-500 mb-4" size={64} />
+                        <h3 className="text-xl font-semibold text-white mb-2">
+                            Necesitas ser miembro para ver el contenido
+                        </h3>
+                        <p className="text-gray-400">
+                            {group.visibilidad === 'Restricted' 
+                                ? 'Envía una solicitud para unirte a este grupo y acceder a todos los foros, anuncios y miembros.'
+                                : 'Este grupo es privado. Contacta a un moderador para obtener una invitación.'}
+                        </p>
+                    </div>
+                )}
             </div>
 
-            {/* Create Forum Modal */}
+            {/* Create Forum Modal - Solo renderizar si es miembro */}
+            {isMember && (
             <CreateForumModal
                 isOpen={isCreateForumModalOpen}
                 onClose={() => setIsCreateForumModalOpen(false)}
                 onSubmit={handleCreateForum}
             />
+            )}
 
-            {/* Create Announcement Modal */}
+            {/* Create Announcement Modal - Solo renderizar si es moderador */}
+            {isModerator && (
             <CreateAnnouncementModal
                 isOpen={isCreateAnnouncementModalOpen}
                 onClose={() => setIsCreateAnnouncementModalOpen(false)}
                 onSubmit={handleCreateAnnouncement}
                 loading={loadingAnnouncements}
             />
+            )}
+
+            {/* Invite Member Modal */}
+            {isMember && (
+            <InviteMemberModal
+                isOpen={isInviteMemberModalOpen}
+                onClose={() => setIsInviteMemberModalOpen(false)}
+                onInvite={handleInviteMember}
+            />
+            )}
         </div>
     );
 }

@@ -307,5 +307,25 @@ export const groupController = {
                 message: error.message || 'Error al obtener las solicitudes'
             });
         }
+    },
+
+    // Buscar usuarios para invitar
+    async searchUsers(req, res) {
+        try {
+            const { q } = req.query;
+
+            const users = await groupService.searchUsersToInvite(q);
+
+            res.json({
+                success: true,
+                data: users
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error searching users:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al buscar usuarios'
+            });
+        }
     }
 };

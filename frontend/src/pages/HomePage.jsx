@@ -3,6 +3,7 @@ import { Search, User, ShoppingCart, Gamepad2, Star, LogOut, Menu, X } from 'luc
 import { useAuth } from '../shared/context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { inventoryService } from '../features/inventory/services/inventoryService';
+import NotificationBell from '../shared/components/NotificationBell';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -137,6 +138,9 @@ export const HomePage = () => {
                   className="bg-[#316282] text-white pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-56"
                 />
               </form>
+              
+              {/* Notification Bell */}
+              <NotificationBell />
               
               <button className="relative p-2 hover:bg-[#2a475e] rounded-lg transition-colors">
                 <ShoppingCart className="text-white" size={22} />

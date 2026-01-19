@@ -16,6 +16,9 @@ router.post('/', groupController.createGroup);
 // Buscar grupos
 router.get('/search', groupController.searchGroups);
 
+// Buscar usuarios para invitar
+router.get('/users/search', groupController.searchUsers);
+
 // Detalles de un grupo (puede ser público)
 router.get('/:groupId', groupController.getGroupDetails);
 

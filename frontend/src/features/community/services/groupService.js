@@ -183,5 +183,19 @@ export const groupService = {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
         return data;
+    },
+
+    // Invitar usuario al grupo
+    async inviteUser(groupId, targetUserId) {
+        const response = await fetch(`${API_URL}/groups/${groupId}/invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ targetUserId })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        return data;
     }
 };

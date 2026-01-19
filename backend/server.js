@@ -47,6 +47,9 @@ import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
 // Import session service for cleanup (Grupo 2 - Gestión de Sesiones)
 import { sessionService } from './src/shared/services/sessionService.js';
 
+// Import notification service for WebSocket
+import { notificationService } from './src/shared/services/notificationService.js';
+
 // Import limited account validation middleware
 import { limitedAccountValidationMiddleware } from './src/shared/middleware/limitedAccountValidationMiddleware.js';
 import { geoValidationMiddleware } from './src/shared/middleware/geoValidationMiddleware.js';
@@ -315,6 +318,9 @@ let sessionCleanupInterval = null;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
+
+  // Inicializar WebSocket para notificaciones
+  notificationService.initialize(server);
 
   // Iniciar limpieza periódica de sesiones expiradas (cada hora)
   // C15: Gestión robusta de sesiones

@@ -1,4 +1,5 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { notificationService } from '../../../shared/services/notificationService.js';
 import { 
     registrarCrearGrupo, 
     registrarEliminarGrupo, 
@@ -350,6 +351,21 @@ export const groupService = {
                 throw new Error('Este grupo es privado. Necesitas una invitación para unirte');
             }
 
+            // Si es Restricted, verificar si ya tiene una solicitud pendiente
+            const { data: existingRequest } = await supabase
+                .from('invitaciones_solicitudes')
+                .select('id')
+                .eq('id_grupo', groupId)
+                .eq('id_usuario_origen', userId)
+                .eq('tipo', 'solicitud')
+                .eq('estado', 'pendiente')
+                .is('deleted_at', null)
+                .single();
+
+            if (existingRequest) {
+                return { success: true, status: 'pending', message: 'Ya tienes una solicitud pendiente para este grupo' };
+            }
+
             // Si es Restricted, crear solicitud
             const { error: requestError } = await supabase
                 .from('invitaciones_solicitudes')
@@ -622,7 +638,7 @@ export const groupService = {
             .select(`
                 id,
                 id_usuario_origen,
-                fecha_solicitud: created_at,
+                fecha_solicitud,
                 profiles:id_usuario_origen (
                     id,
                     username
@@ -631,7 +647,8 @@ export const groupService = {
             .eq('id_grupo', groupId)
             .eq('tipo', 'solicitud')
             .eq('estado', 'pendiente')
-            .order('created_at', { ascending: false });
+            .is('deleted_at', null)
+            .order('fecha_solicitud', { ascending: false });
 
         if (requestsError) {
             console.error('Error getting pending requests:', requestsError);
@@ -689,15 +706,51 @@ export const groupService = {
 
         // Si se aprueba, agregar como miembro
         if (approve) {
-            await supabase
+            // Verificar si ya existe un registro (incluso eliminado)
+            const { data: existingMember } = await supabase
                 .from('miembros_grupo')
-                .insert({
-                    id_grupo: groupId,
-                    id_perfil: request.id_usuario_origen,
-                    rol: 'Member',
-                    estado_membresia: 'activo',
-                    fecha_union: new Date().toISOString()
-                });
+                .select('id, deleted_at')
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', request.id_usuario_origen)
+                .single();
+
+            if (existingMember) {
+                // Si existe pero está eliminado, restaurarlo
+                if (existingMember.deleted_at) {
+                    const { error: updateError } = await supabase
+                        .from('miembros_grupo')
+                        .update({
+                            deleted_at: null,
+                            rol: 'Member',
+                            estado_membresia: 'activo',
+                            fecha_union: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', existingMember.id);
+
+                    if (updateError) {
+                        console.error('Error updating existing member:', updateError);
+                        throw new Error('Error al agregar el miembro al grupo');
+                    }
+                }
+                // Si existe y está activo, no hacer nada (ya es miembro)
+            } else {
+                // Si no existe, crear nuevo registro
+                const { error: insertError } = await supabase
+                    .from('miembros_grupo')
+                    .insert({
+                        id_grupo: groupId,
+                        id_perfil: request.id_usuario_origen,
+                        rol: 'Member',
+                        estado_membresia: 'activo',
+                        fecha_union: new Date().toISOString()
+                    });
+
+                if (insertError) {
+                    console.error('Error inserting new member:', insertError);
+                    throw new Error('Error al agregar el miembro al grupo');
+                }
+            }
         }
 
         return { success: true };
@@ -729,10 +782,10 @@ export const groupService = {
             .is('deleted_at', null)
             .single();
 
-        // En grupos Closed, solo Owner y Moderator pueden invitar
-        if (grupo.visibilidad === 'Closed' && 
-            requester.rol !== 'Owner' && requester.rol !== 'Moderator') {
-            throw new Error('Solo el dueño y moderadores pueden invitar en grupos privados');
+        // En grupos Closed, cualquier miembro puede invitar
+        // En otros tipos de grupos también
+        if (!grupo) {
+            throw new Error('Grupo no encontrado');
         }
 
         // Verificar que el target es usuario estándar
@@ -763,6 +816,21 @@ export const groupService = {
             throw new Error('Este usuario ya es miembro del grupo');
         }
 
+        // Verificar si ya existe una invitación pendiente para este usuario
+        const { data: existingInvitation } = await supabase
+            .from('invitaciones_solicitudes')
+            .select('id')
+            .eq('id_grupo', groupId)
+            .eq('id_usuario_destino', targetUserId)
+            .eq('tipo', 'invitacion')
+            .eq('estado', 'pendiente')
+            .is('deleted_at', null)
+            .single();
+
+        if (existingInvitation) {
+            throw new Error('Este usuario ya tiene una invitación pendiente para este grupo');
+        }
+
         // Crear invitación
         const { error: inviteError } = await supabase
             .from('invitaciones_solicitudes')
@@ -776,6 +844,9 @@ export const groupService = {
             });
 
         if (inviteError) throw inviteError;
+
+        // Notificar al usuario invitado vía WebSocket
+        await notificationService.notifyGroupInvitation(targetUserId, groupId, requesterId);
 
         return { success: true };
     },
@@ -829,6 +900,7 @@ export const groupService = {
 
         // Verificar si el usuario es miembro
         let userMembership = null;
+        let hasPendingRequest = false;
         if (userId) {
             const { data: membership } = await supabase
                 .from('miembros_grupo')
@@ -839,6 +911,21 @@ export const groupService = {
                 .single();
 
             userMembership = membership;
+
+            // Verificar si tiene una solicitud pendiente
+            if (!membership) {
+                const { data: pendingRequest } = await supabase
+                    .from('invitaciones_solicitudes')
+                    .select('id')
+                    .eq('id_grupo', groupId)
+                    .eq('id_usuario_origen', userId)
+                    .eq('tipo', 'solicitud')
+                    .eq('estado', 'pendiente')
+                    .is('deleted_at', null)
+                    .single();
+
+                hasPendingRequest = !!pendingRequest;
+            }
         }
 
         // Contar miembros
@@ -852,7 +939,8 @@ export const groupService = {
         return {
             ...grupo,
             member_count: memberCount || 0,
-            user_membership: userMembership
+            user_membership: userMembership,
+            has_pending_request: hasPendingRequest
         };
     },
 
@@ -951,5 +1039,28 @@ export const groupService = {
         );
 
         return groupsWithCounts;
+    },
+
+    /**
+     * Buscar usuarios por username para invitar
+     */
+    async searchUsersToInvite(searchTerm) {
+        if (!searchTerm || searchTerm.trim().length < 2) {
+            return [];
+        }
+
+        const { data: users, error } = await supabase
+            .from('profiles')
+            .select('id, username, is_limited')
+            .ilike('username', `%${searchTerm.trim()}%`)
+            .eq('is_limited', false)
+            .limit(10);
+
+        if (error) {
+            console.error('Error searching users:', error);
+            throw new Error('Error al buscar usuarios');
+        }
+
+        return users || [];
     }
 };
