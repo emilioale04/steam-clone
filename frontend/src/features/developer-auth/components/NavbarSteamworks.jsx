@@ -1,7 +1,7 @@
 /**
  * Navbar principal del Dashboard de Steamworks
  */
-import { LogOut } from 'lucide-react';
+import { DeveloperNotificationBell } from './DeveloperNotificationBell';
 
 export const NavbarSteamworks = ({ activeTab, onTabChange, nombreDesarrollador, rolDesarrollador, onLogout }) => {
   const tabs = [
@@ -26,6 +26,7 @@ export const NavbarSteamworks = ({ activeTab, onTabChange, nombreDesarrollador, 
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <DeveloperNotificationBell />
             <span className="text-gray-300 text-sm">
               {nombreDesarrollador}
             </span>

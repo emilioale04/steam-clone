@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { supabaseAdmin as supabase } from '../config/supabase.js';
+import { sanitizeString, limitLength } from '../utils/sanitization.js';
 
 class NotificationService {
     constructor() {
@@ -303,6 +304,59 @@ class NotificationService {
             }
         } catch (error) {
             console.error('[WS] Error notificando aprobación:', error);
+        }
+    }
+
+    /**
+     * Notificar al desarrollador sobre el estado de revision del juego
+     */
+    async notifyGameReview(appId, reviewId, status, comentarios) {
+        try {
+            const normalizedStatus = (status || '').toLowerCase();
+            if (!['aprobado', 'rechazado'].includes(normalizedStatus)) {
+                console.warn('[WS] Estado de revision invalido:', status);
+                return;
+            }
+
+            const { data: app, error } = await supabase
+                .from('aplicaciones_desarrolladores')
+                .select('id, app_id, nombre_juego, desarrollador_id')
+                .eq('id', appId)
+                .single();
+
+            if (error || !app) {
+                console.error('[WS] Error obteniendo aplicacion para notificacion:', error);
+                return;
+            }
+
+            const safeGameName = limitLength(
+                sanitizeString(app.nombre_juego || 'Juego'),
+                120
+            ) || 'Juego';
+            const safeComentarios = comentarios
+                ? limitLength(sanitizeString(comentarios), 1000)
+                : null;
+            const title = normalizedStatus === 'aprobado' ? 'Juego aprobado' : 'Juego rechazado';
+            const message = normalizedStatus === 'aprobado'
+                ? `Tu juego "${safeGameName}" fue aprobado.`
+                : `Tu juego "${safeGameName}" fue rechazado.`;
+
+            await this.sendNotification(app.desarrollador_id, {
+                type: 'game_review_status',
+                status: normalizedStatus,
+                review_id: reviewId,
+                app: {
+                    id: app.id,
+                    app_id: app.app_id,
+                    nombre_juego: safeGameName
+                },
+                title,
+                message,
+                comentarios: safeComentarios,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error('[WS] Error notificando revision de juego:', error);
         }
     }
 }
