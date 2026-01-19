@@ -1,0 +1,1 @@
+export { storeConfigService } from './storeConfigService';
