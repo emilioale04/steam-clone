@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, Tag, FileText, AlertCircle, Megaphone, MessageSquare, Star, Send, Trash2, Clock, Lock } from 'lucide-react';
 import { storeConfigService } from '../services/storeConfigService';
 import { developerAuthService } from '../../developer-auth/services/developerAuthService';
+import { reviewValidator } from '../../../shared/utils/validators';
 
 export const ConfiguracionTiendaPage = () => {
   // Estado para la aplicación seleccionada
@@ -32,7 +33,6 @@ export const ConfiguracionTiendaPage = () => {
   // Estado para anuncios
   const [anuncios, setAnuncios] = useState([]);
   const [nuevoAnuncio, setNuevoAnuncio] = useState({ titulo: '', contenido: '', tipo: 'noticia' });
-  const [loadingAnuncios, setLoadingAnuncios] = useState(false);
   const [loadingCrearAnuncio, setLoadingCrearAnuncio] = useState(false);
 
   // Estado para reseñas
@@ -40,6 +40,7 @@ export const ConfiguracionTiendaPage = () => {
   const [loadingResenias, setLoadingResenias] = useState(false);
   const [respuestas, setRespuestas] = useState({});
   const [enviandoRespuesta, setEnviandoRespuesta] = useState({});
+  const [respuestaErrors, setRespuestaErrors] = useState({});
 
   // Mensajes de feedback
   const [successMessage, setSuccessMessage] = useState('');
@@ -51,6 +52,7 @@ export const ConfiguracionTiendaPage = () => {
   // Cargar aplicaciones al montar
   useEffect(() => {
     cargarAplicaciones();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cargar datos cuando cambia la aplicación seleccionada
@@ -64,6 +66,7 @@ export const ConfiguracionTiendaPage = () => {
         cargarAnuncios();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appSeleccionada]);
 
   const mostrarMensaje = (mensaje, tipo) => {
@@ -137,14 +140,11 @@ export const ConfiguracionTiendaPage = () => {
     if (!appSeleccionada) return;
 
     try {
-      setLoadingAnuncios(true);
       const response = await storeConfigService.obtenerAnuncios(appSeleccionada);
       setAnuncios(response.data || []);
     } catch (error) {
       console.error('Error al cargar anuncios:', error);
       setAnuncios([]);
-    } finally {
-      setLoadingAnuncios(false);
     }
   };
 
@@ -268,10 +268,25 @@ export const ConfiguracionTiendaPage = () => {
 
   const handleEnviarRespuesta = async (resenaId) => {
     const respuesta = respuestas[resenaId];
+    
+    // Validar usando el validador de reseñas
+    const validation = reviewValidator.test(respuesta);
+    
     if (!respuesta?.trim()) {
-      mostrarMensaje('Escribe una respuesta antes de enviar', 'error');
+      setRespuestaErrors(prev => ({ ...prev, [resenaId]: 'Escribe una respuesta antes de enviar' }));
       return;
     }
+
+    if (!validation) {
+      setRespuestaErrors(prev => ({ 
+        ...prev, 
+        [resenaId]: reviewValidator.message 
+      }));
+      return;
+    }
+
+    // Limpiar la respuesta de contenido peligroso
+    const respuestaLimpia = reviewValidator.clean(respuesta);
 
     if (!appEstaAprobada) {
       mostrarMensaje('Solo puedes responder reseñas de aplicaciones aprobadas', 'error');
@@ -280,9 +295,10 @@ export const ConfiguracionTiendaPage = () => {
 
     try {
       setEnviandoRespuesta(prev => ({ ...prev, [resenaId]: true }));
-      await storeConfigService.responderResenia(appSeleccionada, resenaId, respuesta);
+      await storeConfigService.responderResenia(appSeleccionada, resenaId, respuestaLimpia);
       mostrarMensaje('Respuesta enviada correctamente', 'success');
       setRespuestas(prev => ({ ...prev, [resenaId]: '' }));
+      setRespuestaErrors(prev => ({ ...prev, [resenaId]: '' }));
       // Recargar reseñas para mostrar la respuesta
       cargarResenias();
     } catch (error) {
@@ -783,25 +799,36 @@ export const ConfiguracionTiendaPage = () => {
                       <label className="block text-sm font-medium text-gray-400 mb-2">
                         Tu respuesta oficial:
                       </label>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-col">
                         <textarea
                           value={respuestas[resena.id] || ''}
-                          onChange={(e) => setRespuestas(prev => ({ ...prev, [resena.id]: e.target.value }))}
+                          onChange={(e) => {
+                            setRespuestas(prev => ({ ...prev, [resena.id]: e.target.value }));
+                            // Limpiar error cuando el usuario escribe
+                            if (respuestaErrors[resena.id]) {
+                              setRespuestaErrors(prev => ({ ...prev, [resena.id]: '' }));
+                            }
+                          }}
                           rows={2}
                           placeholder="Escribe tu respuesta a esta reseña..."
                           className="flex-1 bg-[#1e2a38] text-white px-3 py-2 rounded border border-[#2a3f5f] focus:border-[#66c0f4] focus:outline-none resize-none text-sm"
                         />
-                        <button
-                          onClick={() => handleEnviarRespuesta(resena.id)}
-                          disabled={enviandoRespuesta[resena.id]}
-                          className="self-end px-4 py-2 bg-[#66c0f4] text-white rounded hover:bg-[#5bb1e3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {enviandoRespuesta[resena.id] ? (
-                            <span className="animate-spin">...</span>
-                          ) : (
-                            <Send size={16} />
-                          )}
-                        </button>
+                        {respuestaErrors[resena.id] && (
+                          <p className="text-red-400 text-xs">{respuestaErrors[resena.id]}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEnviarRespuesta(resena.id)}
+                            disabled={enviandoRespuesta[resena.id]}
+                            className="self-end px-4 py-2 bg-[#66c0f4] text-white rounded hover:bg-[#5bb1e3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {enviandoRespuesta[resena.id] ? (
+                              <span className="animate-spin">...</span>
+                            ) : (
+                              <Send size={16} />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
