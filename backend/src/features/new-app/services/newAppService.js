@@ -12,6 +12,7 @@
 import { supabaseAdmin } from '../../../shared/config/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { virusTotalService } from '../../../shared/services/virusTotalService.js';
 
 /**
  * Genera un AppID único con el formato: APP-XXXXXX
@@ -142,7 +143,12 @@ export const newAppService = {
         monto_pago_registro: 100.00,
       };
 
-      // 4. Subir archivos a Supabase Storage (si existen)
+      // 4. Revisar archivos con VirusTotal (si existen)
+      if (archivos.build_file) {
+        await virusTotalService.revisarArchivo(archivos.build_file);
+      }
+
+      // 5. Subir archivos a Supabase Storage (si existen)
       let buildPublicUrl = null;
       let portadaPublicUrl = null;
 
@@ -206,7 +212,7 @@ export const newAppService = {
         datosInsert.portada_image_path = portadaPublicUrl;
       }
 
-      // 5. Insertar en la base de datos
+      // 6. Insertar en la base de datos
       const { data: nuevaApp, error: insertError } = await supabaseAdmin
         .from('aplicaciones_desarrolladores')
         .insert(datosInsert)
@@ -218,7 +224,7 @@ export const newAppService = {
         throw new Error('Error al crear la aplicación en la base de datos');
       }
 
-      // 6. Crear registro de revisión automáticamente (RF-005)
+      // 7. Crear registro de revisión automáticamente (RF-005)
       const { data: revision, error: revisionError } = await supabaseAdmin
         .from('revisiones_juegos')
         .insert({
@@ -234,7 +240,7 @@ export const newAppService = {
         console.log('Registro de revisión creado:', revision.id, '- Estado:', revision.estado); 
       }
 
-      // 7. Registrar auditoría
+      // 8. Registrar auditoria
       await supabaseAdmin.from('auditoria_eventos').insert({
         usuario_id: desarrolladorId,
         tipo_usuario: 'desarrollador',
@@ -249,7 +255,7 @@ export const newAppService = {
         }
       });
 
-      // 8. Retornar aplicación creada
+      // 9. Retornar aplicación creada
       return {
         id: nuevaApp.id,
         app_id: nuevaApp.app_id,
@@ -374,7 +380,12 @@ export const newAppService = {
         datosUpdate.descripcion_larga = datosActualizados.descripcion_larga;
       }
 
-      // 3. Actualizar archivos si se proveen
+      // 3. Revisar archivos con VirusTotal (si se proveen)
+      if (archivos.build_file) {
+        await virusTotalService.revisarArchivo(archivos.build_file);
+      }
+
+      // 4. Actualizar archivos si se proveen
       if (archivos.build_file) {
         const buildFile = archivos.build_file;
         const extension = buildFile.originalname.slice(buildFile.originalname.lastIndexOf('.'));
@@ -453,7 +464,7 @@ export const newAppService = {
         datosUpdate.portada_image_path = portadaUrlData.publicUrl;
       }
 
-      // 4. Actualizar en la base de datos
+      // 5. Actualizar en la base de datos
       const { data: appActualizada, error: updateError } = await supabaseAdmin
         .from('aplicaciones_desarrolladores')
         .update(datosUpdate)

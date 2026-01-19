@@ -91,6 +91,27 @@ export const newAppController = {
 
     } catch (error) {
       console.error('[CONTROLLER] Error en crearAplicacion:', error);
+
+      if (error.code === 'VT_MALICIOUS' || error.code === 'VT_INVALID_FILE') {
+        return res.status(400).json({
+          success: false,
+          mensaje: error.message
+        });
+      }
+
+      if (error.code === 'VT_NOT_CONFIGURED') {
+        return res.status(503).json({
+          success: false,
+          mensaje: 'VirusTotal no esta configurado en el servidor'
+        });
+      }
+
+      if (error.code === 'VT_API_ERROR' || error.code === 'VT_ANALYSIS_PENDING') {
+        return res.status(502).json({
+          success: false,
+          mensaje: 'Error al revisar el archivo con VirusTotal'
+        });
+      }
       
       // Errores conocidos
       if (error.message.includes('Desarrollador no encontrado')) {
@@ -204,6 +225,27 @@ export const newAppController = {
 
     } catch (error) {
       console.error('[CONTROLLER] Error en actualizarAplicacion:', error);
+
+      if (error.code === 'VT_MALICIOUS' || error.code === 'VT_INVALID_FILE') {
+        return res.status(400).json({
+          success: false,
+          mensaje: error.message
+        });
+      }
+
+      if (error.code === 'VT_NOT_CONFIGURED') {
+        return res.status(503).json({
+          success: false,
+          mensaje: 'VirusTotal no esta configurado en el servidor'
+        });
+      }
+
+      if (error.code === 'VT_API_ERROR' || error.code === 'VT_ANALYSIS_PENDING') {
+        return res.status(502).json({
+          success: false,
+          mensaje: 'Error al revisar el archivo con VirusTotal'
+        });
+      }
       
       if (error.message.includes('no encontrada') || error.message.includes('sin permisos')) {
         return res.status(404).json({
