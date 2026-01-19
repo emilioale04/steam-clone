@@ -1,66 +1,143 @@
 import axios from 'axios';
 import { auditService } from '../../shared/services/auditService.js';
+import { createClient } from '@supabase/supabase-js';
 
-// Países bloqueados (solo lectura)
-const BLOCKED_COUNTRIES = Object.freeze(['CU', 'IR', 'KP']);
+// Cliente Supabase (SERVICE ROLE)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 /**
  * Middleware de validación geográfica (Proceso 4.0)
- * - Usa IPinfo /lite/me
+ * - IPinfo Lite
+ * - Supabase como fuente de países bloqueados
  * - Fail-Closed
- * - Token vía .env
+ * - Auditoría obligatoria
+ * - GEO_TEST_MODE para pruebas controladas
  */
-export const geoValidationMiddleware = async (req, res, next) => {
+const geoValidationMiddleware = async (req, res, next) => {
   const ip =
-    req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+    req.headers['x-forwarded-for']?.split(',')[0] ||
+    req.socket.remoteAddress;
 
   try {
-    if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
-      throw new Error('GeoIP configuration missing');
+    let countryCode;
+    let country = 'UNKNOWN';
+
+    /* =====================================================
+       MODO TEST – FUERZA PAÍS DESDE VARIABLE DE ENTORNO
+       ===================================================== */
+    if (process.env.GEO_TEST_MODE === 'true') {
+      countryCode = process.env.GEO_TEST_COUNTRY;
+
+      if (!countryCode) {
+        throw new Error('GEO_TEST_COUNTRY not defined');
+      }
+
+      console.log(
+        `[GEO TEST MODE] Country forced to ${countryCode}`
+      );
+    } else {
+      /* ===============================
+         VALIDACIÓN NORMAL CON IPINFO
+         =============================== */
+
+      if (!process.env.IPINFO_TOKEN) {
+        throw new Error('Missing IPINFO_TOKEN');
+      }
+
+      const response = await axios.get(
+        `https://api.ipinfo.io/lite/${ip}`,
+        {
+          params: { token: process.env.IPINFO_TOKEN },
+          timeout: 2000,
+        }
+      );
+
+      const geoData = response.data;
+
+      // IPs privadas / reservadas
+      if (geoData?.bogon === true) {
+        console.warn(`[GEO] IP reservada detectada: ${ip}`);
+        return next();
+      }
+
+      countryCode = geoData?.country_code;
+      country = geoData?.country;
+
+      if (!countryCode) {
+        throw new Error('Invalid GeoIP response');
+      }
     }
 
-    const response = await axios.get(`${process.env.IPINFO_BASE_URL}/lite/me`, {
-      params: { token: process.env.IPINFO_TOKEN },
-      timeout: 2000,
-    });
+    /* ===============================
+       CONSULTA DE PAÍSES BLOQUEADOS
+       =============================== */
 
-    const geoData = response.data;
+    const { data, error } = await supabase
+      .from('bloqueos_paises')
+      .select('codigo_pais')
+      .eq('estado', 'bloqueado');
 
-    if (!geoData?.country) {
-      throw new Error('Invalid GeoIP response');
+    console.log('[SUPABASE DATA]', data);
+    console.log('[SUPABASE ERROR]', error);
+
+    if (error || !data) {
+      throw new Error('Failed to fetch blocked countries');
     }
 
-    const userCountry = geoData.country;
+    const blockedCodes = data.map((row) => row.codigo_pais);
 
-    if (BLOCKED_COUNTRIES.includes(userCountry)) {
-      await auditService.logEvent({
-        userId: req.user?.id || null,
-        ip,
-        country: userCountry,
-        endpoint: req.originalUrl,
-        timestamp: new Date().toISOString(),
-        reason: 'Blocked country',
+    console.log('[GEO] Blocked countries loaded:', blockedCodes);
+
+    /* ===============================
+       BLOQUEO GEOGRÁFICO
+       =============================== */
+    if (blockedCodes.includes(countryCode)) {
+      await auditService.registrarEvento({
+        desarrolladorId: req.user?.id || null,
+        accion: 'bloqueo_geografico',
+        detalles: {
+          ip,
+          countryCode,
+          country,
+          endpoint: req.originalUrl,
+          reason: 'Blocked country',
+          testMode: process.env.GEO_TEST_MODE === 'true',
+        },
+        ipAddress: ip,
+        resultado: 'bloqueado',
       });
 
       return res.status(403).json({
-        message: 'Operation not allowed',
+        success: false,
+        errorCode: 'GEO_BLOCKED',
+        message: `El acceso desde el país ${countryCode} no está permitido.`,
       });
     }
 
-    // Contexto de autorización
+    /* ===============================
+       CONTEXTO DE AUTORIZACIÓN
+       =============================== */
     req.authContext ??= {};
-    req.authContext.geo = { country: userCountry };
+    req.authContext.geo = {
+      countryCode,
+      country,
+    };
 
     next();
   } catch (error) {
+    console.error('[GEO ERROR]', error.message);
+
     await auditService.registrarEvento({
       desarrolladorId: req.user?.id || null,
       accion: 'validacion_geo_fallida',
       detalles: {
         ip,
         endpoint: req.originalUrl,
-        reason: 'GeoIP failure',
         error: error.message,
+        testMode: process.env.GEO_TEST_MODE === 'true',
       },
       ipAddress: ip,
       resultado: 'fallido',
@@ -71,3 +148,5 @@ export const geoValidationMiddleware = async (req, res, next) => {
     });
   }
 };
+
+export default geoValidationMiddleware;

@@ -128,6 +128,7 @@ export const HomePage = () => {
               <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Tienda</a>
               <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Marketplace</Link>
               <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Biblioteca</Link>
+              <Link to="/community" className="text-gray-300 hover:text-white transition-colors duration-200 font-medium">Grupos y Comunidad</Link>
             </nav>
 
             {/* Desktop Actions */}
@@ -142,7 +143,10 @@ export const HomePage = () => {
                   className="bg-[#316282] text-white pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-56"
                 />
               </form>
-
+              
+              {/* Notification Bell */}
+              <NotificationBell />
+              
               <button className="relative p-2 hover:bg-[#2a475e] rounded-lg transition-colors">
                 <ShoppingCart className="text-white" size={22} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
@@ -209,8 +213,9 @@ export const HomePage = () => {
               </form>
               <nav className="flex flex-col gap-3 mb-4">
                 <a href="#" className="text-gray-300 hover:text-white transition-colors py-2">Tienda</a>
-                <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Comunidad</Link>
+                <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Marketplace</Link>
                 <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</Link>
+                <Link to="/community" className="text-gray-300 hover:text-white transition-colors py-2">Grupos y Comunidad</Link>
               </nav>
               <div className="flex flex-col gap-4 pt-3 border-t border-[#2a475e]">
                 {user ? (

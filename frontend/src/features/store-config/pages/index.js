@@ -1,0 +1,1 @@
+export { ConfiguracionTiendaPage } from './ConfiguracionTiendaPage';

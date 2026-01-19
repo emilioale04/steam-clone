@@ -1,6 +1,71 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🛡️ SERVIDOR SEGURO - STEAM CLONE
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Este servidor implementa múltiples capas de seguridad:
+ * 
+ * 1. VALIDACIÓN CON REGEX (Validadores Personalizados)
+ *    - Email validation: /^[^\s@]{1,64}@[^\s@]{1,255}\.[a-zA-Z]{2,}$/
+ *    - Username validation: /^[a-zA-Z0-9]([a-zA-Z0-9_-]{1,30}[a-zA-Z0-9])?$/
+ *    - Password validation: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*...])...$/
+ *    - Review validation: detecta patrones de XSS y SQL Injection
+ * 
+ * 2. MITIGACIÓN DE SQL INJECTION
+ *    - PreparedQuery: Convierte queries a sentencias preparadas
+ *    - SafeQueryBuilder: Constructor de queries seguros
+ *    - ParameterValidator: Valida parámetros antes de ejecutar
+ *    - SQLInjectionDetector: Detecta patrones de inyección SQL
+ * 
+ * 3. PROTECCIÓN XSS
+ *    - xssProtectionMiddleware: Sanitiza todos los inputs
+ *    - removeScriptTags: Elimina <script>, <iframe>, etc.
+ *    - sanitizeHTML: Codifica caracteres peligrosos
+ *    - validateContent: Valida que no contenga patrones maliciosos
+ * 
+ * 4. RATE LIMITING
+ *    - apiLimiter: Límite general de 100 req/15 min
+ *    - criticalRateLimiter: Límite más estricto para trade/inventory
+ * 
+ * 5. GEOLOCALIZACIÓN
+ *    - geoValidationMiddleware: Valida ubicación del usuario
+ *    - Previene acceso desde ubicaciones sospechosas
+ * 
+ * 6. SEGURIDAD DE SESIONES
+ *    - limitedAccountValidationMiddleware: Valida cuentas limitadas
+ *    - sessionService: Limpieza automática cada hora
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+// 🛡️ Importamos herramientas de validación
+import { query, param, body, validationResult } from 'express-validator';
+
+// 🛡️ Importar validadores y utilidades de seguridad personalizadas
+import {
+  emailValidator,
+  usernameValidator,
+  passwordValidator,
+  reviewValidator,
+} from './src/shared/utils/validators.js';
+import {
+  PreparedQuery,
+  SafeQueryBuilder,
+  ParameterValidator,
+  SQLInjectionDetector,
+} from './src/shared/utils/preparedStatements.js';
+import {
+  sanitizeHTML,
+  removeScriptTags,
+  validateContent,
+  encodeHTML,
+  xssProtectionMiddleware,
+} from './src/shared/middleware/xssProtection.js';
 
 // Import auth routes
 import { authRoutes } from './src/features/auth/index.js';
@@ -17,6 +82,7 @@ import { adminRoutes } from './src/features/admin/index.js';
 // Import inventory routes (Esteban - Gestión de Inventario)
 import { inventoryRoutes } from './src/features/inventory/index.js';
 import { tradeRoutes } from './src/features/inventory/index.js';
+import { privacyRoutes } from './src/features/inventory/index.js';
 
 // Import wallet routes (Gestión de Billetera)
 import { walletRoutes } from './src/features/wallet/index.js';
@@ -24,14 +90,21 @@ import { walletRoutes } from './src/features/wallet/index.js';
 // Import MFA routes
 import mfaRoutes from './src/features/mfa/routes/mfaRoutes.js';
 
-// Import Family Sharing routes (Grupo 3 - Family Sharing)
-import { familyRoutes } from './src/features/family/index.js';
-
+// Import community routes
+import registerCommunityRoutes from './src/features/community/index.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
+
+// Import pricing routes (Grupo 2 - Gestión de Precios)
+import { pricingRoutes } from './src/features/pricing/index.js';
+
 // Import new app routes (Creación de Aplicaciones - RF-004)
 import { newAppRoutes } from './src/features/new-app/index.js';
+import { appItemsRoutes } from './src/features/app-items/index.js';
+
+// Import my-apps routes (Mis Aplicaciones - Steamworks Dashboard)
+import { myAppsRoutes } from './src/features/my-apps/index.js';
 
 // Import security middleware (Grupo 2 - Seguridad)
 import {
@@ -47,12 +120,27 @@ import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
 // Import session service for cleanup (Grupo 2 - Gestión de Sesiones)
 import { sessionService } from './src/shared/services/sessionService.js';
 
+// Import notification service for WebSocket
+import { notificationService } from './src/shared/services/notificationService.js';
+
 // Import limited account validation middleware
 import { limitedAccountValidationMiddleware } from './src/shared/middleware/limitedAccountValidationMiddleware.js';
-import { geoValidationMiddleware } from './src/shared/middleware/geoValidationMiddleware.js';
+import geoValidationMiddleware  from './src/shared/middleware/geoValidationMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Middleware centralizado para capturar errores de validación
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false, 
+      errors: errors.array().map(err => ({ campo: err.path, mensaje: err.msg })) 
+    });
+  }
+  next();
+};
 
 if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
   throw new Error(
@@ -81,25 +169,100 @@ app.use(cookieParser());
 // Body parsing
 app.use(express.json());
 
+// 🛡️ XSS Protection Middleware
+app.use(xssProtectionMiddleware);
+
+// --- RUTAS CON VALIDACIÓN Y REGEX ---
+
+// 🛡️ Búsqueda de juegos protegida con validadores personalizados
+app.get('/api/search', [
+  query('q')
+    .trim()
+    .custom(value => {
+      // Usar el validador personalizado para búsqueda
+      if (!value || value.length === 0 || value.length > 30) {
+        throw new Error('Búsqueda debe tener entre 1 y 30 caracteres');
+      }
+      if (!/^[a-zA-Z0-9 ]+$/.test(value)) {
+        throw new Error('La búsqueda solo permite letras, números y espacios');
+      }
+      return true;
+    })
+    .escape() // 🛡️ Mitigación XSS: escapa caracteres como < >
+], validateRequest, (req, res) => {
+  const { q } = req.query;
+  // Al usar filter sobre datos ya sanitizados y validados, prevenimos inyecciones de lógica
+  const results = games.filter(
+    (game) =>
+      game.title.toLowerCase().includes(q.toLowerCase()) ||
+      game.description.toLowerCase().includes(q.toLowerCase()),
+  );
+  res.json({ success: true, count: results.length, games: results });
+});
+
+// Obtener juego por ID (🛡️ Mitigación SQLi: forzar tipo entero)
+app.get('/api/games/:id', [
+  param('id').isInt().withMessage('El ID debe ser un número')
+], validateRequest, (req, res) => {
+  const { id } = req.params;
+  const game = games.find((g) => g.id === parseInt(id));
+
+  if (!game) {
+    return res.status(404).json({ success: false, message: 'Juego no encontrado' });
+  }
+  res.json({ success: true, game });
+});
+
+// 🛡️ Ejemplo de validación para Reseñas con validador personalizado
+app.post('/api/reviews', [
+  body('comment')
+    .trim()
+    .custom(value => {
+      // Validar contra patrones peligrosos usando el validador personalizado
+      if (!reviewValidator.test(value)) {
+        throw new Error(reviewValidator.message);
+      }
+      return true;
+    })
+    .isLength({ min: 10 }).withMessage('La reseña debe tener al menos 10 caracteres')
+], validateRequest, (req, res) => {
+  // Limpiar el contenido de posibles scripts
+  const comentarioLimpio = removeScriptTags(req.body.comment);
+  res.json({ 
+    success: true, 
+    message: "Reseña guardada de forma segura",
+    comment: comentarioLimpio
+  });
+});
+
 // Sanitización de inputs (C3: Prevención de inyecciones)
 app.use(sanitizeBodyMiddleware);
 
 // Rate limiting for auth routes only (C7: RNF-007)
 
 // Auth routes (usuarios normales)
-app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
 
 // Developer profile routes (Steamworks - gestión de perfil)
-app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
 
+
+// Pricing routes (Grupo 2 - Gestión de Precios RF-010)
+app.use('/api/pricing', pricingRoutes);
+
 // New App routes (Creación de Aplicaciones - RF-004)
 app.use('/api/new-app', newAppRoutes);
+app.use('/api/app-items', apiLimiter, appItemsRoutes);
+
+// My Apps routes (Mis Aplicaciones - Steamworks Dashboard)
+app.use('/api/my-apps', apiLimiter, myAppsRoutes);
+
 
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);
@@ -107,14 +270,20 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
 
-// Family Sharing routes (Grupo 3 - Family Sharing)
-app.use('/api/family', apiLimiter, familyRoutes);
-
+// Community routes
+registerCommunityRoutes(app);
 // Wallet routes (Gestión de Billetera)
 app.use('/api/wallet', apiLimiter, walletRoutes);
 
 // Inventory routes (Esteban - Gestión de Inventario)
 app.use('/api/inventory', inventoryRoutes);
+
+// Trade routes
+app.use('/api/trade', geoValidationMiddleware, tradeRoutes);
+
+// Privacy routes (Configuración de privacidad)
+app.use('/api/privacy', apiLimiter, privacyRoutes);
+
 // Datos de ejemplo
 const games = [
   {
@@ -241,58 +410,54 @@ app.get('/api/featured', (req, res) => {
   });
 });
 
-// Obtener juego por ID
-app.get('/api/games/:id', (req, res) => {
-  const { id } = req.params;
-  const game = games.find((g) => g.id === parseInt(id));
+// Obtener todos los juegos
+app.get('/api/games', (req, res) => {
+  const { genre, minRating } = req.query;
 
-  if (!game) {
-    return res.status(404).json({
-      success: false,
-      message: 'Juego no encontrado',
-    });
+  let filteredGames = [...games];
+
+  if (genre) {
+    filteredGames = filteredGames.filter((game) =>
+      game.genre.toLowerCase().includes(genre.toLowerCase()),
+    );
+  }
+
+  if (minRating) {
+    filteredGames = filteredGames.filter(
+      (game) => game.rating >= parseFloat(minRating),
+    );
   }
 
   res.json({
     success: true,
-    game,
+    count: filteredGames.length,
+    games: filteredGames,
   });
 });
 
-// Búsqueda de juegos
-app.get('/api/search', (req, res) => {
-  const { q } = req.query;
-
-  if (!q) {
-    return res.status(400).json({
-      success: false,
-      message: 'Parámetro de búsqueda requerido',
-    });
-  }
-
-  const results = games.filter(
-    (game) =>
-      game.title.toLowerCase().includes(q.toLowerCase()) ||
-      game.description.toLowerCase().includes(q.toLowerCase()),
-  );
-
+// Obtener juego destacado
+app.get('/api/featured', (req, res) => {
   res.json({
     success: true,
-    count: results.length,
-    games: results,
+    game: featuredGame,
   });
 });
 
-// Middleware de validación geográfica
-app.use(geoValidationMiddleware);
+// Middleware de validación geográfica (aplicado antes de las rutas protegidas)
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
+
+// Developer auth routes (Steamworks - desarrolladores)
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
+
+// Developer profile routes (Steamworks - gestión de perfil)
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
+
+// Aplicar geoValidationMiddleware y Rate Limiting a rutas críticas
+app.use('/api/trade', geoValidationMiddleware, criticalRateLimiter, tradeRoutes);
+app.use('/api/inventory', geoValidationMiddleware, criticalRateLimiter, inventoryRoutes);
 
 // Middleware de validación de cuentas limitadas
 app.use(limitedAccountValidationMiddleware);
-
-// Aplicar Rate Limiting a endpoints críticos
-app.use('/api/trade', criticalRateLimiter, tradeRoutes);
-app.use('/api/inventory', criticalRateLimiter, inventoryRoutes);
-app.use('/api/search', criticalRateLimiter);
 
 // Manejo de errores 404
 app.use((req, res) => {
@@ -309,6 +474,9 @@ let sessionCleanupInterval = null;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
+
+  // Inicializar WebSocket para notificaciones
+  notificationService.initialize(server);
 
   // Iniciar limpieza periódica de sesiones expiradas (cada hora)
   // C15: Gestión robusta de sesiones
