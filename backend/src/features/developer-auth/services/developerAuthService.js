@@ -29,6 +29,13 @@ import {
 } from '../../../shared/services/auditService.js';
 import { sessionService } from '../../../shared/services/sessionService.js';
 
+const CONSENT_VERSIONS = {
+  terminos: '1.0',
+  acuerdo_distribucion: '1.0',
+  politicas_contenido: '1.0',
+  politica_privacidad: '1.0',
+};
+
 export const developerAuthService = {
   /**
    * Registro de nuevo desarrollador (RF-001)
@@ -53,6 +60,7 @@ export const developerAuthService = {
       razon_social,
       // Aceptación Legal
       acepto_terminos,
+      acepto_politica_privacidad,
     } = datosRegistro;
 
     // === SANITIZACIÓN DE INPUTS (C3) ===
@@ -98,20 +106,22 @@ export const developerAuthService = {
     }
 
     // Validar aceptación de términos (RF-001)
-    if (!acepto_terminos) {
+    if (!acepto_terminos || !acepto_politica_privacidad) {
       await auditService.registrarEvento({
         desarrolladorId: null,
         accion: ACCIONES_AUDITORIA.REGISTRO,
         resultado: RESULTADOS.FALLIDO,
         detalles: {
-          razon: 'Términos y condiciones no aceptados',
+          razon: 'Consentimiento informado o terminos no aceptados',
           email: emailSanitizado,
+          acepto_terminos: Boolean(acepto_terminos),
+          acepto_politica_privacidad: Boolean(acepto_politica_privacidad),
         },
         ipAddress: requestMetadata.ip_address,
         userAgent: requestMetadata.user_agent,
       });
       throw new Error(
-        'Debe aceptar los términos y condiciones para registrarse',
+        'Debe aceptar los terminos, politicas y la politica de privacidad para registrarse',
       );
     }
 
@@ -132,7 +142,6 @@ export const developerAuthService = {
       options: {
         data: {
           rol: 'desarrollador',
-          nombre_legal: nombreLegalSanitizado,
         },
         // Enviar correo de confirmación (RF-001 extendido)
         emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/desarrollador/login?verified=true`,
@@ -260,7 +269,14 @@ export const developerAuthService = {
       userId,
       requestMetadata.ip_address,
       requestMetadata.user_agent,
-      { email: emailSanitizado },
+      {
+        email: emailSanitizado,
+        consentimientos: {
+          acepto_terminos: Boolean(acepto_terminos),
+          acepto_politica_privacidad: Boolean(acepto_politica_privacidad),
+          versiones: CONSENT_VERSIONS,
+        },
+      },
     );
 
     // Descifrar datos bancarios antes de retornar (para consistencia)

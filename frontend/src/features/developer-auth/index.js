@@ -16,6 +16,10 @@ export {
   RegisterDesarrolladorPage,
   SteamworksDashboardPage,
   EditarPerfilPage,
+  SteamworksTermsPage,
+  SteamworksDistributionAgreementPage,
+  SteamworksContentPolicyPage,
+  SteamworksPrivacyPolicyPage,
 } from './pages';
 
 // Context

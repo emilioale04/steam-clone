@@ -40,10 +40,14 @@ export const developerAuthController = {
         });
       }
 
-      if (!datosRegistro.acepto_terminos) {
+      if (
+        !datosRegistro.acepto_terminos ||
+        !datosRegistro.acepto_politica_privacidad
+      ) {
         return res.status(400).json({
           success: false,
-          mensaje: 'Debe aceptar los términos y condiciones',
+          mensaje:
+            'Debe aceptar los terminos, politicas y la politica de privacidad',
         });
       }
 

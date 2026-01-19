@@ -4,6 +4,7 @@ import { LoginForm } from '../components';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { authService } from '../services/authService';
 // import { mockAuthService as authService } from '../services/mockAuthService';
+import { CheckCircle2, AlertTriangle, Gamepad2, Mail } from 'lucide-react';
 
 export const LoginPage = () => {
   const { login, error } = useAuth();
@@ -59,112 +60,112 @@ export const LoginPage = () => {
   };
 
   return (
-    <div>
-      {verifiedMessage && (
-        <div style={styles.successMessage}>
-          <svg style={styles.checkIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          ¡Tu correo ha sido verificado correctamente! Ya puedes iniciar sesión.
-        </div>
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-[#1b2838] to-[#2a475e] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
 
-      {emailNotVerifiedError && (
-        <div style={styles.warningMessage}>
-          <svg style={styles.warningIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div style={{ flex: 1 }}>
-            <strong>Correo no verificado</strong>
-            <p style={{ margin: '0.5rem 0' }}>
-              Por favor, revisa tu bandeja de entrada y haz clic en el enlace de verificación antes de iniciar sesión.
-            </p>
-            {resendSuccess ? (
-              <p style={{ color: '#4CAF50', margin: '0.5rem 0 0 0' }}>
-                ✓ Correo de verificación reenviado. Revisa tu bandeja de entrada.
+      <div className="w-full max-w-md relative z-10 space-y-4">
+        {/* Success Message - Email Verified */}
+        {verifiedMessage && (
+          <div className="bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-500 shadow-lg">
+            <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-base">¡Correo verificado!</p>
+              <p className="text-sm text-green-300/90 mt-1">
+                Tu correo ha sido verificado correctamente. Ya puedes iniciar sesión.
               </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Warning Message - Email Not Verified */}
+        {emailNotVerifiedError && (
+          <div className="bg-orange-500/10 border border-orange-500/50 text-orange-400 p-4 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg">
+            <div className="flex items-start gap-3 mb-3">
+              <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold text-base">Correo no verificado</p>
+                <p className="text-sm text-orange-300/90 mt-1">
+                  Por favor, revisa tu bandeja de entrada y haz clic en el enlace de verificación antes de iniciar sesión.
+                </p>
+              </div>
+            </div>
+            
+            {resendSuccess ? (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2 mt-3">
+                <Mail className="w-4 h-4 text-green-400" />
+                <p className="text-green-400 text-sm font-medium">
+                  Correo de verificación reenviado. Revisa tu bandeja de entrada.
+                </p>
+              </div>
             ) : (
               <button
                 onClick={handleResendVerification}
                 disabled={resendLoading}
-                style={styles.resendButton}
+                className="mt-3 text-blue-400 hover:text-blue-300 text-sm font-medium underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {resendLoading ? 'Enviando...' : '¿No recibiste el correo? Reenviar verificación'}
               </button>
             )}
           </div>
-        </div>
-      )}
+        )}
+        
+        {/* Warning Message - Geo Blocked */}
+        {geoBlockedError && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-base">Acceso restringido</p>
+              <p className="text-sm text-red-300/90 mt-1">
+                El acceso desde tu país no está permitido.
+              </p>
+            </div>
+          </div>
+        )}
 
-      {geoBlockedError && (
-        <div style={styles.warningMessage}>
-          <svg style={styles.warningIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div style={{ flex: 1 }}>
-            <strong>Acceso restringido</strong>
-            <p style={{ margin: '0.5rem 0' }}>
-              El acceso desde tu país no está permitido.
+        {/* Login Form Container */}
+        <div className="bg-[#16202d] border border-transparent rounded-xl p-10 shadow-2xl">
+          {/* Logo/Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mb-4 shadow-lg">
+              <Gamepad2 className="text-white" size={32} />
+            </div>
+            <h1 className="text-white text-3xl font-bold mb-2">
+              Iniciar Sesión
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Accede a Steam Clone
+            </p>
+          </div>
+
+          {/* Login Form */}
+          <LoginForm 
+            onSubmit={handleLogin} 
+            error={emailNotVerifiedError || geoBlockedError ? null : error} 
+          />
+
+          {/* Forgot Password Link */}
+          <div className="mt-6 text-center">
+            <Link 
+              to="/forgot-password" 
+              className="text-blue-400 hover:text-blue-300 text-sm font-medium underline underline-offset-2 transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+
+          {/* Register Link */}
+          <div className="mt-8 pt-6 border-t border-[#2a475e] text-center">
+            <p className="text-gray-400 text-sm">
+              ¿No tienes una cuenta? {' '}
+              <Link 
+                to="/register" 
+                className="text-blue-400 hover:text-blue-300 underline-offset-4 hover:underline transition-colors font-semibold"
+              >
+                Regístrate
+              </Link>
             </p>
           </div>
         </div>
-      )}
-
-      <LoginForm onSubmit={handleLogin} error={emailNotVerifiedError || geoBlockedError ? null : error} />
-      <p style={{ textAlign: 'center' }}>
-        <Link to="/forgot-password">Forgot password?</Link>
-      </p>
-      <p style={{ textAlign: 'center' }}>
-        Don't have an account? <Link to="/register">Register</Link>
-      </p>
+      </div>
     </div>
   );
-};
-
-const styles = {
-  successMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    maxWidth: '400px',
-    margin: '0 auto 1rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    border: '1px solid #4CAF50',
-    borderRadius: '4px',
-    color: '#4CAF50',
-    fontWeight: '500'
-  },
-  checkIcon: {
-    width: '24px',
-    height: '24px',
-    flexShrink: 0
-  },
-  warningMessage: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    maxWidth: '400px',
-    margin: '0 auto 1rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-    border: '1px solid #FF9800',
-    borderRadius: '4px',
-    color: '#FF9800'
-  },
-  warningIcon: {
-    width: '24px',
-    height: '24px',
-    flexShrink: 0,
-    marginTop: '2px'
-  },
-  resendButton: {
-    background: 'none',
-    border: 'none',
-    color: '#66c0f4',
-    cursor: 'pointer',
-    padding: 0,
-    fontSize: '0.875rem',
-    textDecoration: 'underline'
-  }
 };
