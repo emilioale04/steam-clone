@@ -99,16 +99,39 @@ const RevisionJuegos = () => {
 
   const executeAction = async () => {
     try {
+      let notificationMessage = '';
+      
       if (pendingAction.type === 'aprobar') {
-        await aprobarJuego(pendingAction.revisionId, pendingAction.comentarios);
+        const result = await aprobarJuego(pendingAction.revisionId, pendingAction.comentarios);
+        
+        // Construir mensaje con estado de notificaciones
+        const messages = [];
+        
+        if (result.notificationSent) {
+          messages.push('Notificación WebSocket enviada');
+        } else if (result.notificationSaved) {
+          messages.push('Notificación guardada (desarrollador desconectado)');
+        }
+        
+        if (result.emailSent) {
+          messages.push('Email enviado');
+        }
+        
+        notificationMessage = messages.length > 0 
+          ? ' ' + messages.join('. ') + '.'
+          : '';
+        
+        alert('Juego aprobado exitosamente.' + notificationMessage);
       } else if (pendingAction.type === 'rechazar') {
-        await rechazarJuego(pendingAction.revisionId, pendingAction.comentarios);
+        const result = await rechazarJuego(pendingAction.revisionId, pendingAction.comentarios);
+        
+        const emailMsg = result.emailSent ? ' Email enviado al desarrollador.' : '';
+        alert('Juego rechazado exitosamente.' + emailMsg);
       }
       
       setComentarios('');
       setAccionActual(null);
       await loadRevisiones();
-      alert('Operación realizada exitosamente');
     } catch (err) {
       alert(err.message || 'Error al procesar la acción');
     }

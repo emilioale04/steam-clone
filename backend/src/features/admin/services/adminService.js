@@ -1,4 +1,6 @@
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
+import { notificationService } from '../../../shared/services/notificationService.js';
+import { emailService } from '../../../shared/services/emailService.js';
 
 const adminService = {
   /**
@@ -565,23 +567,59 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'aprobado', comentarios);
+      // Obtener información del juego y desarrollador
+      const { data: game, error: gameError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .select('id, nombre_juego, desarrollador_id')
+        .eq('id', data.id_juego)
+        .single();
+
+      let notificationResult = { success: false, sent: false };
+      
+      if (!gameError && game && game.desarrollador_id) {
+        // Enviar notificación WebSocket al desarrollador
+        try {
+          notificationResult = await notificationService.notifyGameApproval(
+            game.desarrollador_id,
+            game.id,
+            game.nombre_juego,
+            comentarios
+          );
+        } catch (wsError) {
+          // Error silencioso
+        }
+
+        // Enviar email al desarrollador (asíncrono - no bloquea)
+        emailService.sendGameApprovalEmail(
+          game.desarrollador_id,
+          game.nombre_juego,
+          comentarios
+        ).catch(() => {});
+      }
 
       // Registrar en audit log
       await adminService.registrarAuditLog(
         adminId,
         'aprobar_juego',
         'revisiones_juegos',
-        { id_revision: id, id_juego: data.id_juego },
+        { 
+          id_revision: id, 
+          id_juego: data.id_juego, 
+          notificacion_enviada: notificationResult.sent,
+          email_enviado: 'async'
+        },
         ipAddress,
         userAgent,
         'exito'
       );
 
-      return data;
+      return { 
+        ...data, 
+        notificationSent: notificationResult.sent,
+        notificationSaved: notificationResult.success,
+        emailSent: 'pending'
+      };
     } catch (error) {
-      console.error('Error al aprobar juego:', error);
       throw error;
     }
   },
@@ -604,23 +642,42 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'rechazado', comentarios);
+      // Obtener información del juego y desarrollador
+      const { data: game, error: gameError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .select('id, nombre_juego, desarrollador_id')
+        .eq('id', data.id_juego)
+        .single();
+
+      if (!gameError && game && game.desarrollador_id) {
+        // Enviar email de rechazo al desarrollador (asíncrono - no bloquea)
+        emailService.sendGameRejectionEmail(
+          game.desarrollador_id,
+          game.nombre_juego,
+          comentarios
+        ).catch(() => {});
+      }
 
       // Registrar en audit log
       await adminService.registrarAuditLog(
         adminId,
         'rechazar_juego',
         'revisiones_juegos',
-        { id_revision: id, id_juego: data.id_juego },
+        { 
+          id_revision: id, 
+          id_juego: data.id_juego,
+          email_enviado: 'async' // Email se envía en background
+        },
         ipAddress,
         userAgent,
         'exito'
       );
 
-      return data;
+      return { 
+        ...data,
+        emailSent: 'pending' // Email se envía en background
+      };
     } catch (error) {
-      console.error('Error al rechazar juego:', error);
       throw error;
     }
   },

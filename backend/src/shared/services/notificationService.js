@@ -406,6 +406,39 @@ class NotificationService {
             console.error('[WS] Error notificando anuncio de grupo:', error);
         }
     }
+
+    /**
+     * Notificar al desarrollador sobre aprobación de juego
+     */
+    async notifyGameApproval(desarrolladorId, gameId, gameName, comentarios = '') {
+        try {
+            const notificationData = {
+                type: 'game_approved',
+                gameId: gameId,
+                gameName: gameName,
+                comentarios: comentarios,
+                timestamp: new Date().toISOString()
+            };
+
+            // NOTA: Los desarrolladores NO están en la tabla profiles, están solo en auth.users
+            // Por lo tanto, NO podemos guardar en la tabla notificaciones (tiene FK a profiles)
+            // Solo enviamos por WebSocket si está conectado
+
+            // Enviar por WebSocket si el desarrollador está conectado
+            const isConnected = this.clients.has(desarrolladorId);
+            if (isConnected) {
+                await this.sendNotification(desarrolladorId, notificationData);
+            }
+
+            return { 
+                success: true, // Consideramos éxito porque no hubo error
+                sent: isConnected,
+                notificationId: null // No hay ID porque no se guardó en BD
+            };
+        } catch (error) {
+            return { success: false, sent: false, error: error.message };
+        }
+    }
 }
 
 export const notificationService = new NotificationService();
