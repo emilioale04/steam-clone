@@ -4,17 +4,18 @@
  */
 
 // Components
-export { 
-  LoginDesarrolladorForm, 
+export {
+  LoginDesarrolladorForm,
   RegisterDesarrolladorForm,
-  ProtectedDeveloperRoute 
+  ProtectedDeveloperRoute,
 } from './components';
 
 // Pages
-export { 
-  LoginDesarrolladorPage, 
+export {
+  LoginDesarrolladorPage,
   RegisterDesarrolladorPage,
-  SteamworksDashboardPage 
+  SteamworksDashboardPage,
+  EditarPerfilPage,
 } from './pages';
 
 // Context

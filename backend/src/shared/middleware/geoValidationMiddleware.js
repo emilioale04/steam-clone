@@ -12,21 +12,17 @@ const BLOCKED_COUNTRIES = Object.freeze(['CU', 'IR', 'KP']);
  */
 export const geoValidationMiddleware = async (req, res, next) => {
   const ip =
-    req.headers['x-forwarded-for']?.split(',')[0] ||
-    req.socket.remoteAddress;
+    req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
 
   try {
     if (!process.env.IPINFO_BASE_URL || !process.env.IPINFO_TOKEN) {
       throw new Error('GeoIP configuration missing');
     }
 
-    const response = await axios.get(
-      `${process.env.IPINFO_BASE_URL}/lite/me`,
-      {
-        params: { token: process.env.IPINFO_TOKEN },
-        timeout: 2000,
-      }
-    );
+    const response = await axios.get(`${process.env.IPINFO_BASE_URL}/lite/me`, {
+      params: { token: process.env.IPINFO_TOKEN },
+      timeout: 2000,
+    });
 
     const geoData = response.data;
 
@@ -57,12 +53,17 @@ export const geoValidationMiddleware = async (req, res, next) => {
 
     next();
   } catch (error) {
-    await auditService.logEvent({
-      userId: req.user?.id || null,
-      ip,
-      endpoint: req.originalUrl,
-      timestamp: new Date().toISOString(),
-      reason: 'GeoIP failure',
+    await auditService.registrarEvento({
+      desarrolladorId: req.user?.id || null,
+      accion: 'validacion_geo_fallida',
+      detalles: {
+        ip,
+        endpoint: req.originalUrl,
+        reason: 'GeoIP failure',
+        error: error.message,
+      },
+      ipAddress: ip,
+      resultado: 'fallido',
     });
 
     return res.status(403).json({

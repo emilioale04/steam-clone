@@ -1,7 +1,7 @@
 /**
  * Servicio de Auditoría - Logging de Acciones del Sistema
  * Grupo 2 - Steamworks
- * 
+ *
  * Implementa:
  * - RNF-008: Registro de eventos inmutable
  * - Logging de todas las acciones críticas
@@ -20,33 +20,41 @@ export const ACCIONES_AUDITORIA = {
   LOGOUT: 'logout',
   LOGIN_FALLIDO: 'login_fallido',
   SESION_EXPIRADA: 'sesion_expirada',
-  
+  REENVIO_VERIFICACION: 'reenvio_verificacion',
+
   // MFA
   MFA_HABILITADO: 'mfa_habilitado',
   MFA_DESHABILITADO: 'mfa_deshabilitado',
   MFA_VERIFICADO: 'mfa_verificado',
   MFA_FALLIDO: 'mfa_fallido',
-  
+
   // Gestión de Datos
   ACTUALIZAR_PERFIL: 'actualizar_perfil',
+  MODIFICACION_PERFIL: 'modificacion_perfil',
   ACTUALIZAR_DATOS_BANCARIOS: 'actualizar_datos_bancarios',
+  MODIFICACION_BANCARIA: 'modificacion_bancaria',
   ACTUALIZAR_PASSWORD: 'actualizar_password',
-  
+
   // Aplicaciones
   CREAR_APLICACION: 'crear_aplicacion',
   ENVIAR_REVISION: 'enviar_revision',
   ACTUALIZAR_APLICACION: 'actualizar_aplicacion',
-  
+
   // Claves
   GENERAR_CLAVE: 'generar_clave',
   DESACTIVAR_CLAVE: 'desactivar_clave',
-  
+
+  // Items
+  CREAR_ITEM: 'crear_item',
+  ACTUALIZAR_ITEM: 'actualizar_item',
+  BORRAR_ITEM: 'borrar_item',
+
   // Precios
   ACTUALIZAR_PRECIO: 'actualizar_precio',
-  
+
   // Seguridad
   INTENTO_ACCESO_NO_AUTORIZADO: 'intento_acceso_no_autorizado',
-  SOLICITUD_BLOQUEADA_RATE_LIMIT: 'solicitud_bloqueada_rate_limit'
+  SOLICITUD_BLOQUEADA_RATE_LIMIT: 'solicitud_bloqueada_rate_limit',
 };
 
 /**
@@ -55,7 +63,7 @@ export const ACCIONES_AUDITORIA = {
 export const RESULTADOS = {
   EXITOSO: 'exitoso',
   FALLIDO: 'fallido',
-  BLOQUEADO: 'bloqueado'
+  BLOQUEADO: 'bloqueado',
 };
 
 /**
@@ -64,7 +72,7 @@ export const RESULTADOS = {
 export const auditService = {
   /**
    * Registra un evento de auditoría en la base de datos
-   * 
+   *
    * @param {Object} evento - Datos del evento
    * @param {string} evento.desarrolladorId - UUID del desarrollador (null si no aplicable)
    * @param {string} evento.accion - Acción realizada (usar ACCIONES_AUDITORIA)
@@ -82,7 +90,7 @@ export const auditService = {
     detalles = {},
     ipAddress = null,
     userAgent = null,
-    resultado = RESULTADOS.EXITOSO
+    resultado = RESULTADOS.EXITOSO,
   }) {
     try {
       // Insertar directamente en la tabla logs_auditoria_desarrolladores
@@ -95,7 +103,7 @@ export const auditService = {
           detalles: detalles,
           ip_address: ipAddress,
           user_agent: userAgent,
-          resultado: resultado
+          resultado: resultado,
         })
         .select('id')
         .single();
@@ -106,7 +114,9 @@ export const auditService = {
         return null;
       }
 
-      console.log(`[AUDIT] ${accion} - ${resultado} - Desarrollador: ${desarrolladorId || 'N/A'}`);
+      console.log(
+        `[AUDIT] ${accion} - ${resultado} - Desarrollador: ${desarrolladorId || 'N/A'}`,
+      );
       return data?.id;
     } catch (error) {
       console.error('Error crítico en auditoría:', error);
@@ -117,17 +127,22 @@ export const auditService = {
   /**
    * Registra un evento de registro exitoso
    */
-  async registrarRegistro(desarrolladorId, ipAddress, userAgent, detalles = {}) {
+  async registrarRegistro(
+    desarrolladorId,
+    ipAddress,
+    userAgent,
+    detalles = {},
+  ) {
     return this.registrarEvento({
       desarrolladorId,
       accion: ACCIONES_AUDITORIA.REGISTRO,
       detalles: {
         ...detalles,
-        timestamp_registro: new Date().toISOString()
+        timestamp_registro: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.EXITOSO
+      resultado: RESULTADOS.EXITOSO,
     });
   },
 
@@ -140,11 +155,11 @@ export const auditService = {
       accion: ACCIONES_AUDITORIA.LOGIN,
       detalles: {
         ...detalles,
-        timestamp_login: new Date().toISOString()
+        timestamp_login: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.EXITOSO
+      resultado: RESULTADOS.EXITOSO,
     });
   },
 
@@ -158,11 +173,11 @@ export const auditService = {
       detalles: {
         email,
         razon,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.FALLIDO
+      resultado: RESULTADOS.FALLIDO,
     });
   },
 
@@ -174,64 +189,79 @@ export const auditService = {
       desarrolladorId,
       accion: ACCIONES_AUDITORIA.LOGOUT,
       detalles: {
-        timestamp_logout: new Date().toISOString()
+        timestamp_logout: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.EXITOSO
+      resultado: RESULTADOS.EXITOSO,
     });
   },
 
   /**
    * Registra actualización de perfil
    */
-  async registrarActualizacionPerfil(desarrolladorId, camposActualizados, ipAddress, userAgent) {
+  async registrarActualizacionPerfil(
+    desarrolladorId,
+    camposActualizados,
+    ipAddress,
+    userAgent,
+  ) {
     return this.registrarEvento({
       desarrolladorId,
       accion: ACCIONES_AUDITORIA.ACTUALIZAR_PERFIL,
       detalles: {
         campos_actualizados: camposActualizados,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.EXITOSO
+      resultado: RESULTADOS.EXITOSO,
     });
   },
 
   /**
    * Registra actualización de datos bancarios (sensible)
    */
-  async registrarActualizacionDatosBancarios(desarrolladorId, ipAddress, userAgent) {
+  async registrarActualizacionDatosBancarios(
+    desarrolladorId,
+    ipAddress,
+    userAgent,
+  ) {
     return this.registrarEvento({
       desarrolladorId,
       accion: ACCIONES_AUDITORIA.ACTUALIZAR_DATOS_BANCARIOS,
       recurso: `desarrollador:${desarrolladorId}`,
       detalles: {
         timestamp: new Date().toISOString(),
-        tipo_operacion: 'datos_bancarios_sensibles'
+        tipo_operacion: 'datos_bancarios_sensibles',
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.EXITOSO
+      resultado: RESULTADOS.EXITOSO,
     });
   },
 
   /**
    * Registra intento de acceso no autorizado
    */
-  async registrarAccesoNoAutorizado(desarrolladorId, recurso, ipAddress, userAgent, razon) {
+  async registrarAccesoNoAutorizado(
+    desarrolladorId,
+    recurso,
+    ipAddress,
+    userAgent,
+    razon,
+  ) {
     return this.registrarEvento({
       desarrolladorId,
       accion: ACCIONES_AUDITORIA.INTENTO_ACCESO_NO_AUTORIZADO,
       recurso,
       detalles: {
         razon,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.BLOQUEADO
+      resultado: RESULTADOS.BLOQUEADO,
     });
   },
 
@@ -244,11 +274,11 @@ export const auditService = {
       accion: ACCIONES_AUDITORIA.SOLICITUD_BLOQUEADA_RATE_LIMIT,
       recurso: `endpoint:${endpoint}`,
       detalles: {
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       ipAddress,
       userAgent,
-      resultado: RESULTADOS.BLOQUEADO
+      resultado: RESULTADOS.BLOQUEADO,
     });
   },
 
@@ -299,20 +329,22 @@ export const auditService = {
     return {
       total_eventos: data.length,
       periodo_dias: diasAtras,
-      por_accion: stats
+      por_accion: stats,
     };
-  }
+  },
 };
 
 /**
  * Helper para extraer IP del request
  */
 export function obtenerIPDesdeRequest(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-         req.headers['x-real-ip'] ||
-         req.connection?.remoteAddress ||
-         req.socket?.remoteAddress ||
-         null;
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.headers['x-real-ip'] ||
+    req.connection?.remoteAddress ||
+    req.socket?.remoteAddress ||
+    null
+  );
 }
 
 /**
