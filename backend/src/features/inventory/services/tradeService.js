@@ -2,14 +2,6 @@ import supabase from '../../../shared/config/supabase.js';
 import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
 import { privacyService } from './privacyService.js';
 
-const ALLOWED_STATUSES = {
-	PENDING: 'Pendiente',
-	ACCEPTED: 'Aceptada',
-	REJECTED: 'Rechazada',
-	EXPIRED: 'Expirada',
-	CANCELLED: 'Cancelada',
-};
-
 export const tradeService = {
 	/**
 	 * Obtiene el conteo de trades activos de un usuario
@@ -139,7 +131,7 @@ export const tradeService = {
 	},
 
 	async getOffers(tradeId) {
-		const { data, error, status, statusText } = await supabase.rpc('get_trade_offers', {
+		const { data, error } = await supabase.rpc('get_trade_offers', {
 			trade_id_param: tradeId,
 		});
 

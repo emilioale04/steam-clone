@@ -90,14 +90,14 @@ export const inventoryController = {
                 message: 'Item puesto a la venta correctamente',
                 listing: {
                     id: item.id,
-                    name: item.name || `Item`,
+                    name: item.name || 'Item',
                     price: item.listing_price,
                     seller: req.user.username || 'Tú', // req.user debe tener username si el middleware lo inyecta
                     listing_date: item.listing_date
                 }
             });
         } catch (error) {
-            console.error("Error en sellItem:", error); // Log para debug en servidor
+            console.error('Error en sellItem:', error); // Log para debug en servidor
             res.status(500).json({ success: false, message: error.message });
         }
     },

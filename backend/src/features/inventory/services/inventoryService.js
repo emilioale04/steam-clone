@@ -79,11 +79,8 @@ export const inventoryService = {
             const activeTrade = tradesMap.get(item.id) || null;
             const activeTradeOffer = offersMap.get(item.id) || null;
             
-            // Limpiamos la propiedad original para no enviar basura
-            const { marketplace_listings, ...itemFields } = item;
-            
             return {
-                ...itemFields,
+                ...item,
                 active_listing: activeListing || null,
                 active_trade: activeTrade,
                 active_trade_offer: activeTradeOffer
@@ -164,7 +161,7 @@ export const inventoryService = {
             .eq('status', 'active');
 
         if (error) {
-            console.error("Error contando listings activos:", error);
+            console.error('Error contando listings activos:', error);
             throw new Error(error.message);
         }
 
@@ -183,7 +180,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error("Error en transacción venta:", error);
+            console.error('Error en transacción venta:', error);
             throw new Error(error.message);
         }
 
@@ -210,7 +207,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error("Error en transacción cancelación:", error);
+            console.error('Error en transacción cancelación:', error);
             throw new Error(error.message);
         }
 
@@ -309,7 +306,7 @@ export const inventoryService = {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error("Error fetching market listings:", error);
+            console.error('Error fetching market listings:', error);
             throw error;
         }
 
@@ -318,7 +315,7 @@ export const inventoryService = {
             id: listing.id, // ID del listing, no del item
             itemId: listing.items?.id,
             steam_item_id: listing.items?.steam_item_id,
-            name: listing.items?.name || `Item`,
+            name: listing.items?.name || 'Item',
             price: listing.price,
             seller: listing.profiles?.username || 'Desconocido',
             seller_id: listing.seller_id, // Agregamos el ID del vendedor para validación

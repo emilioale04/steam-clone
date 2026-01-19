@@ -196,7 +196,7 @@ export const walletService = {
             if (dailyTotal + amount > this.LIMITS.MAX_DAILY_RELOAD) {
                 const remaining = this.LIMITS.MAX_DAILY_RELOAD - dailyTotal;
                 throw new Error(
-                    `Has alcanzado el límite diario de recarga. ` +
+                    'Has alcanzado el límite diario de recarga. ' +
                     `Puedes recargar hasta $${remaining.toFixed(2)} más hoy.`
                 );
             }
