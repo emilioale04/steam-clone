@@ -1,6 +1,5 @@
 import { WebSocketServer } from 'ws';
 import { supabaseAdmin as supabase } from '../config/supabase.js';
-import { sanitizeString, limitLength } from '../utils/sanitization.js';
 
 class NotificationService {
     constructor() {
@@ -9,72 +8,6 @@ class NotificationService {
         this.rateLimitMap = new Map(); // Map<ip, { count, resetTime }>
         this.MAX_CONNECTIONS_PER_IP = 20; // Máximo 20 conexiones por IP
         this.RATE_LIMIT_WINDOW = 60000; // Ventana de 1 minuto
-        this.COOKIE_TOKEN_NAMES = ['access_token', 'session_token'];
-    }
-
-    parseCookies(cookieHeader) {
-        if (!cookieHeader) return {};
-        return cookieHeader.split(';').reduce((acc, cookie) => {
-            const [rawKey, ...rest] = cookie.trim().split('=');
-            if (!rawKey) return acc;
-            acc[rawKey] = decodeURIComponent(rest.join('=') || '');
-            return acc;
-        }, {});
-    }
-
-    getTokenFromCookies(cookieHeader) {
-        const cookies = this.parseCookies(cookieHeader);
-        for (const name of this.COOKIE_TOKEN_NAMES) {
-            if (cookies[name]) {
-                return { token: cookies[name], name };
-            }
-        }
-        return { token: null, name: null };
-    }
-
-    async resolveUserContext(userId, roleHint = null) {
-        const lookups = roleHint === 'developer'
-            ? ['developer', 'profile']
-            : ['profile', 'developer'];
-
-        for (const type of lookups) {
-            if (type === 'profile') {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('id, is_limited')
-                    .eq('id', userId)
-                    .maybeSingle();
-
-                if (profile) {
-                    return { userType: 'profile', profile };
-                }
-            }
-
-            if (type === 'developer') {
-                const { data: developer } = await supabase
-                    .from('desarrolladores')
-                    .select('id, cuenta_activa, rol')
-                    .eq('id', userId)
-                    .maybeSingle();
-
-                if (developer) {
-                    return { userType: 'developer', developer };
-                }
-            }
-        }
-
-        return null;
-    }
-
-    registerClient(userId, ws, userType) {
-        if (!this.clients.has(userId)) {
-            this.clients.set(userId, new Set());
-        }
-        this.clients.get(userId).add(ws);
-
-        ws.userId = userId;
-        ws.userType = userType;
-        ws.isAuthenticated = true;
     }
 
     /**
@@ -113,9 +46,6 @@ class NotificationService {
         this.wss.on('connection', (ws, req) => {
             // Obtener IP del cliente
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-            const { token: cookieToken, name: cookieName } = this.getTokenFromCookies(req.headers.cookie);
-            ws.cookieToken = cookieToken;
-            ws.cookieTokenName = cookieName;
             
             // Verificar rate limit
             if (!this.checkRateLimit(ip)) {
@@ -141,7 +71,7 @@ class NotificationService {
                     
                     if (data.type === 'auth') {
                         clearTimeout(authTimeout);
-                        await this.handleAuth(ws, data.token, data.userId, data.role);
+                        await this.handleAuth(ws, data.token, data.userId);
                     }
                 } catch (error) {
                     console.error('[WS] Error procesando mensaje:', error);
@@ -164,83 +94,89 @@ class NotificationService {
     /**
      * Autenticar y registrar cliente con validación JWT
      */
-    async handleAuth(ws, token, userId, roleHint = null) {
+    async handleAuth(ws, token, userId) {
         const isDevelopment = process.env.NODE_ENV !== 'production';
-        const authToken = token || ws.cookieToken;
 
-        // En desarrollo, permitir autenticacion con userId (sin token)
-        if (isDevelopment && !authToken && userId) {
-            console.log(`[WS] Modo desarrollo: autenticacion con userId ${userId}`);
+        // En desarrollo, permitir autenticación con userId (sin token)
+        if (isDevelopment && !token && userId) {
+            console.log(`[WS] Modo desarrollo: autenticación con userId ${userId}`);
+            
+            // Verificar que el usuario existe
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('id, is_limited')
+                .eq('id', userId)
+                .single();
 
-            const userContext = await this.resolveUserContext(userId, roleHint);
-            if (!userContext) {
+            if (!profile) {
                 ws.close(1008, 'Usuario no encontrado');
                 return;
             }
 
-            if (userContext.userType === 'profile' && userContext.profile?.is_limited) {
+            if (profile.is_limited) {
                 ws.close(1008, 'Cuenta limitada no puede recibir notificaciones');
                 return;
             }
 
-            if (userContext.userType === 'developer' && !userContext.developer?.cuenta_activa) {
-                ws.close(1008, 'Cuenta de desarrollador inactiva');
-                return;
+            // Registrar el cliente
+            if (!this.clients.has(userId)) {
+                this.clients.set(userId, new Set());
             }
-
-            this.registerClient(userId, ws, userContext.userType);
-
+            this.clients.get(userId).add(ws);
+            
+            ws.userId = userId;
+            ws.isAuthenticated = true;
+            
             console.log(`[WS] Cliente autenticado (dev): ${userId}`);
-            if (userContext.userType === 'profile') {
-                await this.sendPendingNotifications(userId);
-            }
+            await this.sendPendingNotifications(userId);
             return;
         }
 
-        // En produccion, SIEMPRE requerir token JWT
-        if (!authToken) {
+        // En producción, SIEMPRE requerir token JWT
+        if (!token) {
             ws.close(1008, 'Token JWT requerido');
             return;
         }
 
         try {
             // Validar el token JWT con Supabase
-            const { data: { user }, error } = await supabase.auth.getUser(authToken);
+            const { data: { user }, error } = await supabase.auth.getUser(token);
 
             if (error || !user) {
-                console.error('[WS] Token invalido:', error?.message);
-                ws.close(1008, 'Token de autenticacion invalido');
+                console.error('[WS] Token inválido:', error?.message);
+                ws.close(1008, 'Token de autenticación inválido');
                 return;
             }
 
-            const userContext = await this.resolveUserContext(user.id, roleHint);
-            if (!userContext) {
-                ws.close(1008, 'Usuario no encontrado');
-                return;
-            }
+            // Verificar que el usuario no esté limitado
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_limited')
+                .eq('id', user.id)
+                .single();
 
-            if (userContext.userType === 'profile' && userContext.profile?.is_limited) {
-                console.log(`[WS] Usuario limitado intento conectarse: ${user.id}`);
+            if (profile?.is_limited) {
+                console.log(`[WS] Usuario limitado intentó conectarse: ${user.id}`);
                 ws.close(1008, 'Cuenta limitada no puede recibir notificaciones');
                 return;
             }
 
-            if (userContext.userType === 'developer' && !userContext.developer?.cuenta_activa) {
-                console.log(`[WS] Desarrollador inactivo intento conectarse: ${user.id}`);
-                ws.close(1008, 'Cuenta de desarrollador inactiva');
-                return;
+            // Registrar el cliente autenticado
+            if (!this.clients.has(user.id)) {
+                this.clients.set(user.id, new Set());
             }
-
-            this.registerClient(user.id, ws, userContext.userType);
-
+            this.clients.get(user.id).add(ws);
+            
+            ws.userId = user.id;
+            ws.isAuthenticated = true;
+            
             console.log(`[WS] Cliente autenticado exitosamente: ${user.id}`);
 
-            if (userContext.userType === 'profile') {
-                await this.sendPendingNotifications(user.id);
-            }
+            // Enviar notificaciones pendientes al conectarse
+            await this.sendPendingNotifications(user.id);
         } catch (error) {
-            console.error('[WS] Error en autenticacion:', error);
-            ws.close(1008, 'Error de autenticacion');
+            console.error('[WS] Error en autenticación:', error);
+            ws.close(1008, 'Error de autenticación');
         }
     }
 
@@ -367,41 +303,6 @@ class NotificationService {
             }
         } catch (error) {
             console.error('[WS] Error notificando aprobación:', error);
-        }
-    }
-
-    /**
-     * Notificar aprobacion o rechazo de un juego a un desarrollador
-     */
-    async notifyDeveloperAppReview(appId, status, feedback) {
-        try {
-            const { data: app } = await supabase
-                .from('aplicaciones_desarrolladores')
-                .select('id, app_id, nombre_juego, desarrollador_id')
-                .eq('id', appId)
-                .single();
-
-            if (!app) {
-                return;
-            }
-
-            const safeFeedback = feedback
-                ? limitLength(sanitizeString(feedback), 500)
-                : null;
-
-            await this.sendNotification(app.desarrollador_id, {
-                type: 'developer_app_review',
-                status,
-                app: {
-                    id: app.id,
-                    app_id: app.app_id,
-                    nombre_juego: app.nombre_juego
-                },
-                feedback: safeFeedback,
-                timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-            console.error('[WS] Error notificando revision de juego:', error);
         }
     }
 }

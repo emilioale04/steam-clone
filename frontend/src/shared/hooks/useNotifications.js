@@ -30,7 +30,16 @@ export function useNotifications() {
         if (!user?.id || wsRef.current) return;
 
         const isDevelopment = import.meta.env.DEV;
-        const token = !isDevelopment ? getAccessToken() : null;
+        let token = null;
+
+        // En producción, intentar obtener token
+        if (!isDevelopment) {
+            token = getAccessToken();
+            if (!token) {
+                console.error('[WS] No se encontró token de acceso (requerido en producción)');
+                return;
+            }
+        }
 
         try {
             const ws = new WebSocket(WS_URL);
@@ -40,21 +49,21 @@ export function useNotifications() {
                 console.log('[WS] Conectado al servidor de notificaciones');
                 setConnected(true);
                 
-                const payload = {
-                    type: 'auth',
-                    role: 'profile'
-                };
-
+                // En desarrollo: enviar userId
+                // En producción: enviar token JWT
                 if (isDevelopment) {
-                    payload.userId = user.id;
+                    ws.send(JSON.stringify({
+                        type: 'auth',
+                        userId: user.id
+                    }));
+                    console.log('[WS] Autenticando en modo desarrollo con userId');
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'auth',
+                        token: token
+                    }));
+                    console.log('[WS] Autenticando en modo producción con JWT');
                 }
-
-                if (token) {
-                    payload.token = token;
-                }
-
-                ws.send(JSON.stringify(payload));
-                console.log('[WS] Autenticando con JWT/cookie');
             };
 
             ws.onmessage = (event) => {
