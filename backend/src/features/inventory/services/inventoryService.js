@@ -1,5 +1,8 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { privacyService } from './privacyService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('InventoryService');
 
 export const inventoryService = {
     /**
@@ -38,7 +41,10 @@ export const inventoryService = {
             `)
             .eq('owner_id', ownerId);
 
-        if (error) throw error;
+        if (error) {
+            logger.error('Error fetching inventory:', { error });
+            throw error;
+        }
 
         // Obtener trades activos del usuario (donde el item está en intercambio)
         const { data: activeTrades, error: tradesError } = await supabase
@@ -48,7 +54,7 @@ export const inventoryService = {
             .eq('status', 'Pendiente');
 
         if (tradesError) {
-            console.error('Error fetching active trades:', tradesError);
+            logger.error('Error fetching active trades:', { error: tradesError });
         }
 
         // Obtener trade_offers activos del usuario
@@ -59,7 +65,7 @@ export const inventoryService = {
             .eq('status', 'Pendiente');
 
         if (offersError) {
-            console.error('Error fetching active trade offers:', offersError);
+            logger.error('Error fetching active trade offers:', { error: offersError });
         }
 
         // Crear mapas para búsqueda rápida
@@ -161,7 +167,7 @@ export const inventoryService = {
             .eq('status', 'active');
 
         if (error) {
-            console.error('Error contando listings activos:', error);
+            logger.error('Error contando listings activos:', { error });
             throw new Error(error.message);
         }
 
@@ -180,7 +186,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error('Error en transacción venta:', error);
+            logger.error('Error en transacción venta:', { error });
             throw new Error(error.message);
         }
 
@@ -207,7 +213,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error('Error en transacción cancelación:', error);
+            logger.error('Error en transacción cancelación:', { error });
             throw new Error(error.message);
         }
 
@@ -235,7 +241,7 @@ export const inventoryService = {
 
         // Verificar ownership (CRÍTICO para seguridad)
         if (listing.seller_id !== userId) {
-            console.warn(`Intento no autorizado de actualizar precio. User: ${userId}, Listing owner: ${listing.seller_id}`);
+            logger.warn(`Intento no autorizado de actualizar precio. User: ${userId}, Listing owner: ${listing.seller_id}`);
             throw new Error('Esta publicación no te pertenece');
         }
 
@@ -268,7 +274,7 @@ export const inventoryService = {
             .single();
 
         if (updateError) {
-            console.error('Error actualizando precio:', updateError);
+            logger.error('Error actualizando precio:', { error: updateError });
             throw new Error('Error al actualizar el precio');
         }
 
@@ -306,7 +312,7 @@ export const inventoryService = {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('Error fetching market listings:', error);
+            logger.error('Error fetching market listings:', { error });
             throw error;
         }
 
@@ -353,7 +359,7 @@ export const inventoryService = {
             .gte('created_at', today.toISOString());
 
         if (error) {
-            console.error('Error obteniendo compras del día:', error);
+            logger.error('Error obteniendo compras del día:', { error });
             return 0;
         }
 
@@ -387,7 +393,7 @@ export const inventoryService = {
         });
 
         if (error) {
-            console.error('Error en purchase_marketplace_item RPC:', error);
+            logger.error('Error en purchase_marketplace_item RPC:', { error });
             
             // Manejar errores específicos de forma amigable
             if (error.message.includes('Fondos insuficientes')) {
