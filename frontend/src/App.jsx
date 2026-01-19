@@ -19,6 +19,8 @@ import {
   SteamworksDistributionAgreementPage,
   SteamworksContentPolicyPage,
   SteamworksPrivacyPolicyPage,
+  ForgotPasswordDesarrolladorPage,
+  ResetPasswordDesarrolladorPage,
   ProtectedDeveloperRoute,
   DeveloperAuthProvider,
 } from './features/developer-auth';
@@ -275,6 +277,14 @@ function App() {
       <Route
         path='/steamworks/privacidad'
         element={<SteamworksPrivacyPolicyPage />}
+      />
+      <Route
+        path='/steamworks/forgot-password'
+        element={<ForgotPasswordDesarrolladorPage />}
+      />
+      <Route
+        path='/steamworks/reset-password'
+        element={<ResetPasswordDesarrolladorPage />}
       />
       <Route
         path='/steamworks/dashboard'

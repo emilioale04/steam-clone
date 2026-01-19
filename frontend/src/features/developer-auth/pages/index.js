@@ -10,3 +10,5 @@ export { SteamworksTermsPage } from './SteamworksTermsPage';
 export { SteamworksDistributionAgreementPage } from './SteamworksDistributionAgreementPage';
 export { SteamworksContentPolicyPage } from './SteamworksContentPolicyPage';
 export { SteamworksPrivacyPolicyPage } from './SteamworksPrivacyPolicyPage';
+export { ForgotPasswordDesarrolladorPage } from './ForgotPasswordDesarrolladorPage';
+export { ResetPasswordDesarrolladorPage } from './ResetPasswordDesarrolladorPage';

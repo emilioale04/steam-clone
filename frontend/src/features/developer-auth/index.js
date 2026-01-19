@@ -20,6 +20,8 @@ export {
   SteamworksDistributionAgreementPage,
   SteamworksContentPolicyPage,
   SteamworksPrivacyPolicyPage,
+  ForgotPasswordDesarrolladorPage,
+  ResetPasswordDesarrolladorPage,
 } from './pages';
 
 // Context
