@@ -4,3 +4,5 @@ export { ChatPage } from './ChatPage';
 export { CreateGroupPage } from './CreateGroupPage';
 export { GroupHomePage } from './GroupHomePage';
 export { GroupAdminPage } from './GroupAdminPage';
+export { default as GroupDiscussionsPage } from './GroupDiscussionsPage';
+export { default as GroupThreadPage } from './GroupThreadPage';

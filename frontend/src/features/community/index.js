@@ -5,6 +5,8 @@ export { ChatPage } from './pages/ChatPage';
 export { CreateGroupPage } from './pages/CreateGroupPage';
 export { GroupHomePage } from './pages/GroupHomePage';
 export { GroupAdminPage } from './pages/GroupAdminPage';
+export { GroupDiscussionsPage } from './pages';
+export { GroupThreadPage } from './pages';
 export { default as GroupDetailsPage } from './pages/GroupDetailsPage';
 export { default as ForumPage } from './pages/ForumPage';
 

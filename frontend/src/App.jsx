@@ -34,6 +34,8 @@ import {
   GroupDetailsPage,
   GroupHomePage,
   GroupAdminPage,
+  GroupDiscussionsPage,
+  GroupThreadPage,
   ForumPage
 } from './features/community';
 
@@ -137,6 +139,24 @@ function App() {
         element={
           <ProtectedRoute>
             <GroupAdminPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/discussions"
+        element={
+          <ProtectedRoute>
+            <GroupDiscussionsPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/discussions/:threadId"
+        element={
+          <ProtectedRoute>
+            <GroupThreadPage />
           </ProtectedRoute>
         }
       />

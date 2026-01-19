@@ -294,22 +294,37 @@ export const GroupHomePage = () => {
       <div className="border-b border-[#2a3f5f] mt-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-                  activeTab === tab.id
-                    ? 'text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {tab.label}
-                {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400"></div>
-                )}
-              </button>
-            ))}
+            {tabs.map((tab) => {
+              // El tab "Discussions" navega a su propia página
+              if (tab.id === 'discussions') {
+                return (
+                  <Link
+                    key={tab.id}
+                    to={`/community/groups/${groupId}/discussions`}
+                    className="px-4 py-3 text-sm font-medium transition-colors relative text-gray-400 hover:text-white"
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              }
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-3 text-sm font-medium transition-colors relative ${
+                    activeTab === tab.id
+                      ? 'text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400"></div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
