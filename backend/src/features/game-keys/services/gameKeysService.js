@@ -43,9 +43,9 @@ export const gameKeysService = {
         throw new Error('No tienes permisos para generar llaves de esta aplicación');
       }
       
-      // Validar que la aplicación esté aprobada o publicada
-      if (!['aprobado', 'publicado'].includes(app.estado_revision)) {
-        throw new Error('Solo puedes generar llaves para aplicaciones aprobadas o publicadas');
+      // Validar que la aplicación esté aprobada
+      if (app.estado_revision !== 'aprobado') {
+        throw new Error('Solo puedes generar llaves para aplicaciones aprobadas');
       }
       
       // 2. Verificar límite de llaves totales (C10) - MÁXIMO 5 LLAVES POR APLICACIÓN
