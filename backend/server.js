@@ -53,7 +53,7 @@ import { sessionService } from './src/shared/services/sessionService.js';
 
 // Import limited account validation middleware
 import { limitedAccountValidationMiddleware } from './src/shared/middleware/limitedAccountValidationMiddleware.js';
-import { geoValidationMiddleware } from './src/shared/middleware/geoValidationMiddleware.js';
+import geoValidationMiddleware  from './src/shared/middleware/geoValidationMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,13 +91,13 @@ app.use(sanitizeBodyMiddleware);
 // Rate limiting for auth routes only (C7: RNF-007)
 
 // Auth routes (usuarios normales)
-app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', apiLimiter, developerAuthRoutes);
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
 
 // Developer profile routes (Steamworks - gestión de perfil)
-app.use('/api/desarrolladores/perfil', apiLimiter, developerProfileRoutes);
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
@@ -124,7 +124,7 @@ app.use('/api/wallet', apiLimiter, walletRoutes);
 app.use('/api/inventory', inventoryRoutes);
 
 // Trade routes
-app.use('/api/trade', tradeRoutes);
+app.use('/api/trade', geoValidationMiddleware, tradeRoutes);
 
 // Privacy routes (Configuración de privacidad)
 app.use('/api/privacy', apiLimiter, privacyRoutes);
@@ -297,8 +297,19 @@ app.get('/api/search', (req, res) => {
   });
 });
 
-// Middleware de validación geográfica
-app.use(geoValidationMiddleware);
+// Middleware de validación geográfica (aplicado antes de las rutas protegidas)
+app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
+
+// Developer auth routes (Steamworks - desarrolladores)
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
+
+// Developer profile routes (Steamworks - gestión de perfil)
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
+
+// Aplicar geoValidationMiddleware a rutas críticas
+app.use('/api/trade', geoValidationMiddleware, criticalRateLimiter, tradeRoutes);
+app.use('/api/inventory', geoValidationMiddleware, criticalRateLimiter, inventoryRoutes);
+app.use('/api/search', geoValidationMiddleware, criticalRateLimiter);
 
 // Middleware de validación de cuentas limitadas
 app.use(limitedAccountValidationMiddleware);
