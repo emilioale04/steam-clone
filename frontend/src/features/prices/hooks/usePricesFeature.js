@@ -50,6 +50,14 @@ export function usePricesFeature() {
       throw new Error(errorMsg);
     }
 
+    // Validar que el precio sea diferente al actual
+    const priceValue = Number(price);
+    if (selectedGame && Number(selectedGame.precio_base_usd) === priceValue) {
+      const errorMsg = 'El nuevo precio debe ser diferente al precio actual';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);

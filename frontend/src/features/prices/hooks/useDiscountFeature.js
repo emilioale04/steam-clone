@@ -57,6 +57,14 @@ export function useDiscountFeature() {
       throw new Error(errorMsg);
     }
 
+    // Validar que el descuento sea diferente al actual
+    const currentDiscount = selectedGame ? Number(selectedGame.descuento || 0) : 0;
+    if (currentDiscount === discountValue) {
+      const errorMsg = 'El nuevo descuento debe ser diferente al descuento actual';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
