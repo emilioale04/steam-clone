@@ -1,5 +1,4 @@
 // Pages
-export { CommunityPage } from './pages/CommunityPage';
 export { CommunityExplorerPage } from './pages/CommunityExplorerPage';
 export { ChatPage } from './pages/ChatPage';
 export { CreateGroupPage } from './pages/CreateGroupPage';

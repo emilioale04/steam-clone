@@ -1,6 +1,39 @@
-import { Search, Circle } from 'lucide-react';
+import { Search, Circle, Loader2, Users } from 'lucide-react';
 
-const FriendsSidebar = ({ friends }) => {
+const FriendsSidebar = ({ friends = [], loading = false }) => {
+  const renderContent = () => {
+    // Estado: Cargando
+    if (loading) {
+      return (
+        <div className="py-4 text-center">
+          <Loader2 size={20} className="text-cyan-400 animate-spin mx-auto mb-2" />
+          <p className="text-gray-500 text-xs">Cargando amigos...</p>
+        </div>
+      );
+    }
+
+    // Estado: Sin amigos
+    if (friends.length === 0) {
+      return (
+        <div className="py-4 text-center">
+          <div className="w-10 h-10 bg-[#2a3f5f] rounded-full flex items-center justify-center mx-auto mb-2">
+            <Users size={16} className="text-gray-500" />
+          </div>
+          <p className="text-gray-500 text-xs">No hay amigos conectados</p>
+        </div>
+      );
+    }
+
+    // Estado: Con amigos
+    return (
+      <div className="space-y-2">
+        {friends.map((friend) => (
+          <FriendItem key={friend.id} friend={friend} />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="border-t border-[#2a3f5f] p-4">
       <div className="flex items-center justify-between mb-3">
@@ -10,11 +43,7 @@ const FriendsSidebar = ({ friends }) => {
         </button>
       </div>
       
-      <div className="space-y-2">
-        {friends.map((friend) => (
-          <FriendItem key={friend.id} friend={friend} />
-        ))}
-      </div>
+      {renderContent()}
     </div>
   );
 };

@@ -1,129 +1,336 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Search, 
   Bell, 
   Mail, 
   Settings, 
   Users, 
-  MessageSquare, 
   Store, 
   Library, 
   ChevronRight,
   Plus,
-  Filter,
   ChevronDown,
-  Circle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
-import FeaturedCommunityBanner from '../components/FeaturedCommunityBanner';
 import GroupCardExplorer from '../components/GroupCardExplorer';
-import FriendsSidebar from '../components/FriendsSidebar';
-import YourGroupsSidebar from '../components/YourGroupsSidebar';
 import RecommendedSection from '../components/RecommendedSection';
-
-// Datos ficticios para los grupos
-const mockGroups = [
-  {
-    id: 'test-group',
-    name: 'Grupo Simulado (Test)',
-    description: 'Grupo de prueba para testear el flujo de navegación. ¡Haz clic para ver el detalle!',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
-    memberCount: '12,405',
-    type: 'PUBLIC',
-    icon: '🎮'
-  },
-  {
-    id: 'eternal-knights',
-    name: 'Eternal Knights RPG',
-    description: 'Dedicated to classic RPG discussion and LFG.',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=400&h=200&fit=crop',
-    memberCount: '24k',
-    type: 'PUBLIC',
-    icon: '⚔️'
-  },
-  {
-    id: 'tactical-ops',
-    name: 'Tactical Ops Elite',
-    description: 'Competitive FPS clan for high-rank players.',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
-    memberCount: '850',
-    type: 'RESTRICTED',
-    icon: '🎯'
-  },
-  {
-    id: 'drift-kings',
-    name: 'Drift Kings Global',
-    description: 'Official hub for sim-racing enthusiasts.',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop',
-    memberCount: '156k',
-    type: 'PUBLIC',
-    icon: '🏎️'
-  },
-  {
-    id: 'pixel-art',
-    name: 'Pixel Art Masters',
-    description: 'Share your retro-style artwork and game assets.',
-    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=200&fit=crop',
-    memberCount: '12k',
-    type: 'PUBLIC',
-    icon: '🎨'
-  },
-  {
-    id: 'horror-games',
-    name: 'Horror Games Society',
-    description: 'For fans of survival horror and psychological thrillers.',
-    image: 'https://images.unsplash.com/photo-1509248961895-e00e5c19b384?w=400&h=200&fit=crop',
-    memberCount: '8.5k',
-    type: 'PUBLIC',
-    icon: '👻'
-  },
-  {
-    id: 'valorant-league',
-    name: 'Pro League Valorant',
-    description: 'Competitive Valorant teams and scrims.',
-    image: 'https://images.unsplash.com/photo-1560419015-7c427e8ae5ba?w=400&h=200&fit=crop',
-    memberCount: '2.1k',
-    type: 'RESTRICTED',
-    icon: '🎮'
-  }
-];
-
-const featuredCommunity = {
-  name: 'The Space Explorers',
-  description: 'Join the largest community of galactic adventurers. Regular events, trading hubs, and weekly tournaments for all major...',
-  image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=400&fit=crop',
-  onlineCount: '1,204',
-  memberCount: '128,405'
-};
-
-const yourGroups = [
-  { id: 1, name: 'CS:GO Global', subtitle: '3 new announcements...', avatar: '🎯', color: 'bg-orange-500' },
-  { id: 2, name: 'Indie Game Devs', subtitle: '12 friends here', avatar: '🎮', color: 'bg-purple-500' },
-  { id: 3, name: 'PC Builders', subtitle: '', avatar: '🖥️', color: 'bg-blue-500' }
-];
-
-const friends = [
-  { id: 1, name: 'PixelMage', status: 'In-Game: Dota 2', online: true, inGame: true },
-  { id: 2, name: 'SpeedRunner', status: 'Online', online: true, inGame: false }
-];
+import GroupConsentModal from '../components/GroupConsentModal';
+import { consentService } from '../services/consentService';
+import { useAuth } from '../../../shared/context/AuthContext';
 
 const tabs = [
   { id: 'my-groups', label: 'My Groups' },
   { id: 'browse', label: 'Browse Groups' },
-  { id: 'invites', label: 'Invites', count: 1 }
+  { id: 'invites', label: 'Invites' }
 ];
 
-const filterTabs = [
-  { id: 'all', label: 'All Groups' },
-  { id: 'official', label: 'Official Hubs' },
-  { id: 'local', label: 'Local' },
-  { id: 'friends', label: "Friends' Groups" }
-];
+// Helper para formatear el conteo de miembros
+const formatMemberCount = (count) => {
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}k`;
+  }
+  return count.toString();
+};
+
+// Mapear visibilidad del backend a tipo del frontend
+const mapVisibilityToType = (visibilidad) => {
+  switch (visibilidad) {
+    case 'Open':
+      return 'PUBLIC';
+    case 'Restricted':
+      return 'RESTRICTED';
+    case 'Closed':
+      return 'PRIVATE';
+    default:
+      return 'PUBLIC';
+  }
+};
+
+// Mapear respuesta de la API al formato esperado por GroupCardExplorer
+const mapApiGroupToCardFormat = (apiGroup) => ({
+  id: apiGroup.id,
+  name: apiGroup.nombre,
+  description: apiGroup.descripcion || '',
+  image: apiGroup.avatar_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
+  memberCount: formatMemberCount(apiGroup.member_count || 0),
+  type: mapVisibilityToType(apiGroup.visibilidad),
+  icon: '🎮' // Icono por defecto - podría venir del backend en el futuro
+});
+
+// Colores para avatares de grupos
+const groupColors = ['bg-orange-500', 'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-pink-500', 'bg-cyan-500'];
+
+// Mapear respuesta de my-groups al formato del sidebar
+const mapMyGroupToSidebarFormat = (apiGroup, index) => {
+  const grupo = apiGroup.grupos || apiGroup;
+  return {
+    id: grupo.id,
+    name: grupo.nombre,
+    subtitle: `${grupo.member_count || 0} miembros`,
+    avatar: '🎮',
+    color: groupColors[index % groupColors.length]
+  };
+};
 
 export const CommunityExplorerPage = () => {
+  // Estados para grupos públicos desde la API
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Estados para datos personales del Sidebar
+  const [myGroups, setMyGroups] = useState([]);
+  const [myGroupsLoading, setMyGroupsLoading] = useState(false);
+  
+  // Estado para mensajes toast
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Estado para tracking de grupos con solicitud pendiente
+  const [pendingRequests, setPendingRequests] = useState(new Set());
+
+  // Estados para consentimiento
+  const [hasConsent, setHasConsent] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [pendingJoinGroupId, setPendingJoinGroupId] = useState(null);
+  const [pendingJoinGroupType, setPendingJoinGroupType] = useState(null);
+
+  // FETCH FORZADO - SE EJECUTA INMEDIATAMENTE AL MONTAR
+  useEffect(() => {
+    console.log('🚀 INICIANDO CARGA FORZADA DE GRUPOS...');
+
+    fetch('http://localhost:3000/api/community/groups/search', {
+      credentials: 'include'
+    })
+      .then(async (res) => {
+        console.log(`📡 Status API: ${res.status}`);
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+        const data = await res.json();
+        console.log('📦 DATOS RECIBIDOS (Crudos):', data);
+        return data;
+      })
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          const mappedGroups = data.data.map(mapApiGroupToCardFormat);
+          console.log('✅ Grupos mapeados:', mappedGroups);
+          setGroups(mappedGroups);
+        } else {
+          console.log('⚠️ No hay grupos o formato inesperado');
+          setGroups([]);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('❌ ERROR FATAL EN FETCH:', err);
+        setError(err.message);
+        setGroups([]);
+        setLoading(false);
+      });
+  }, []); // Array vacío = Ejecutar al montar SIEMPRE
+
+  // Auth context - después del useEffect crítico
+  const { user } = useAuth();
+
+  // Fetch de "Mis Grupos" cuando el usuario está autenticado
+  useEffect(() => {
+    if (!user) {
+      setMyGroups([]);
+      return;
+    }
+
+    console.log('👤 Usuario autenticado, cargando mis grupos...');
+    setMyGroupsLoading(true);
+
+    fetch('http://localhost:3000/api/community/groups/my-groups', {
+      credentials: 'include'
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        console.log('📦 Mis grupos (raw):', data);
+        if (data.success && Array.isArray(data.data)) {
+          const mapped = data.data.map(mapMyGroupToSidebarFormat);
+          console.log('✅ Mis grupos mapeados:', mapped);
+          setMyGroups(mapped);
+        } else {
+          setMyGroups([]);
+        }
+      })
+      .catch((err) => {
+        console.error('❌ Error cargando mis grupos:', err);
+        setMyGroups([]);
+      })
+      .finally(() => setMyGroupsLoading(false));
+  }, [user]);
+
+  // Verificar estado de consentimiento cuando el usuario está autenticado
+  useEffect(() => {
+    if (!user) {
+      setHasConsent(false);
+      return;
+    }
+
+    const checkConsent = async () => {
+      try {
+        const result = await consentService.checkConsent();
+        setHasConsent(result.data?.hasConsent || false);
+        console.log('📋 Estado de consentimiento:', result.data?.hasConsent);
+      } catch (error) {
+        console.error('Error verificando consentimiento:', error);
+        setHasConsent(false);
+      }
+    };
+
+    checkConsent();
+  }, [user]);
+
   const [activeTab, setActiveTab] = useState('browse');
-  const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('popularity');
+
+  // Función para ordenar grupos según el criterio seleccionado
+  const getSortedGroups = (groupsToSort) => {
+    if (!groupsToSort || groupsToSort.length === 0) return [];
+    
+    const sorted = [...groupsToSort];
+    
+    switch (sortBy) {
+      case 'popularity':
+      case 'members':
+        // Ordenar por memberCount descendente
+        return sorted.sort((a, b) => {
+          const countA = parseInt(a.memberCount?.replace(/[^0-9]/g, '') || '0');
+          const countB = parseInt(b.memberCount?.replace(/[^0-9]/g, '') || '0');
+          return countB - countA;
+        });
+      case 'newest':
+        // Ordenar por ID descendente (asumiendo que IDs más altos = más nuevos)
+        return sorted.sort((a, b) => {
+          const idA = typeof a.id === 'string' ? a.id : String(a.id);
+          const idB = typeof b.id === 'string' ? b.id : String(b.id);
+          return idB.localeCompare(idA);
+        });
+      case 'alphabetical':
+        // Ordenar alfabéticamente por nombre
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      default:
+        return sorted;
+    }
+  };
+
+  // Función para unirse a un grupo
+  const handleJoinGroup = async (groupId, groupType) => {
+    if (!user) {
+      setToast({ show: true, message: 'Debes iniciar sesión para unirte a un grupo', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+      return;
+    }
+
+    // Verificar si el usuario tiene consentimiento activo
+    if (!hasConsent) {
+      // Guardar el grupo pendiente y mostrar modal de consentimiento
+      setPendingJoinGroupId(groupId);
+      setPendingJoinGroupType(groupType);
+      setShowConsentModal(true);
+      return;
+    }
+
+    // Proceder con la unión al grupo
+    await performJoinGroup(groupId, groupType);
+  };
+
+  // Función que ejecuta la unión al grupo (después de verificar consentimiento)
+  const performJoinGroup = async (groupId, groupType) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/community/groups/${groupId}/join`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al unirse al grupo');
+      }
+
+      // Manejar respuesta según el tipo de grupo
+      if (data.data?.status === 'joined') {
+        // Unión directa exitosa (PUBLIC)
+        setToast({ show: true, message: '¡Te has unido al grupo exitosamente!', type: 'success' });
+        
+        // Agregar a myGroups
+        const joinedGroup = groups.find(g => g.id === groupId);
+        if (joinedGroup) {
+          const newMyGroup = {
+            id: joinedGroup.id,
+            name: joinedGroup.name,
+            subtitle: `${joinedGroup.memberCount} miembros`,
+            avatar: joinedGroup.icon || '🎮',
+            color: groupColors[myGroups.length % groupColors.length]
+          };
+          setMyGroups(prev => [...prev, newMyGroup]);
+        }
+      } else if (data.data?.status === 'pending') {
+        // Solicitud enviada (RESTRICTED)
+        setToast({ show: true, message: 'Solicitud enviada. Espera la aprobación del administrador.', type: 'info' });
+        setPendingRequests(prev => new Set([...prev, groupId]));
+      }
+
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+    } catch (error) {
+      console.error('Error al unirse al grupo:', error);
+      setToast({ show: true, message: error.message || 'Error al procesar la solicitud', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+    }
+  };
+
+  // Manejar aceptación de consentimiento
+  const handleConsentAccept = async () => {
+    try {
+      await consentService.grantConsent();
+      setHasConsent(true);
+      setShowConsentModal(false);
+      
+      // Continuar con la unión al grupo pendiente
+      if (pendingJoinGroupId) {
+        await performJoinGroup(pendingJoinGroupId, pendingJoinGroupType);
+        setPendingJoinGroupId(null);
+        setPendingJoinGroupType(null);
+      }
+    } catch (error) {
+      console.error('Error al guardar consentimiento:', error);
+      setToast({ show: true, message: 'Error al guardar el consentimiento', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+    }
+  };
+
+  // Manejar rechazo de consentimiento
+  const handleConsentReject = () => {
+    setShowConsentModal(false);
+    setPendingJoinGroupId(null);
+    setPendingJoinGroupType(null);
+    setToast({ show: true, message: 'Debes aceptar los términos para unirte a grupos', type: 'info' });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+
+  // Verificar si el usuario ya es miembro de un grupo
+  const isUserMember = (groupId) => {
+    return myGroups.some(g => g.id === groupId);
+  };
+
+  // Verificar si hay solicitud pendiente
+  const hasPendingRequest = (groupId) => {
+    return pendingRequests.has(groupId);
+  };
 
   return (
     <div className="min-h-screen bg-[#1b2838] flex">
@@ -132,26 +339,36 @@ export const CommunityExplorerPage = () => {
         {/* User Info */}
         <div className="p-4 border-b border-[#2a3f5f]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-              <span className="text-white text-sm font-bold">S</span>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center overflow-hidden">
+              {user?.user_metadata?.avatar_url ? (
+                <img 
+                  src={user.user_metadata.avatar_url} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white text-sm font-bold">
+                  {(user?.user_metadata?.username || user?.email || 'G').charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
             <div>
-              <p className="text-white font-medium text-sm">SteamUser123</p>
-              <p className="text-gray-400 text-xs">Wallet: $45.20</p>
+              <p className="text-white font-medium text-sm">
+                {user?.user_metadata?.username || (user?.email ? user.email.split('@')[0] : 'Guest')}
+              </p>
+              <p className="text-gray-400 text-xs">
+                {user ? 'Online' : 'Not logged in'}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 p-2">
-          <NavItem icon={<Store size={18} />} label="Store" />
-          <NavItem icon={<Library size={18} />} label="Library" />
-          <NavItem icon={<Users size={18} />} label="Community" active />
-          <NavItem icon={<MessageSquare size={18} />} label="Chat" badge={2} />
+          <NavLink to="/marketplace" icon={<Store size={18} />} label="Store" />
+          <NavLink to="/inventory" icon={<Library size={18} />} label="Library" />
+          <NavLink to="/community" icon={<Users size={18} />} label="Community" active />
         </nav>
-
-        {/* Friends List */}
-        <FriendsSidebar friends={friends} />
       </aside>
 
       {/* Main Content */}
@@ -245,62 +462,141 @@ export const CommunityExplorerPage = () => {
             </div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-              {/* Left Sidebar - Your Groups & Recommended */}
-              <div className="xl:col-span-1 space-y-6">
-                <YourGroupsSidebar groups={yourGroups} />
-                <RecommendedSection />
-              </div>
+            <div className={`grid grid-cols-1 ${activeTab === 'browse' ? 'xl:grid-cols-4' : ''} gap-6`}>
+              {/* Left Sidebar - Recommended (Solo en Browse) */}
+              {activeTab === 'browse' && (
+                <div className="xl:col-span-1 space-y-6">
+                  <RecommendedSection recommendedGroups={groups.slice(0, 3)} loading={loading} />
+                </div>
+              )}
 
-              {/* Right Content - Featured & Groups Grid */}
-              <div className="xl:col-span-3 space-y-6">
-                {/* Featured Community Banner */}
-                <FeaturedCommunityBanner community={featuredCommunity} />
-
-                {/* Filter Tabs */}
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    {filterTabs.map((filter) => (
-                      <button
-                        key={filter.id}
-                        onClick={() => setActiveFilter(filter.id)}
-                        className={`px-4 py-2 text-sm rounded-full transition-colors ${
-                          activeFilter === filter.id
-                            ? 'bg-[#2a3f5f] text-white'
-                            : 'text-gray-400 hover:text-white hover:bg-[#2a3f5f]/50'
-                        }`}
-                      >
-                        {filter.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="appearance-none pl-4 pr-10 py-2 bg-[#2a3f5f] border border-[#3a5070] rounded text-sm text-gray-300 focus:outline-none focus:border-blue-500 cursor-pointer"
-                      >
-                        <option value="popularity">Sort by: Popularity</option>
-                        <option value="newest">Sort by: Newest</option>
-                        <option value="members">Sort by: Members</option>
-                        <option value="activity">Sort by: Activity</option>
-                      </select>
-                      <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              {/* Right Content - Groups Grid */}
+              <div className={activeTab === 'browse' ? 'xl:col-span-3 space-y-6' : 'space-y-6'}>
+                {/* Section Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-semibold text-lg">
+                    {activeTab === 'browse' ? 'All Groups' : activeTab === 'my-groups' ? 'My Groups' : 'Invitations'}
+                  </h3>
+                  {activeTab !== 'invites' && (
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="appearance-none pl-4 pr-10 py-2 bg-[#2a3f5f] border border-[#3a5070] rounded text-sm text-gray-300 focus:outline-none focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="popularity">Sort by: Popularity</option>
+                          <option value="newest">Sort by: Newest</option>
+                          <option value="alphabetical">Sort by: A-Z</option>
+                        </select>
+                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      </div>
                     </div>
-                    <button className="p-2 bg-[#2a3f5f] border border-[#3a5070] rounded text-gray-400 hover:text-white transition-colors">
-                      <Filter size={16} />
-                    </button>
-                  </div>
+                  )}
                 </div>
 
-                {/* Groups Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {mockGroups.map((group) => (
-                    <GroupCardExplorer key={group.id} group={group} />
-                  ))}
-                </div>
+                {/* Content based on activeTab */}
+                {activeTab === 'browse' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {loading ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16">
+                        <Loader2 size={40} className="text-blue-500 animate-spin mb-4" />
+                        <p className="text-gray-400">Cargando grupos...</p>
+                      </div>
+                    ) : error ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16">
+                        <AlertCircle size={40} className="text-red-500 mb-4" />
+                        <p className="text-red-400 mb-2">Error al cargar los grupos</p>
+                        <p className="text-gray-500 text-sm">{error}</p>
+                      </div>
+                    ) : groups.length === 0 ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16 bg-[#16202d] rounded-xl border border-[#2a3f5f]">
+                        <Users size={48} className="text-gray-500 mb-4" />
+                        <p className="text-white font-medium text-lg mb-2">No se encontraron grupos</p>
+                        <p className="text-gray-400 text-sm mb-6 text-center max-w-md">
+                          ¡Sé el primero en crear un grupo y comenzar una comunidad!
+                        </p>
+                        <button className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors">
+                          <Plus size={18} />
+                          Crear el primer grupo
+                        </button>
+                      </div>
+                    ) : (
+                      getSortedGroups(groups).map((group) => (
+                        <GroupCardExplorer 
+                          key={group.id} 
+                          group={group}
+                          onJoin={handleJoinGroup}
+                          isMember={isUserMember(group.id)}
+                          isPending={hasPendingRequest(group.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'my-groups' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {myGroupsLoading ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16">
+                        <Loader2 size={40} className="text-blue-500 animate-spin mb-4" />
+                        <p className="text-gray-400">Cargando tus grupos...</p>
+                      </div>
+                    ) : !user ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16 bg-[#16202d] rounded-xl border border-[#2a3f5f]">
+                        <Users size={48} className="text-gray-500 mb-4" />
+                        <p className="text-white font-medium text-lg mb-2">Inicia sesión</p>
+                        <p className="text-gray-400 text-sm mb-6 text-center max-w-md">
+                          Debes iniciar sesión para ver tus grupos.
+                        </p>
+                        <Link to="/auth/login" className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors">
+                          Iniciar sesión
+                        </Link>
+                      </div>
+                    ) : myGroups.length === 0 ? (
+                      <div className="col-span-full flex flex-col items-center justify-center py-16 bg-[#16202d] rounded-xl border border-[#2a3f5f]">
+                        <Users size={48} className="text-gray-500 mb-4" />
+                        <p className="text-white font-medium text-lg mb-2">No te has unido a ningún grupo aún</p>
+                        <p className="text-gray-400 text-sm mb-6 text-center max-w-md">
+                          Explora la comunidad y únete a grupos que compartan tus intereses.
+                        </p>
+                        <button 
+                          onClick={() => setActiveTab('browse')}
+                          className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors"
+                        >
+                          <Search size={18} />
+                          Explorar grupos
+                        </button>
+                      </div>
+                    ) : (
+                      getSortedGroups(myGroups.map(g => ({
+                        id: g.id,
+                        name: g.name,
+                        description: g.subtitle,
+                        image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
+                        memberCount: g.subtitle?.replace(' miembros', '') || '0',
+                        type: 'MEMBER',
+                        icon: g.avatar
+                      }))).map((group) => (
+                        <GroupCardExplorer 
+                          key={group.id} 
+                          group={group}
+                          isMember={true}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'invites' && (
+                  <div className="flex flex-col items-center justify-center py-16 bg-[#16202d] rounded-xl border border-[#2a3f5f]">
+                    <Mail size={48} className="text-gray-500 mb-4" />
+                    <p className="text-white font-medium text-lg mb-2">No tienes invitaciones pendientes</p>
+                    <p className="text-gray-400 text-sm text-center max-w-md">
+                      Cuando alguien te invite a un grupo, aparecerá aquí.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -311,13 +607,40 @@ export const CommunityExplorerPage = () => {
       <button className="fixed bottom-6 left-6 p-3 bg-[#2a3f5f] rounded-full text-gray-400 hover:text-white hover:bg-[#3a5070] transition-colors shadow-lg">
         <Settings size={20} />
       </button>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-fade-in ${
+          toast.type === 'success' ? 'bg-green-600' : 
+          toast.type === 'error' ? 'bg-red-600' : 
+          'bg-blue-600'
+        }`}>
+          <span className="text-white font-medium">{toast.message}</span>
+          <button 
+            onClick={() => setToast({ show: false, message: '', type: 'success' })}
+            className="text-white/80 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Modal de Consentimiento */}
+      <GroupConsentModal
+        isOpen={showConsentModal}
+        onClose={handleConsentReject}
+        onAccept={handleConsentAccept}
+        onReject={handleConsentReject}
+        groupName={pendingJoinGroupId ? groups.find(g => g.id === pendingJoinGroupId)?.name : null}
+      />
     </div>
   );
 };
 
-// Navigation Item Component
-const NavItem = ({ icon, label, active = false, badge = null }) => (
-  <button
+// Navigation Link Component
+const NavLink = ({ to, icon, label, active = false, badge = null }) => (
+  <Link
+    to={to}
     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
       active
         ? 'bg-[#2a3f5f] text-white'
@@ -333,7 +656,7 @@ const NavItem = ({ icon, label, active = false, badge = null }) => (
         {badge}
       </span>
     )}
-  </button>
+  </Link>
 );
 
 export default CommunityExplorerPage;
