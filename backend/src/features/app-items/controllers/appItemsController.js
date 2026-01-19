@@ -61,6 +61,13 @@ export const appItemsController = {
         });
       }
 
+      if (error.message.includes('aprobada')) {
+        return res.status(403).json({
+          success: false,
+          mensaje: error.message,
+        });
+      }
+
       return res.status(500).json({
         success: false,
         mensaje: 'Error al listar items',

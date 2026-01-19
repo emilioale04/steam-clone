@@ -50,7 +50,7 @@ const obtenerItem = async (itemId, desarrolladorId) => {
 
 export const appItemsService = {
   async listarItems(appId, desarrolladorId) {
-    await obtenerAplicacion(appId, desarrolladorId);
+    await obtenerAplicacionAprobada(appId, desarrolladorId);
 
     const { data: items, error } = await supabaseAdmin
       .from('items_aplicaciones')
