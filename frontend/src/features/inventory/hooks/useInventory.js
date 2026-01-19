@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { inventoryService } from '../services/inventoryService';
+// import { mockInventoryService as inventoryService } from '../services/mockInventoryService';
+import { tradeService } from '../services/tradeService';
+// import { mockTradeService as tradeService } from '../services/mockTradeService';
 
 export const useInventory = (userId) => {
     const [inventory, setInventory] = useState([]);

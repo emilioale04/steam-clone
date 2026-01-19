@@ -1,13 +1,39 @@
 import { useState } from 'react';
+import { emailValidator } from '../../../shared/utils/validators';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 
 export const LoginForm = ({ onSubmit, error }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const validateForm = () => {
+    const errors = {};
+
+    // Validar email
+    if (!email.trim()) {
+      errors.email = 'Email es requerido';
+    } else if (!emailValidator.test(email)) {
+      errors.email = emailValidator.message;
+    }
+
+    // Validar contraseña
+    if (!password) {
+      errors.password = 'Contraseña es requerida';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     try {
       await onSubmit(email, password);

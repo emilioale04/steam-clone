@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { LoginForm } from '../components';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { authService } from '../services/authService';
+// import { mockAuthService as authService } from '../services/mockAuthService';
 import { CheckCircle2, AlertTriangle, Gamepad2, Mail } from 'lucide-react';
 
 export const LoginPage = () => {
@@ -45,7 +46,7 @@ export const LoginPage = () => {
 
   const handleResendVerification = async () => {
     if (!unverifiedEmail) return;
-    
+
     setResendLoading(true);
     setResendSuccess(false);
     try {
@@ -96,7 +97,7 @@ export const LoginPage = () => {
                 </p>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={handleResendVerification}
                 disabled={resendLoading}
                 className="mt-3 text-blue-400 hover:text-blue-300 text-sm font-medium underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

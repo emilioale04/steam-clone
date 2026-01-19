@@ -54,19 +54,10 @@ import {
   ForumPage
 } from './features/community';
 
-import { useState, useEffect } from 'react'
-import { Search, User, ShoppingCart, Gamepad2, Star } from 'lucide-react'
-
-const API_URL = 'http://localhost:3000/api';
+// Removed - using validators from shared/utils instead
 
 function App() {
   const { user, loading } = useAuth();
-  const [featuredGame, setFeaturedGame] = useState(null);
-
-  const calculateDiscountedPrice = (price, discount) => {
-    if (discount === 0) return price;
-    return (price - (price * discount) / 100).toFixed(2);
-  };
 
   if (loading) {
     return (
@@ -81,6 +72,7 @@ function App() {
       {/* ============================================ */}
       {/* RUTAS DE USUARIOS NORMALES (Steam) */}
       {/* ============================================ */}
+      
       <Route
         path='/login'
         element={
@@ -117,11 +109,7 @@ function App() {
       />
       <Route
         path='/'
-        element={
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        }
+        element={<HomePage />}
       />
       <Route
         path='/profile'
