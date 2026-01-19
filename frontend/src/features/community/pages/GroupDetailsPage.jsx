@@ -12,6 +12,7 @@ import GroupSettingsForm from '../components/GroupSettingsForm';
 import ForumActions from '../components/ForumActions';
 import InviteMemberModal from '../components/InviteMemberModal';
 import GroupConsentModal from '../components/GroupConsentModal';
+import CommunityReportsSection from '../components/CommunityReportsSection';
 
 export default function GroupDetailsPage() {
     const { groupId } = useParams();
@@ -20,6 +21,8 @@ export default function GroupDetailsPage() {
     const [activeTab, setActiveTab] = useState('forums');
     const [forums, setForums] = useState([]);
     const [loadingForums, setLoadingForums] = useState(true);
+    const [reports, setReports] = useState([]);
+    const [loadingReports, setLoadingReports] = useState(false);
     const [isCreateForumModalOpen, setIsCreateForumModalOpen] = useState(false);
     const [isCreateAnnouncementModalOpen, setIsCreateAnnouncementModalOpen] = useState(false);
     const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
@@ -79,6 +82,19 @@ export default function GroupDetailsPage() {
         loadData();
     }, [fetchGroupDetails, fetchMembers, fetchPendingRequests, fetchAnnouncements, user]);
 
+    // Cargar reportes cuando hay datos del grupo
+    useEffect(() => {
+        if (group?.user_membership?.rol) {
+            const userRole = group.user_membership.rol;
+            const isOwner = userRole === 'Owner';
+            const isModerator = userRole === 'Moderator' || isOwner;
+            
+            if (isModerator) {
+                loadReports();
+            }
+        }
+    }, [group]);
+
     // Cerrar menú de miembro al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = () => {
@@ -100,6 +116,20 @@ export default function GroupDetailsPage() {
             console.error('Error loading forums:', err);
         } finally {
             setLoadingForums(false);
+        }
+    };
+
+    const loadReports = async () => {
+        if (!isModerator) return;
+        try {
+            setLoadingReports(true);
+            const { reportService } = await import('../services/reportService');
+            const response = await reportService.getGroupReports(groupId);
+            setReports(response.data || []);
+        } catch (err) {
+            console.error('Error loading reports:', err);
+        } finally {
+            setLoadingReports(false);
         }
     };
 
@@ -1159,6 +1189,15 @@ export default function GroupDetailsPage() {
                                     </>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Reportes de Comunidad */}
+                        <div className="bg-[#2a475e] rounded-lg p-6">
+                            <CommunityReportsSection
+                                groupId={groupId}
+                                reports={reports}
+                                onReportProcessed={loadReports}
+                            />
                         </div>
                     </div>
                 )}
