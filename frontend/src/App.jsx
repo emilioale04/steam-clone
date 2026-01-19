@@ -41,8 +41,17 @@ import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
 
 // Community
 import { 
-  CommunityPage, 
-  GroupDetailsPage, 
+  CommunityPage,
+  CommunityExplorerPage,
+  ChatPage,
+  CreateGroupPage,
+  GroupDetailsPage,
+  GroupHomePage,
+  GroupAdminPage,
+  GroupDiscussionsPage,
+  GroupThreadPage,
+  ReportViolationPage,
+  CreateAnnouncementPage,
   ForumPage
 } from './features/community';
 
@@ -154,7 +163,34 @@ function App() {
         path="/community/groups/:groupId"
         element={
           <ProtectedRoute>
-            <GroupDetailsPage />
+            <GroupHomePage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/admin"
+        element={
+          <ProtectedRoute>
+            <GroupAdminPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/discussions"
+        element={
+          <ProtectedRoute>
+            <GroupDiscussionsPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/discussions/:threadId"
+        element={
+          <ProtectedRoute>
+            <GroupThreadPage />
           </ProtectedRoute>
         }
       />
@@ -164,6 +200,42 @@ function App() {
         element={
           <ProtectedRoute>
             <ForumPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/report/:targetId"
+        element={
+          <ProtectedRoute>
+            <ReportViolationPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/community/groups/:groupId/announcements/create"
+        element={
+          <ProtectedRoute>
+            <CreateAnnouncementPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/groups/create"
+        element={
+          <ProtectedRoute>
+            <CreateGroupPage />
           </ProtectedRoute>
         }
       />
