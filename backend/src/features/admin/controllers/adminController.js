@@ -175,6 +175,48 @@ const adminController = {
   },
 
   /**
+   * Obtener logs de desarrolladores
+   */
+  getLogsDesarrolladores: async (req, res) => {
+    try {
+      const { limit = 50, offset = 0 } = req.query;
+      const result = await adminService.getLogsDesarrolladores(parseInt(limit), parseInt(offset));
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Error al obtener logs de desarrolladores:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener logs de desarrolladores',
+      });
+    }
+  },
+
+  /**
+   * Obtener logs de comunidad
+   */
+  getLogsComunidad: async (req, res) => {
+    try {
+      const { limit = 50, offset = 0 } = req.query;
+      const result = await adminService.getLogsComunidad(parseInt(limit), parseInt(offset));
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Error al obtener logs de comunidad:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener logs de comunidad',
+      });
+    }
+  },
+
+  /**
    * Obtener bloqueos de países (RA-001)
    */
   getBloqueoPaises: async (req, res) => {
@@ -295,6 +337,27 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener revisiones de juegos',
+      });
+    }
+  },
+
+  /**
+   * Obtener información de un juego para revisión
+   */
+  getInfoJuegoRevision: async (req, res) => {
+    try {
+      const { idJuego } = req.params;
+      const result = await adminService.getInfoJuegoRevision(idJuego);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Error al obtener información del juego:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener información del juego',
       });
     }
   },

@@ -468,6 +468,26 @@ const adminService = {
   },
 
   /**
+   * Obtener información de un juego para revisión
+   */
+  getInfoJuegoRevision: async (idJuego) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .select('*')
+        .eq('id', idJuego)
+        .single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error al obtener información del juego:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Aprobar juego (RA-002, RA-004)
    */
   aprobarJuego: async (id, adminId, comentarios, ipAddress, userAgent) => {

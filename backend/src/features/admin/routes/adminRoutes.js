@@ -23,6 +23,7 @@ router.delete('/bloqueos-paises/:id', adminMiddleware.verificarAdmin, adminContr
 
 // Revisión de Juegos (RA-002)
 router.get('/revisiones-juegos', adminMiddleware.verificarAdmin, adminController.getRevisionesJuegos);
+router.get('/revisiones-juegos/info/:idJuego', adminMiddleware.verificarAdmin, adminController.getInfoJuegoRevision);
 router.post('/revisiones-juegos/:id/aprobar', adminMiddleware.verificarAdmin, adminController.aprobarJuego);
 router.post('/revisiones-juegos/:id/rechazar', adminMiddleware.verificarAdmin, adminController.rechazarJuego);
 

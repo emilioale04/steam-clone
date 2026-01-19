@@ -200,6 +200,20 @@ export const getRevisionesJuegos = async (estado = null) => {
   return data.data;
 };
 
+export const getInfoJuegoRevision = async (idJuego) => {
+  const response = await fetch(`${API_URL}/revisiones-juegos/info/${idJuego}`, {
+    headers: getHeaders()
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'Error al obtener información del juego');
+  }
+  
+  return data.data;
+};
+
 export const aprobarJuego = async (id, comentarios = '') => {
   const response = await fetch(`${API_URL}/revisiones-juegos/${id}/aprobar`, {
     method: 'POST',
