@@ -1,4 +1,5 @@
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
+import { notificationService } from '../../../shared/services/notificationService.js';
 
 const adminService = {
   /**
@@ -485,8 +486,25 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'aprobado', comentarios);
+      const { error: appUpdateError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .update({
+          estado_revision: 'aprobado',
+          fecha_aprobacion: new Date().toISOString(),
+          notas_revision: comentarios || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', data.id_juego);
+
+      if (appUpdateError) {
+        console.error('Error al actualizar estado de aplicacion:', appUpdateError);
+      }
+
+      await notificationService.notifyDeveloperAppReview(
+        data.id_juego,
+        'aprobado',
+        comentarios
+      );
 
       // Registrar en audit log
       await adminService.registrarAuditLog(
@@ -524,8 +542,25 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'rechazado', comentarios);
+      const { error: appUpdateError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .update({
+          estado_revision: 'rechazado',
+          fecha_aprobacion: null,
+          notas_revision: comentarios || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', data.id_juego);
+
+      if (appUpdateError) {
+        console.error('Error al actualizar estado de aplicacion:', appUpdateError);
+      }
+
+      await notificationService.notifyDeveloperAppReview(
+        data.id_juego,
+        'rechazado',
+        comentarios
+      );
 
       // Registrar en audit log
       await adminService.registrarAuditLog(

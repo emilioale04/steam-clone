@@ -5,3 +5,4 @@
 export { LoginDesarrolladorForm } from './LoginDesarrolladorForm';
 export { RegisterDesarrolladorForm } from './RegisterDesarrolladorForm';
 export { ProtectedDeveloperRoute } from './ProtectedDeveloperRoute';
+export { DeveloperNotificationBell } from './DeveloperNotificationBell';
