@@ -32,6 +32,7 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
 
   // Términos
   const [aceptoTerminos, setAceptoTerminos] = useState(false);
+  const [aceptoPrivacidad, setAceptoPrivacidad] = useState(false);
 
   const [formError, setFormError] = useState('');
 
@@ -77,8 +78,10 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!aceptoTerminos) {
-      setFormError('Debe aceptar los términos y condiciones');
+    if (!aceptoTerminos || !aceptoPrivacidad) {
+      setFormError(
+        'Debe aceptar los terminos, politicas y la politica de privacidad',
+      );
       return;
     }
 
@@ -97,6 +100,7 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
         nif_cif: nifCif,
         razon_social: razonSocial,
         acepto_terminos: aceptoTerminos,
+        acepto_politica_privacidad: aceptoPrivacidad,
       });
     } finally {
       setLoading(false);
@@ -153,7 +157,7 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
           <h2 className='text-lg font-semibold text-white mb-4'>
             {step === 1 && 'Paso 1: Datos de Cuenta'}
             {step === 2 && 'Paso 2: Información Personal'}
-            {step === 3 && 'Paso 3: Información Bancaria y Términos'}
+            {step === 3 && 'Paso 3: Informacion Bancaria y Consentimientos'}
           </h2>
 
           {displayError && (
@@ -273,7 +277,7 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
             </div>
           )}
 
-          {/* Step 3: Información Bancaria y Términos */}
+          {/* Step 3: Informacion Bancaria y Consentimientos */}
           {step === 3 && (
             <div className='space-y-4'>
               <div className='p-3 bg-[#2a3f5f]/50 rounded border border-[#3d5a80]'>
@@ -349,8 +353,29 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
                 </div>
               </div>
 
-              {/* Términos y Condiciones */}
-              <div className='mt-6 p-4 bg-[#16213e] rounded border border-[#3d5a80]'>
+              {/* Consentimiento informado */}
+              <div className='mt-6 p-4 bg-[#2a3f5f]/40 rounded border border-[#3d5a80]'>
+                <h3 className='text-white text-sm font-semibold mb-2'>
+                  Consentimiento informado (LOPDP)
+                </h3>
+                <p className='text-gray-400 text-xs'>
+                  Resumen de datos que recopilamos para el programa:
+                </p>
+                <ul className='list-disc list-inside mt-2 space-y-1 text-gray-400 text-xs'>
+                  <li>Datos de cuenta y contacto.</li>
+                  <li>Datos personales y de ubicacion.</li>
+                  <li>Datos bancarios y fiscales para pagos.</li>
+                  <li>Datos de seguridad y auditoria.</li>
+                </ul>
+                <p className='text-gray-400 text-xs mt-2'>
+                  Finalidades: gestion de cuenta, pagos, seguridad y
+                  cumplimiento legal. Revisa la Politica de Privacidad para el
+                  detalle completo.
+                </p>
+              </div>
+
+              {/* Terminos y politicas */}
+              <div className='p-4 bg-[#16213e] rounded border border-[#3d5a80] space-y-4'>
                 <label className='flex items-start space-x-3 cursor-pointer'>
                   <input
                     type='checkbox'
@@ -360,14 +385,46 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
                   />
                   <span className='text-gray-300 text-sm'>
                     Acepto los{' '}
-                    <a
-                      href='#'
+                    <Link
+                      to='/steamworks/terminos'
                       className='text-[#66c0f4] hover:underline'
                     >
-                      Términos y Condiciones
-                    </a>{' '}
-                    del Programa de Desarrolladores de Steamworks, incluyendo el
-                    Acuerdo de Distribución y las Políticas de Contenido. *
+                      Terminos y Condiciones
+                    </Link>{' '}
+                    del Programa de Desarrolladores de Steamworks, incluyendo el{' '}
+                    <Link
+                      to='/steamworks/acuerdo-distribucion'
+                      className='text-[#66c0f4] hover:underline'
+                    >
+                      Acuerdo de Distribucion
+                    </Link>{' '}
+                    y las{' '}
+                    <Link
+                      to='/steamworks/politicas-contenido'
+                      className='text-[#66c0f4] hover:underline'
+                    >
+                      Politicas de Contenido
+                    </Link>
+                    . *
+                  </span>
+                </label>
+                <label className='flex items-start space-x-3 cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={aceptoPrivacidad}
+                    onChange={(e) => setAceptoPrivacidad(e.target.checked)}
+                    className='mt-1 w-5 h-5 rounded border-gray-600 bg-[#2a3f5f] text-[#66c0f4] focus:ring-[#66c0f4]'
+                  />
+                  <span className='text-gray-300 text-sm'>
+                    Acepto la{' '}
+                    <Link
+                      to='/steamworks/privacidad'
+                      className='text-[#66c0f4] hover:underline'
+                    >
+                      Politica de Privacidad
+                    </Link>{' '}
+                    y autorizo el tratamiento de mis datos personales conforme
+                    a la LOPDP. *
                   </span>
                 </label>
               </div>
@@ -399,7 +456,7 @@ export const RegisterDesarrolladorForm = ({ onSubmit, error }) => {
             ) : (
               <button
                 type='submit'
-                disabled={loading || !aceptoTerminos}
+                disabled={loading || !aceptoTerminos || !aceptoPrivacidad}
                 className='px-6 py-3 bg-gradient-to-r from-[#4c6ef5] to-[#66c0f4] text-white font-semibold rounded hover:from-[#5c7cfa] hover:to-[#74c8f4] transition-all disabled:opacity-50 disabled:cursor-not-allowed'
               >
                 {loading ? 'Registrando...' : 'Completar Registro'}

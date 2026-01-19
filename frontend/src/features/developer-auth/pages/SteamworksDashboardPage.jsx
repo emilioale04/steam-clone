@@ -17,7 +17,6 @@ import { ConfiguracionTiendaPage } from '../../store-config/pages';
 import { MisAplicacionesPage } from '../../my-apps';
 import { AppItemsPage } from '../../app-items/pages/AppItemsPage';
 
-
 export const SteamworksDashboardPage = () => {
   const navigate = useNavigate();
   const { desarrollador, logout, refreshDesarrollador } = useDeveloperAuth();
@@ -73,23 +72,23 @@ export const SteamworksDashboardPage = () => {
     cargarEstadoMFA();
   }, []);
 
-  // RF-003: Validación de 5 días desde última modificación
+  // RF-003: Validación de 2 minutos desde última modificación (MODO PRUEBA)
   const canEditProfile = () => {
     if (!desarrollador?.ultima_actualizacion_datos) {
       return true; // Primera vez, puede editar
     }
     const lastUpdate = new Date(desarrollador.ultima_actualizacion_datos);
     const now = new Date();
-    const diffDays = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
-    return diffDays >= 5;
+    const diffMinutes = Math.floor((now - lastUpdate) / (1000 * 60));
+    return diffMinutes >= 2;
   };
 
-  const getDaysUntilEdit = () => {
+  const getMinutesUntilEdit = () => {
     if (!desarrollador?.ultima_actualizacion_datos) return 0;
     const lastUpdate = new Date(desarrollador.ultima_actualizacion_datos);
     const now = new Date();
-    const diffDays = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
-    return Math.max(0, 5 - diffDays);
+    const diffMinutes = Math.floor((now - lastUpdate) / (1000 * 60));
+    return Math.max(0, 2 - diffMinutes);
   };
 
   const handleLogout = async () => {
@@ -105,7 +104,7 @@ export const SteamworksDashboardPage = () => {
   const handleGuardarPersonal = () => {
     if (!canEditProfile()) {
       setErrorMessage(
-        `Debes esperar ${getDaysUntilEdit()} días para editar tu perfil nuevamente`,
+        `Debes esperar ${getMinutesUntilEdit()} minuto(s) para editar tu perfil nuevamente`,
       );
       setTimeout(() => setErrorMessage(''), 5000);
       return;
@@ -125,7 +124,7 @@ export const SteamworksDashboardPage = () => {
   const handleGuardarBancaria = () => {
     if (!canEditProfile()) {
       setErrorMessage(
-        `Debes esperar ${getDaysUntilEdit()} días para editar tu perfil nuevamente`,
+        `Debes esperar ${getMinutesUntilEdit()} minuto(s) para editar tu perfil nuevamente`,
       );
       setTimeout(() => setErrorMessage(''), 5000);
       return;
@@ -235,14 +234,14 @@ export const SteamworksDashboardPage = () => {
                     Genera y administra llaves de activación para tus juegos
                   </span>
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveTab('precios')}
-                  className="p-4 bg-[#2a3f5f] rounded border border-[#3d5a80] text-left hover:border-[#66c0f4] transition-colors"
+                  className='p-4 bg-[#2a3f5f] rounded border border-[#3d5a80] text-left hover:border-[#66c0f4] transition-colors'
                 >
-                  <span className="text-[#66c0f4] font-medium block mb-1">
+                  <span className='text-[#66c0f4] font-medium block mb-1'>
                     Precios
                   </span>
-                  <span className="text-gray-400 text-sm">
+                  <span className='text-gray-400 text-sm'>
                     Edita los precios de tus aplicaciones y ofertas
                   </span>
                 </button>
@@ -303,7 +302,7 @@ export const SteamworksDashboardPage = () => {
 
       case 'mis-aplicaciones':
         return (
-          <MisAplicacionesPage 
+          <MisAplicacionesPage
             onEditStore={(app) => {
               // Navegar a configuración de tienda con la aplicación seleccionada
               console.log('[DASHBOARD] Editar tienda de:', app.app_id);
@@ -341,11 +340,11 @@ export const SteamworksDashboardPage = () => {
 
       case 'precios':
         return (
-          <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className='max-w-7xl mx-auto px-4 py-8'>
             <PricesPage mostrarHeader={false} />
           </div>
         );
-        
+
       case 'objetos-marketplace':
         return (
           <div className='max-w-7xl mx-auto px-4 py-8'>
@@ -355,7 +354,7 @@ export const SteamworksDashboardPage = () => {
 
       case 'mi-perfil':
         const profileEditable = canEditProfile();
-        const daysRemaining = getDaysUntilEdit();
+        const minutesRemaining = getMinutesUntilEdit();
 
         return (
           <div className='max-w-4xl mx-auto px-4 py-8'>
@@ -380,20 +379,21 @@ export const SteamworksDashboardPage = () => {
               </div>
             )}
 
-            {/* Alerta de restricción de 5 días (RF-003) */}
+            {/* Alerta de restricción de 2 minutos (RF-003 - MODO PRUEBA) */}
             {!profileEditable && (
               <div className='bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6'>
                 <div className='flex items-start'>
                   <span className='text-yellow-400 text-2xl mr-3'>⚠️</span>
                   <div>
                     <h4 className='text-yellow-400 font-semibold mb-1'>
-                      Perfil bloqueado temporalmente
+                      Restricción temporal activa
                     </h4>
                     <p className='text-gray-300 text-sm'>
-                      Por seguridad solo puedes editar tu perfil cada 5 días.
-                      Podrás editar nuevamente en{' '}
+                      ⚠️ MODO PRUEBA: Por seguridad solo puedes editar tu perfil
+                      cada 2 minutos. Podrás editar nuevamente en{' '}
                       <strong>
-                        {daysRemaining} día{daysRemaining !== 1 ? 's' : ''}
+                        {minutesRemaining} minuto
+                        {minutesRemaining !== 1 ? 's' : ''}
                       </strong>
                       .
                     </p>

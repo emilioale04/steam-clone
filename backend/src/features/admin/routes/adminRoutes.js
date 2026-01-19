@@ -14,6 +14,9 @@ router.get('/validate-session', adminMiddleware.verificarAdmin, adminController.
 
 // Audit Logs
 router.get('/audit-logs', adminMiddleware.verificarAdmin, adminController.getAuditLogs);
+router.get('/logs-admin', adminMiddleware.verificarAdmin, adminController.getLogsAdmin);
+router.get('/logs-desarrolladores', adminMiddleware.verificarAdmin, adminController.getLogsDesarrolladores);
+router.get('/logs-comunidad', adminMiddleware.verificarAdmin, adminController.getLogsComunidad);
 
 // Bloqueo de Países (RA-001)
 router.get('/bloqueos-paises', adminMiddleware.verificarAdmin, adminController.getBloqueoPaises);
@@ -23,6 +26,7 @@ router.delete('/bloqueos-paises/:id', adminMiddleware.verificarAdmin, adminContr
 
 // Revisión de Juegos (RA-002)
 router.get('/revisiones-juegos', adminMiddleware.verificarAdmin, adminController.getRevisionesJuegos);
+router.get('/revisiones-juegos/info/:idJuego', adminMiddleware.verificarAdmin, adminController.getInfoJuegoRevision);
 router.post('/revisiones-juegos/:id/aprobar', adminMiddleware.verificarAdmin, adminController.aprobarJuego);
 router.post('/revisiones-juegos/:id/rechazar', adminMiddleware.verificarAdmin, adminController.rechazarJuego);
 

@@ -197,5 +197,17 @@ export const groupService = {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
         return data;
+    },
+
+    // Expulsar miembro del grupo
+    async kickMember(groupId, memberId) {
+        const response = await fetch(`${API_URL}/groups/${groupId}/members/${memberId}/kick`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        return data;
     }
 };

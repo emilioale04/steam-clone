@@ -182,16 +182,17 @@ export const EditarPerfilPage = () => {
 
       {/* Main Content */}
       <main className='max-w-4xl mx-auto px-4 py-8'>
-        {/* Información sobre restricción de 5 días */}
+        {/* Información sobre restricción de 2 minutos (MODO PRUEBA) */}
         {perfil?.metadatos?.ultima_actualizacion_datos && (
           <div className='mb-6 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded'>
             <p className='text-yellow-400 text-sm'>
               ℹ️ Última modificación:{' '}
               {new Date(
                 perfil.metadatos.ultima_actualizacion_datos,
-              ).toLocaleDateString('es-ES')}
+              ).toLocaleString('es-ES')}
               <br />
-              Solo puedes modificar tu información cada 5 días por seguridad.
+              ⚠️ MODO PRUEBA: Solo puedes modificar tu información cada 2
+              minutos por seguridad.
             </p>
           </div>
         )}

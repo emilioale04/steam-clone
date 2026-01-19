@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
@@ -13,7 +14,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
     "@yusifaliyevpro/countries": "^2.2.2",
@@ -27,9 +27,16 @@
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "multer": "^2.0.2",
+    "nodemailer": "^7.0.12",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
     "uuid": "^13.0.0",
+    "winston": "^3.19.0",
     "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "jest": "^30.2.0",
+    "jest-html-reporters": "^3.1.7"
   }
 }

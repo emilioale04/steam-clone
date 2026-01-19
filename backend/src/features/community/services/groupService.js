@@ -1,12 +1,62 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { notificationService } from '../../../shared/services/notificationService.js';
+import { consentService } from './consentService.js';
+import { permissionService, PERMISOS } from './permissionService.js';
 import { 
     registrarCrearGrupo, 
     registrarEliminarGrupo, 
     registrarActualizarGrupo,
     registrarBanearUsuario,
-    registrarDesbanearUsuario
+    registrarDesbanearUsuario,
+    registrarAgregarMiembro,
+    registrarExpulsarMiembro,
+    registrarCambiarRangoMiembro,
+    registrarModificarReglas,
+    registrarConfigurarMetadatos
 } from '../utils/auditLogger.js';
+
+/**
+ * Helper: Verificar si un usuario está baneado del grupo
+ */
+async function checkUserBanStatus(userId, groupId) {
+    if (!userId) return { isBanned: false };
+
+    const { data: member } = await supabase
+        .from('miembros_grupo')
+        .select('estado_membresia, fecha_fin_baneo')
+        .eq('id_grupo', groupId)
+        .eq('id_perfil', userId)
+        .is('deleted_at', null)
+        .single();
+
+    if (!member) return { isBanned: false };
+
+    // Verificar si el baneo ha expirado
+    if (member.estado_membresia === 'baneado' && member.fecha_fin_baneo) {
+        const banEndDate = new Date(member.fecha_fin_baneo);
+        const now = new Date();
+        
+        if (now >= banEndDate) {
+            // Baneo expirado, actualizar
+            await supabase
+                .from('miembros_grupo')
+                .update({
+                    estado_membresia: 'activo',
+                    fecha_fin_baneo: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', userId);
+            
+            return { isBanned: false };
+        }
+    }
+
+    return { 
+        isBanned: member.estado_membresia === 'baneado',
+        member 
+    };
+}
 
 export const groupService = {
     /**
@@ -98,22 +148,15 @@ export const groupService = {
      * RG-001b - Editar grupo (solo Owner)
      */
     async updateGroup(userId, groupId, updateData, ipAddress = null) {
-        // Verificar que el usuario es Owner del grupo
-        const { data: member, error: memberError } = await supabase
-            .from('miembros_grupo')
-            .select('rol')
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', userId)
-            .eq('estado_membresia', 'activo')
-            .is('deleted_at', null)
-            .single();
+        // Verificar permiso de editar metadatos
+        const { tienePermiso, error: permisoError } = await permissionService.tienePermiso(
+            userId, 
+            groupId, 
+            PERMISOS.EDITAR_METADATOS
+        );
 
-        if (memberError || !member) {
-            throw new Error('No eres miembro de este grupo');
-        }
-
-        if (member.rol !== 'Owner') {
-            throw new Error('Solo el dueño puede editar el grupo');
+        if (permisoError || !tienePermiso) {
+            throw new Error(permisoError || 'No tienes permisos para editar este grupo');
         }
 
         // Validar visibilidad si se proporciona
@@ -143,7 +186,18 @@ export const groupService = {
 
         if (updateError) throw updateError;
 
-        // Registrar log de auditoría
+        // Registrar logs de auditoría específicos
+        if (updateData.reglas !== undefined) {
+            await registrarModificarReglas(userId, groupId, ipAddress);
+        }
+
+        // Configurar metadatos (nombre, descripción, avatar, visibilidad)
+        const metadataFields = ['nombre', 'descripcion', 'avatar_url', 'visibilidad'].filter(f => updateData[f] !== undefined);
+        if (metadataFields.length > 0) {
+            await registrarConfigurarMetadatos(userId, groupId, metadataFields, ipAddress);
+        }
+
+        // Registrar log general de actualización
         await registrarActualizarGrupo(
             userId,
             groupId,
@@ -215,7 +269,13 @@ export const groupService = {
     /**
      * RG-001c - Unirse a un grupo
      */
-    async joinGroup(userId, groupId) {
+    async joinGroup(userId, groupId, ipAddress = null) {
+        // Verificar consentimiento activo
+        const hasConsent = await consentService.hasActiveConsent(userId);
+        if (!hasConsent) {
+            throw new Error('CONSENT_REQUIRED');
+        }
+
         // Verificar que el usuario es estándar
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
@@ -297,6 +357,10 @@ export const groupService = {
 
                 if (joinError) throw joinError;
             }
+
+            // Registrar log de auditoría
+            await registrarAgregarMiembro(userId, groupId, userId, 'Member', ipAddress);
+
             return { success: true, status: 'joined' };
         } else if (grupo.visibilidad === 'Restricted' || grupo.visibilidad === 'Closed') {
             // Verificar si tiene invitación pendiente
@@ -342,6 +406,9 @@ export const groupService = {
                             fecha_union: new Date().toISOString()
                         });
                 }
+
+                // Registrar log de auditoría
+                await registrarAgregarMiembro(userId, groupId, userId, 'Member', ipAddress);
 
                 return { success: true, status: 'joined' };
             }
@@ -402,32 +469,50 @@ export const groupService = {
             throw new Error('No eres miembro de este grupo');
         }
 
-        // Si es Owner, transferir propiedad
-        if (member.rol === 'Owner') {
-            await this.transferOwnership(groupId, userId);
-        }
-
-        // Eliminar del grupo
-        await supabase
-            .from('miembros_grupo')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', userId);
-
-        // RG-006 - Verificar si el grupo quedó sin miembros
-        const { count } = await supabase
+        // Contar cuántos miembros activos hay antes de salir
+        const { count: memberCountBefore } = await supabase
             .from('miembros_grupo')
             .select('id', { count: 'exact' })
             .eq('id_grupo', groupId)
             .eq('estado_membresia', 'activo')
             .is('deleted_at', null);
 
-        if (count === 0) {
-            // Eliminar el grupo automáticamente
-            await supabase
+        // Si es Owner y hay otros miembros, transferir propiedad
+        if (member.rol === 'Owner' && memberCountBefore > 1) {
+            await this.transferOwnership(groupId, userId);
+        }
+
+        // Eliminar del grupo
+        const { error: deleteMemberError } = await supabase
+            .from('miembros_grupo')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', userId);
+
+        if (deleteMemberError) {
+            console.error('[GROUP] Error removing member:', deleteMemberError);
+            throw new Error('Error al abandonar el grupo');
+        }
+
+        // Si era el único miembro, eliminar el grupo automáticamente
+        if (memberCountBefore === 1) {
+            const timestamp = new Date().toISOString();
+            const { error: deleteGroupError } = await supabase
                 .from('grupos')
-                .update({ deleted_at: new Date().toISOString(), estado: 'eliminado' })
-                .eq('id', groupId);
+                .update({ 
+                    deleted_at: timestamp,
+                    estado: 'inactivo',
+                    updated_at: timestamp
+                })
+                .eq('id', groupId)
+                .is('deleted_at', null);
+
+            if (deleteGroupError) {
+                console.error('[GROUP] Error marking group as inactive:', deleteGroupError);
+                throw new Error('Error al desactivar el grupo');
+            }
+
+            console.log(`[GROUP] Group ${groupId} marked as inactive (no members left)`);
         }
 
         return { success: true };
@@ -437,21 +522,22 @@ export const groupService = {
      * RG-008 - Transferir propiedad del grupo
      */
     async transferOwnership(groupId, currentOwnerId) {
-        // Buscar el siguiente en la jerarquía
-        const { data: candidates, error: candidatesError } = await supabase
+        // Buscar primero Moderators (por antigüedad)
+        const { data: moderators, error: moderatorError } = await supabase
             .from('miembros_grupo')
             .select('id_perfil, rol, fecha_union')
             .eq('id_grupo', groupId)
+            .eq('rol', 'Moderator')
             .eq('estado_membresia', 'activo')
             .neq('id_perfil', currentOwnerId)
             .is('deleted_at', null)
-            .order('rol', { ascending: true }) // Moderator antes que Member
             .order('fecha_union', { ascending: true }); // Más antiguo primero
 
-        if (candidatesError) throw candidatesError;
+        if (moderatorError) throw moderatorError;
 
-        if (candidates && candidates.length > 0) {
-            const newOwner = candidates[0];
+        // Si hay moderadores, elegir el más antiguo
+        if (moderators && moderators.length > 0) {
+            const newOwner = moderators[0];
 
             // Degradar al Owner actual a Member
             await supabase
@@ -467,6 +553,42 @@ export const groupService = {
                 .eq('id_grupo', groupId)
                 .eq('id_perfil', newOwner.id_perfil);
 
+            console.log(`[GROUP] Ownership transferred from ${currentOwnerId} to Moderator ${newOwner.id_perfil}`);
+            return newOwner.id_perfil;
+        }
+
+        // Si no hay moderadores, buscar Members (por antigüedad)
+        const { data: members, error: memberError } = await supabase
+            .from('miembros_grupo')
+            .select('id_perfil, rol, fecha_union')
+            .eq('id_grupo', groupId)
+            .eq('rol', 'Member')
+            .eq('estado_membresia', 'activo')
+            .neq('id_perfil', currentOwnerId)
+            .is('deleted_at', null)
+            .order('fecha_union', { ascending: true }); // Más antiguo primero
+
+        if (memberError) throw memberError;
+
+        // Si hay miembros, elegir el más antiguo
+        if (members && members.length > 0) {
+            const newOwner = members[0];
+
+            // Degradar al Owner actual a Member
+            await supabase
+                .from('miembros_grupo')
+                .update({ rol: 'Member' })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', currentOwnerId);
+
+            // Promover al nuevo Owner
+            await supabase
+                .from('miembros_grupo')
+                .update({ rol: 'Owner' })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', newOwner.id_perfil);
+
+            console.log(`[GROUP] Ownership transferred from ${currentOwnerId} to Member ${newOwner.id_perfil}`);
             return newOwner.id_perfil;
         }
 
@@ -476,7 +598,7 @@ export const groupService = {
     /**
      * RG-006 - Cambiar rol de un miembro (solo Owner)
      */
-    async updateMemberRole(requesterId, groupId, targetUserId, newRole) {
+    async updateMemberRole(requesterId, groupId, targetUserId, newRole, ipAddress = null) {
         // Verificar que el requester es Owner
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -502,6 +624,18 @@ export const groupService = {
             throw new Error('No puedes cambiar tu propio rol como Owner');
         }
 
+        // Obtener rol actual antes de actualizar
+        const { data: targetMember } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', targetUserId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        const rolAnterior = targetMember?.rol || 'Member';
+
         // Actualizar rol
         const { error: updateError } = await supabase
             .from('miembros_grupo')
@@ -513,6 +647,9 @@ export const groupService = {
 
         if (updateError) throw updateError;
 
+        // Registrar log de auditoría
+        await registrarCambiarRangoMiembro(requesterId, groupId, targetUserId, rolAnterior, newRole, ipAddress);
+
         return { success: true };
     },
 
@@ -520,22 +657,15 @@ export const groupService = {
      * RG-006 - Banear/desbanear miembro (Owner y Moderator)
      */
     async banMember(requesterId, groupId, targetUserId, isBan = true, isPermanent = true, days = null, ipAddress = null) {
-        // Verificar permisos
-        const { data: requester, error: requesterError } = await supabase
-            .from('miembros_grupo')
-            .select('rol')
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', requesterId)
-            .eq('estado_membresia', 'activo')
-            .is('deleted_at', null)
-            .single();
+        // Verificar permiso de banear usuario
+        const { tienePermiso, error: permisoError } = await permissionService.tienePermiso(
+            requesterId,
+            groupId,
+            PERMISOS.BANEAR_USUARIO
+        );
 
-        if (requesterError || !requester) {
-            throw new Error('No eres miembro de este grupo');
-        }
-
-        if (requester.rol !== 'Owner' && requester.rol !== 'Moderator') {
-            throw new Error('No tienes permisos para banear miembros');
+        if (permisoError || !tienePermiso) {
+            throw new Error(permisoError || 'No tienes permisos para banear miembros');
         }
 
         // No se puede banear al Owner
@@ -611,9 +741,89 @@ export const groupService = {
     },
 
     /**
+     * Expulsar miembro del grupo (solo Owner y Moderator)
+     */
+    async kickMember(requesterId, groupId, targetUserId, ipAddress = null) {
+        // Verificar permiso de expulsar miembros
+        const { tienePermiso, rol, error: permisoError } = await permissionService.tienePermiso(
+            requesterId,
+            groupId,
+            PERMISOS.EXPULSAR_MIEMBROS
+        );
+
+        if (permisoError || !tienePermiso) {
+            throw new Error(permisoError || 'No tienes permisos para expulsar miembros');
+        }
+
+        // Obtener información del miembro objetivo
+        const { data: target, error: targetError } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', targetUserId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (targetError || !target) {
+            throw new Error('El usuario no es miembro activo de este grupo');
+        }
+
+        // No se puede expulsar al Owner
+        if (target.rol === 'Owner') {
+            throw new Error('No se puede expulsar al dueño del grupo');
+        }
+
+        // Moderadores solo pueden expulsar a Members (no a otros Moderadores ni al Owner)
+        if (requester.rol === 'Moderator' && target.rol === 'Moderator') {
+            throw new Error('Los moderadores no pueden expulsar a otros moderadores');
+        }
+
+        // No se puede expulsar a sí mismo
+        if (requesterId === targetUserId) {
+            throw new Error('No puedes expulsarte a ti mismo. Usa la opción "Salir del grupo"');
+        }
+
+        // Eliminar al miembro (soft delete)
+        const { error: deleteError } = await supabase
+            .from('miembros_grupo')
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', targetUserId);
+
+        if (deleteError) throw deleteError;
+
+        // Registrar log de auditoría
+        await registrarExpulsarMiembro(requesterId, groupId, targetUserId, target.rol, ipAddress);
+
+        return { success: true, message: 'Miembro expulsado exitosamente' };
+    },
+
+    /**
      * Obtener solicitudes de unión pendientes (Owner y Moderator)
      */
     async getPendingRequests(userId, groupId) {
+        // Primero verificar el tipo de grupo
+        const { data: grupo, error: groupError } = await supabase
+            .from('grupos')
+            .select('visibilidad')
+            .eq('id', groupId)
+            .eq('estado', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (groupError || !grupo) {
+            throw new Error('Grupo no encontrado');
+        }
+
+        // Los grupos abiertos no tienen solicitudes pendientes
+        if (grupo.visibilidad === 'Open') {
+            return [];
+        }
+
         // Verificar permisos (solo Owner y Moderator pueden ver solicitudes)
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -661,23 +871,16 @@ export const groupService = {
     /**
      * Aprobar/rechazar solicitud de unión (Owner y Moderator)
      */
-    async handleJoinRequest(requesterId, groupId, requestId, approve) {
-        // Verificar permisos
-        const { data: requester, error: requesterError } = await supabase
-            .from('miembros_grupo')
-            .select('rol')
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', requesterId)
-            .eq('estado_membresia', 'activo')
-            .is('deleted_at', null)
-            .single();
+    async handleJoinRequest(requesterId, groupId, requestId, approve, ipAddress = null) {
+        // Verificar permiso de administrar solicitudes
+        const { tienePermiso, error: permisoError } = await permissionService.tienePermiso(
+            requesterId,
+            groupId,
+            PERMISOS.ADMINISTRAR_SOLICITUDES
+        );
 
-        if (requesterError || !requester) {
-            throw new Error('No eres miembro de este grupo');
-        }
-
-        if (requester.rol !== 'Owner' && requester.rol !== 'Moderator') {
-            throw new Error('No tienes permisos para gestionar solicitudes');
+        if (permisoError || !tienePermiso) {
+            throw new Error(permisoError || 'No tienes permisos para gestionar solicitudes');
         }
 
         // Obtener la solicitud
@@ -751,6 +954,9 @@ export const groupService = {
                     throw new Error('Error al agregar el miembro al grupo');
                 }
             }
+
+            // Registrar log de auditoría
+            await registrarAgregarMiembro(requesterId, groupId, request.id_usuario_origen, 'Member', ipAddress);
         }
 
         return { success: true };
@@ -760,18 +966,15 @@ export const groupService = {
      * Invitar usuario al grupo (Miembros pueden invitar en grupos Open)
      */
     async inviteUser(requesterId, groupId, targetUserId) {
-        // Verificar que el requester es miembro
-        const { data: requester, error: requesterError } = await supabase
-            .from('miembros_grupo')
-            .select('rol')
-            .eq('id_grupo', groupId)
-            .eq('id_perfil', requesterId)
-            .eq('estado_membresia', 'activo')
-            .is('deleted_at', null)
-            .single();
+        // Verificar permiso de invitar miembros
+        const { tienePermiso, error: permisoError } = await permissionService.tienePermiso(
+            requesterId,
+            groupId,
+            PERMISOS.INVITAR_MIEMBROS
+        );
 
-        if (requesterError || !requester) {
-            throw new Error('No eres miembro de este grupo');
+        if (permisoError || !tienePermiso) {
+            throw new Error(permisoError || 'No tienes permisos para invitar miembros');
         }
 
         // Verificar visibilidad del grupo
@@ -862,7 +1065,7 @@ export const groupService = {
                 rol,
                 estado_membresia,
                 fecha_union,
-                grupos (
+                grupos!inner (
                     id,
                     nombre,
                     descripcion,
@@ -874,12 +1077,34 @@ export const groupService = {
             `)
             .eq('id_perfil', userId)
             .eq('estado_membresia', 'activo')
+            .eq('grupos.estado', 'activo')
             .is('deleted_at', null)
+            .is('grupos.deleted_at', null)
             .order('fecha_union', { ascending: false });
 
         if (error) throw error;
 
-        return memberships || [];
+        // Agregar conteo de miembros a cada grupo
+        const membershipsWithCounts = await Promise.all(
+            (memberships || []).map(async (membership) => {
+                const { count } = await supabase
+                    .from('miembros_grupo')
+                    .select('id', { count: 'exact' })
+                    .eq('id_grupo', membership.grupos.id)
+                    .eq('estado_membresia', 'activo')
+                    .is('deleted_at', null);
+
+                return {
+                    ...membership,
+                    grupos: {
+                        ...membership.grupos,
+                        member_count: count || 0
+                    }
+                };
+            })
+        );
+
+        return membershipsWithCounts;
     },
 
     /**
@@ -891,6 +1116,7 @@ export const groupService = {
             .from('grupos')
             .select('*')
             .eq('id', groupId)
+            .eq('estado', 'activo')
             .is('deleted_at', null)
             .single();
 
@@ -953,6 +1179,7 @@ export const groupService = {
             .from('grupos')
             .select('visibilidad')
             .eq('id', groupId)
+            .eq('estado', 'activo')
             .is('deleted_at', null)
             .single();
 
@@ -960,8 +1187,18 @@ export const groupService = {
             throw new Error('Grupo no encontrado');
         }
 
+        // Verificar si el usuario está baneado (incluso en grupos Open)
+        const { isBanned } = await checkUserBanStatus(userId, groupId);
+        if (isBanned) {
+            throw new Error('Has sido baneado de este grupo');
+        }
+
         // Si el grupo es Closed o Restricted, verificar membresía
-        if (grupo.visibilidad !== 'Open' && userId) {
+        if (grupo.visibilidad !== 'Open') {
+            if (!userId) {
+                throw new Error('Debes iniciar sesión para ver los miembros');
+            }
+            
             const { data: membership } = await supabase
                 .from('miembros_grupo')
                 .select('id')

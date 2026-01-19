@@ -20,6 +20,8 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "nodemailer": "^7.0.12",
+    "winston": "^3.19.0",
     "ws": "^8.19.0"
   }
 }

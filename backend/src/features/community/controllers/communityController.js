@@ -1,4 +1,5 @@
 import { announcementService } from '../services/announcementService.js';
+import { obtenerIPDesdeRequest } from '../utils/auditLogger.js';
 
 export const communityController = {
     // RG-007 - Crear anuncio
@@ -7,11 +8,13 @@ export const communityController = {
             const userId = req.user.id;
             const { groupId } = req.params;
             const announcementData = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
             const announcement = await announcementService.createAnnouncement(
                 userId, 
                 groupId, 
-                announcementData
+                announcementData,
+                ipAddress
             );
 
             res.status(201).json({
@@ -34,11 +37,13 @@ export const communityController = {
             const userId = req.user.id;
             const { announcementId } = req.params;
             const updateData = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
             const announcement = await announcementService.updateAnnouncement(
                 userId, 
                 announcementId, 
-                updateData
+                updateData,
+                ipAddress
             );
 
             res.json({

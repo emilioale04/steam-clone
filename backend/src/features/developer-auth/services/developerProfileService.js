@@ -109,24 +109,26 @@ export const developerProfileService = {
         throw new Error('Entrada inválida detectada');
       }
 
-      // === VALIDAR RESTRICCIÓN DE 5 DÍAS (Política ABAC - RF-003) ===
+      // === VALIDAR RESTRICCIÓN DE 2 MINUTOS (Política ABAC - RF-003 - MODO PRUEBA) ===
+      // NOTA: Si ultima_actualizacion_datos es NULL (primera vez), NO se aplica restricción
       const { data: desarrollador } = await supabaseAdmin
         .from('desarrolladores')
         .select('ultima_actualizacion_datos')
         .eq('id', desarrolladorId)
         .single();
 
+      // Solo validar si ya ha habido una modificación previa
       if (desarrollador?.ultima_actualizacion_datos) {
         const ultimaModificacion = new Date(
           desarrollador.ultima_actualizacion_datos,
         );
         const ahora = new Date();
-        const diferenciaDias = Math.floor(
-          (ahora - ultimaModificacion) / (1000 * 60 * 60 * 24),
+        const diferenciaMinutos = Math.floor(
+          (ahora - ultimaModificacion) / (1000 * 60),
         );
 
-        if (diferenciaDias < 5) {
-          const diasRestantes = 5 - diferenciaDias;
+        if (diferenciaMinutos < 2) {
+          const minutosRestantes = 2 - diferenciaMinutos;
 
           // Registrar intento bloqueado
           await auditService.registrarEvento({
@@ -134,7 +136,7 @@ export const developerProfileService = {
             accion: ACCIONES_AUDITORIA.MODIFICACION_PERFIL,
             resultado: RESULTADOS.FALLIDO,
             detalles: {
-              razon: `Restricción de 5 días no cumplida (faltan ${diasRestantes} días)`,
+              razon: `Restricción de 2 minutos no cumplida (faltan ${minutosRestantes} minuto(s))`,
               ultima_actualizacion_datos: ultimaModificacion.toISOString(),
             },
             ipAddress: requestMetadata.ip_address,
@@ -142,11 +144,12 @@ export const developerProfileService = {
           });
 
           throw new Error(
-            `No puedes modificar tu perfil hasta dentro de ${diasRestantes} día(s). ` +
-              `Última modificación: ${ultimaModificacion.toLocaleDateString('es-ES')}`,
+            `No puedes modificar tu perfil hasta dentro de ${minutosRestantes} minuto(s). ` +
+              `Última modificación: ${ultimaModificacion.toLocaleString('es-ES')}`,
           );
         }
       }
+      // Si ultima_actualizacion_datos es NULL, continúa sin restricción (primera vez)
 
       // === ACTUALIZAR INFORMACIÓN PERSONAL ===
       const { data: actualizado, error } = await supabaseAdmin
@@ -232,24 +235,26 @@ export const developerProfileService = {
         throw new Error('Entrada inválida detectada');
       }
 
-      // === VALIDAR RESTRICCIÓN DE 5 DÍAS (Política ABAC - RF-003) ===
+      // === VALIDAR RESTRICCIÓN DE 2 MINUTOS (Política ABAC - RF-003 - MODO PRUEBA) ===
+      // NOTA: Si ultima_actualizacion_datos es NULL (primera vez), NO se aplica restricción
       const { data: desarrollador } = await supabaseAdmin
         .from('desarrolladores')
         .select('ultima_actualizacion_datos')
         .eq('id', desarrolladorId)
         .single();
 
+      // Solo validar si ya ha habido una modificación previa
       if (desarrollador?.ultima_actualizacion_datos) {
         const ultimaModificacion = new Date(
           desarrollador.ultima_actualizacion_datos,
         );
         const ahora = new Date();
-        const diferenciaDias = Math.floor(
-          (ahora - ultimaModificacion) / (1000 * 60 * 60 * 24),
+        const diferenciaMinutos = Math.floor(
+          (ahora - ultimaModificacion) / (1000 * 60),
         );
 
-        if (diferenciaDias < 5) {
-          const diasRestantes = 5 - diferenciaDias;
+        if (diferenciaMinutos < 2) {
+          const minutosRestantes = 2 - diferenciaMinutos;
 
           // Registrar intento bloqueado
           await auditService.registrarEvento({
@@ -257,7 +262,7 @@ export const developerProfileService = {
             accion: ACCIONES_AUDITORIA.MODIFICACION_BANCARIA,
             resultado: RESULTADOS.FALLIDO,
             detalles: {
-              razon: `Restricción de 5 días no cumplida (faltan ${diasRestantes} días)`,
+              razon: `Restricción de 2 minutos no cumplida (faltan ${minutosRestantes} minuto(s))`,
               ultima_actualizacion_datos: ultimaModificacion.toISOString(),
             },
             ipAddress: requestMetadata.ip_address,
@@ -265,11 +270,12 @@ export const developerProfileService = {
           });
 
           throw new Error(
-            `No puedes modificar tu información bancaria hasta dentro de ${diasRestantes} día(s). ` +
-              `Última modificación: ${ultimaModificacion.toLocaleDateString('es-ES')}`,
+            `No puedes modificar tu información bancaria hasta dentro de ${minutosRestantes} minuto(s). ` +
+              `Última modificación: ${ultimaModificacion.toLocaleString('es-ES')}`,
           );
         }
       }
+      // Si ultima_actualizacion_datos es NULL, continúa sin restricción (primera vez)
 
       // === CIFRAR DATOS BANCARIOS (C2: AES-256) ===
       const datosBancariosCifrados = encryptBankData({
