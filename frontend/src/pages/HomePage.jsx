@@ -49,7 +49,7 @@ export const HomePage = () => {
     try {
       const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setGames(data.games);
       }
@@ -75,7 +75,7 @@ export const HomePage = () => {
 
     try {
       const result = await inventoryService.buyGame(user.id, gameId);
-      
+
       if (result.success) {
         alert(`¡Éxito! "${gameTitle}" ha sido agregado a tu biblioteca.`);
       } else {
@@ -128,40 +128,59 @@ export const HomePage = () => {
             <div className="hidden md:flex items-center gap-4">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar juegos..." 
+                <input
+                  type="text"
+                  placeholder="Buscar juegos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-[#316282] text-white pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-56"
                 />
               </form>
-              
+
               <button className="relative p-2 hover:bg-[#2a475e] rounded-lg transition-colors">
                 <ShoppingCart className="text-white" size={22} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
               </button>
 
-              <Link 
-                to="/profile" 
-                className="flex items-center gap-2 bg-[#2a475e] px-3 py-2 rounded-lg hover:bg-[#3a5a7e] transition-colors"
-                title="Ver perfil"
-              >
-                <User className="text-white" size={20} />
-                <span className="text-white text-sm max-w-[120px] truncate">{user?.email}</span>
-              </Link>
+              {user ? (
+                <>
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-2 bg-[#2a475e] px-3 py-2 rounded-lg hover:bg-[#3a5a7e] transition-colors"
+                    title="Ver perfil"
+                  >
+                    <User className="text-white" size={20} />
+                    <span className="text-white text-sm max-w-[120px] truncate">{user.email}</span>
+                  </Link>
 
-              <button 
-                onClick={handleLogout}
-                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors group"
-                title="Cerrar sesión"
-              >
-                <LogOut className="text-gray-300 group-hover:text-red-400" size={22} />
-              </button>
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 hover:bg-red-500/20 rounded-lg transition-colors group"
+                    title="Cerrar sesión"
+                  >
+                    <LogOut className="text-gray-300 group-hover:text-red-400" size={22} />
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/login"
+                    className="text-white bg-[#5c7e10] hover:bg-[#6b9212] px-4 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    Iniciar sesión
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="text-gray-300 hover:text-white text-sm font-medium px-2"
+                  >
+                    Registrarse
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
-            <button 
+            <button
               className="md:hidden p-2 text-white"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
@@ -174,9 +193,9 @@ export const HomePage = () => {
             <div className="md:hidden py-4 border-t border-[#2a475e]">
               <form onSubmit={handleSearch} className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar juegos..." 
+                <input
+                  type="text"
+                  placeholder="Buscar juegos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-[#316282] text-white pl-10 pr-4 py-2 rounded-lg outline-none w-full"
@@ -187,17 +206,36 @@ export const HomePage = () => {
                 <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors py-2">Comunidad</Link>
                 <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors py-2">Biblioteca</Link>
               </nav>
-              <div className="flex items-center justify-between pt-3 border-t border-[#2a475e]">
-                <Link to="/profile" className="flex items-center gap-2 hover:text-blue-400 transition-colors">
-                  <User className="text-white" size={20} />
-                  <span className="text-white text-sm">{user?.email}</span>
-                </Link>
-                <button 
-                  onClick={handleLogout}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  <LogOut size={22} />
-                </button>
+              <div className="flex flex-col gap-4 pt-3 border-t border-[#2a475e]">
+                {user ? (
+                  <div className="flex items-center justify-between">
+                    <Link to="/profile" className="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                      <User className="text-white" size={20} />
+                      <span className="text-white text-sm">{user.email}</span>
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <LogOut size={22} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Link
+                      to="/login"
+                      className="text-white bg-[#5c7e10] text-center py-2 rounded font-medium"
+                    >
+                      Iniciar sesión
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="text-gray-300 text-center py-2"
+                    >
+                      Registrarse
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -216,7 +254,7 @@ export const HomePage = () => {
               </div>
               <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 leading-tight">{featuredGame.title}</h1>
               <p className="text-gray-300 text-base sm:text-lg mb-8 leading-relaxed">{featuredGame.description}</p>
-              
+
               <div className="flex flex-wrap items-center gap-6 mb-8">
                 <div className="flex items-center gap-2 bg-[#1b2838]/80 px-4 py-2 rounded-lg">
                   <Star className="fill-yellow-400 text-yellow-400" size={20} />
@@ -246,7 +284,7 @@ export const HomePage = () => {
                 )}
               </div>
 
-              <button 
+              <button
                 onClick={() => handleBuyGame(featuredGame.id, featuredGame.title)}
                 className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2"
               >
@@ -264,11 +302,11 @@ export const HomePage = () => {
           <h2 className="text-white text-2xl sm:text-3xl font-bold">Todos los Juegos</h2>
           <span className="text-gray-400 text-sm">{games.length} juegos disponibles</span>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {games.map((game) => (
-            <div 
-              key={game.id} 
+            <div
+              key={game.id}
               className="group bg-[#16202d] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 shadow-lg hover:shadow-2xl"
             >
               <div className="relative h-48 bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center overflow-hidden">
@@ -281,10 +319,10 @@ export const HomePage = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="p-4">
                 <h3 className="text-white font-semibold text-lg mb-2 truncate group-hover:text-blue-400 transition-colors">{game.title}</h3>
-                
+
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-gray-400 text-sm bg-[#1b2838] px-2 py-1 rounded">{game.genre}</span>
                 </div>
@@ -307,8 +345,8 @@ export const HomePage = () => {
                       <span className="text-white font-bold text-lg">${game.price}</span>
                     )}
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleBuyGame(game.id, game.title);
