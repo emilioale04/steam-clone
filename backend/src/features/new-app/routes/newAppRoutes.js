@@ -60,7 +60,35 @@ router.put(
   newAppController.actualizarAplicacion
 );
 
+// PUT /api/new-app/:appId/etiquetas - Actualizar etiquetas de la aplicación
+router.put('/:appId/etiquetas', validarObtenerAplicacion, newAppController.actualizarEtiquetas);
+
+// PUT /api/new-app/:appId/precio - Actualizar precio de la aplicación
+router.put('/:appId/precio', validarObtenerAplicacion, newAppController.actualizarPrecio);
+
+// PUT /api/new-app/:appId/descripcion - Actualizar descripción larga de la aplicación
+router.put('/:appId/descripcion', validarObtenerAplicacion, newAppController.actualizarDescripcion);
+
 // POST /api/new-app/:appId/pagar - Procesar pago de registro
 router.post('/:appId/pagar', validarObtenerAplicacion, newAppController.procesarPago);
+
+// ==================== RESEÑAS ====================
+
+// GET /api/new-app/:appId/resenias - Obtener reseñas de la aplicación
+router.get('/:appId/resenias', validarObtenerAplicacion, newAppController.obtenerResenias);
+
+// POST /api/new-app/:appId/resenias/:resenaId/responder - Responder a una reseña
+router.post('/:appId/resenias/:resenaId/responder', validarObtenerAplicacion, newAppController.responderResenia);
+
+// ==================== ANUNCIOS ====================
+
+// GET /api/new-app/:appId/anuncios - Obtener anuncios de la aplicación
+router.get('/:appId/anuncios', validarObtenerAplicacion, newAppController.obtenerAnuncios);
+
+// POST /api/new-app/:appId/anuncios - Crear un nuevo anuncio
+router.post('/:appId/anuncios', validarObtenerAplicacion, newAppController.crearAnuncio);
+
+// DELETE /api/new-app/:appId/anuncios/:anuncioId - Eliminar un anuncio
+router.delete('/:appId/anuncios/:anuncioId', validarObtenerAplicacion, newAppController.eliminarAnuncio);
 
 export default router;

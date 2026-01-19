@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw, Wallet } from 'lucide-react';
+import { User, Users, Package, Settings, Shield, ChevronRight, Gamepad2, Calendar, Mail, Lock, TrendingUp, RefreshCw, Wallet } from 'lucide-react';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useInventory } from '../hooks/useInventory';
 import { WalletCard } from '../../wallet';
+import { PrivacySettings } from '../components/PrivacySettings';
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -17,7 +18,6 @@ export const ProfilePage = () => {
   // Calculate stats
   const tradeableCount = inventory?.filter(item => item.is_tradeable && !item.is_locked).length || 0;
   const marketableCount = inventory?.filter(item => item.is_marketable && !item.is_locked).length || 0;
-  const lockedCount = inventory?.filter(item => item.is_locked).length || 0;
 
   return (
     <div className="min-h-screen bg-[#1b2838]">
@@ -26,7 +26,7 @@ export const ProfilePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg">
+              <div className="bg-linear-to-br from-blue-500 to-purple-600 p-2 rounded-lg">
                 <Gamepad2 className="text-white" size={24} />
               </div>
               <span className="text-white text-xl font-bold">Steam Clone</span>
@@ -35,7 +35,7 @@ export const ProfilePage = () => {
               <Link to="/" className="text-gray-300 hover:text-white transition-colors">
                 Tienda
               </Link>
-              <Link to="/marketplace" className="text-gray-300 hover:text-white transition-colors">
+              <Link to="/community" className="text-gray-300 hover:text-white transition-colors">
                 Comunidad
               </Link>
               <Link to="/inventory" className="text-gray-300 hover:text-white transition-colors">
@@ -48,10 +48,10 @@ export const ProfilePage = () => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-[#2a475e] to-[#1b2838] rounded-xl p-6 mb-8">
+        <div className="bg-linear-to-r from-[#2a475e] to-[#1b2838] rounded-xl p-6 mb-8">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             {/* Avatar */}
-            <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-xl">
+            <div className="w-32 h-32 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-xl">
               <User className="text-white" size={64} />
             </div>
 
@@ -129,6 +129,17 @@ export const ProfilePage = () => {
           >
             Inventario
           </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'privacy'
+                ? 'bg-[#2a475e] text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Shield size={16} />
+            Privacidad
+          </button>
         </div>
 
         {/* Content */}
@@ -154,6 +165,20 @@ export const ProfilePage = () => {
                   <ChevronRight className="text-gray-400 group-hover:text-white transition-colors" size={20} />
                 </Link>
 
+                <Link
+                  to="/community"
+                  className="flex items-center justify-between p-4 bg-[#1b2838] rounded-lg hover:bg-[#2a475e] transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className="text-cyan-400" size={24} />
+                    <div>
+                      <div className="text-white font-medium">Grupos y Comunidad</div>
+                      <div className="text-gray-400 text-sm">Conecta con otros jugadores</div>
+                    </div>
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-white transition-colors" size={20} />
+                </Link>
+
                 <div className="flex items-center justify-between p-4 bg-[#1b2838] rounded-lg opacity-60 cursor-not-allowed">
                   <div className="flex items-center gap-3">
                     <Settings className="text-gray-400" size={24} />
@@ -165,16 +190,19 @@ export const ProfilePage = () => {
                   <ChevronRight className="text-gray-400" size={20} />
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-[#1b2838] rounded-lg opacity-60 cursor-not-allowed">
+                <button
+                  onClick={() => setActiveTab('privacy')}
+                  className="w-full flex items-center justify-between p-4 bg-[#1b2838] rounded-lg hover:bg-[#2a475e] transition-colors group"
+                >
                   <div className="flex items-center gap-3">
-                    <Shield className="text-gray-400" size={24} />
-                    <div>
+                    <Shield className="text-purple-400" size={24} />
+                    <div className="text-left">
                       <div className="text-white font-medium">Privacidad</div>
-                      <div className="text-gray-400 text-sm">Próximamente</div>
+                      <div className="text-gray-400 text-sm">Configura tu privacidad</div>
                     </div>
                   </div>
-                  <ChevronRight className="text-gray-400" size={20} />
-                </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-white transition-colors" size={20} />
+                </button>
               </div>
             </div>
 
@@ -193,11 +221,11 @@ export const ProfilePage = () => {
                 <div className="space-y-3">
                   {inventory.slice(0, 4).map((item) => (
                     <div key={item.id} className="flex items-center gap-3 p-3 bg-[#1b2838] rounded-lg">
-                      <div className="w-12 h-12 rounded bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded bg-linear-to-br from-gray-700 to-gray-800 flex items-center justify-center">
                         <Package size={20} className="text-gray-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium truncate">Item #{item.steam_item_id}</div>
+                        <div className="text-white font-medium truncate">{item.name || 'Item Desconocido'}</div>
                         <div className="flex gap-2 mt-1">
                           {item.is_tradeable && !item.is_locked && (
                             <span className="text-green-400 text-xs flex items-center gap-1">
@@ -261,7 +289,7 @@ export const ProfilePage = () => {
                     key={item.id}
                     className="bg-[#1b2838] rounded-lg overflow-hidden border border-gray-700 hover:border-blue-500 transition-colors relative"
                   >
-                    <div className="w-full h-24 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                    <div className="w-full h-24 bg-linear-to-br from-gray-700 to-gray-800 flex items-center justify-center">
                       <Package size={24} className="text-gray-500" />
                     </div>
                     {/* Status indicators */}
@@ -283,7 +311,7 @@ export const ProfilePage = () => {
                       )}
                     </div>
                     <div className="p-2">
-                      <h3 className="text-white text-xs font-medium truncate">Item #{item.steam_item_id}</h3>
+                      <h3 className="text-white text-xs font-medium truncate">{item.name || 'Item Desconocido'}</h3>
                     </div>
                   </div>
                 ))}
@@ -313,6 +341,10 @@ export const ProfilePage = () => {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'privacy' && (
+          <PrivacySettings />
         )}
       </div>
     </div>

@@ -25,6 +25,20 @@ export const walletService = {
     },
 
     /**
+     * Obtiene el estado de la cuenta (limitada o no)
+     * @returns {Promise<{isLimited: boolean, totalReloaded: number, unlockAmount: number, remaining: number}>}
+     */
+    async getAccountStatus() {
+        const response = await fetch(`${API_URL}/wallet/account-status`, {
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
+    },
+
+    /**
      * Recarga la billetera
      * @param {number} amount - Monto a recargar (1 - 500)
      * @returns {Promise<{newBalance: number, transactionId: string}>}
@@ -53,7 +67,9 @@ export const walletService = {
         
         return {
             newBalance: data.data.newBalance,
-            transactionId: data.data.transactionId
+            transactionId: data.data.transactionId,
+            accountUnlocked: data.data.accountUnlocked || false,
+            unlockMessage: data.data.unlockMessage || null
         };
     },
 

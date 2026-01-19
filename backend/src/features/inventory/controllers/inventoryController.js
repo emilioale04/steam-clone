@@ -1,6 +1,10 @@
 import { inventoryService } from '../services/inventoryService.js';
+import { privacyService } from '../services/privacyService.js';
 import { validatePrice, isValidUUID, MARKETPLACE_LIMITS } from '../config/priceConfig.js';
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('InventoryController');
 
 export const inventoryController = {
     /**
@@ -89,14 +93,14 @@ export const inventoryController = {
                 message: 'Item puesto a la venta correctamente',
                 listing: {
                     id: item.id,
-                    name: item.name || `Item`,
+                    name: item.name || 'Item',
                     price: item.listing_price,
                     seller: req.user.username || 'Tú', // req.user debe tener username si el middleware lo inyecta
                     listing_date: item.listing_date
                 }
             });
         } catch (error) {
-            console.error("Error en sellItem:", error); // Log para debug en servidor
+            logger.error('Error en sellItem:', { error });
             res.status(500).json({ success: false, message: error.message });
         }
     },
@@ -200,7 +204,7 @@ export const inventoryController = {
             // Obtener el precio del item ANTES de verificar límite
             const { data: listing, error: listingError } = await supabase
                 .from('marketplace_listings')
-                .select('price')
+                .select('price, seller_id')
                 .eq('id', listingId)
                 .eq('status', 'Active')
                 .single();
@@ -209,6 +213,16 @@ export const inventoryController = {
                 return res.status(404).json({
                     success: false,
                     message: 'Artículo no encontrado o ya no está disponible'
+                });
+            }
+
+            // Verificar privacidad del marketplace: ¿El vendedor acepta compras de este usuario?
+            const privacyCheck = await privacyService.canPurchaseFrom(buyerId, listing.seller_id);
+            if (!privacyCheck.allowed) {
+                return res.status(403).json({
+                    success: false,
+                    code: 'PRIVACY_RESTRICTED',
+                    message: privacyCheck.reason || 'No puedes comprar de este vendedor'
                 });
             }
 
@@ -245,7 +259,7 @@ export const inventoryController = {
                 }
             });
         } catch (error) {
-            console.error('Error en purchaseItem:', error);
+            logger.error('Error en purchaseItem:', { error });
             
             // Determinar código de estado apropiado
             let statusCode = 500;
@@ -325,7 +339,7 @@ export const inventoryController = {
                 }
             });
         } catch (error) {
-            console.error('Error en updateListingPrice:', error);
+            logger.error('Error en updateListingPrice:', { error });
             
             // Determinar código de estado apropiado
             let statusCode = 500;

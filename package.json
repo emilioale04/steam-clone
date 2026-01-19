@@ -18,5 +18,8 @@
   "type": "module",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
   }
 }
