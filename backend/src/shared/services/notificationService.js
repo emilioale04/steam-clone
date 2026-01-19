@@ -305,6 +305,68 @@ class NotificationService {
             console.error('[WS] Error notificando aprobación:', error);
         }
     }
+
+    /**
+     * Notificar a desarrollador sobre estado de revisión de juego
+     */
+    async notifyGameReviewStatus(developerId, gameId, gameName, status, comments) {
+        try {
+            // Validar parámetros
+            if (!developerId || !gameId || !status) {
+                console.error('[WS] Parámetros inválidos para notificación de revisión de juego');
+                return;
+            }
+
+            // Determinar el mensaje según el estado
+            const statusMessages = {
+                'aprobado': {
+                    title: '🎉 ¡Juego Aprobado!',
+                    message: `Tu juego "${gameName}" ha sido aprobado y está listo para publicarse.`
+                },
+                'rechazado': {
+                    title: '❌ Juego Rechazado',
+                    message: `Tu juego "${gameName}" ha sido rechazado. Por favor revisa los comentarios y realiza los cambios necesarios.`
+                }
+            };
+
+            const notification = {
+                type: 'game_review_status',
+                status: status,
+                game: {
+                    id: gameId,
+                    nombre: gameName
+                },
+                title: statusMessages[status]?.title || 'Actualización de Revisión',
+                message: statusMessages[status]?.message || 'Se ha actualizado el estado de tu juego',
+                comments: comments || null,
+                timestamp: new Date().toISOString()
+            };
+
+            // Enviar notificación en tiempo real
+            await this.sendNotification(developerId, notification);
+
+            // Guardar en la base de datos para persistencia
+            await supabase
+                .from('notificaciones')
+                .insert({
+                    id_usuario: developerId,
+                    tipo: 'game_review_status',
+                    titulo: notification.title,
+                    mensaje: notification.message,
+                    datos_adicionales: {
+                        game_id: gameId,
+                        game_name: gameName,
+                        status: status,
+                        comments: comments
+                    },
+                    leido: false
+                });
+
+            console.log(`[WS] Notificación de revisión enviada al desarrollador ${developerId} para juego ${gameId} (${status})`);
+        } catch (error) {
+            console.error('[WS] Error notificando estado de revisión:', error);
+        }
+    }
 }
 
 export const notificationService = new NotificationService();

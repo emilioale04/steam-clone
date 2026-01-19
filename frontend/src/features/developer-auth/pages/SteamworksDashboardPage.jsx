@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeveloperAuth } from '../hooks/useDeveloperAuth';
 import { NavbarSteamworks } from '../components/NavbarSteamworks';
+import { GameReviewNotifications } from '../components/GameReviewNotifications';
 import { GestionLlavesPage } from '../../game-keys/pages/GestionLlavesPage';
 import { PricesPage } from '../../prices/pages/PricesPage';
 import { MFASetupModal } from '../components/MFASetupModal';
@@ -201,6 +202,9 @@ export const SteamworksDashboardPage = () => {
                 tus ventas.
               </p>
             </div>
+
+            {/* Notificaciones de Revisión de Juegos */}
+            <GameReviewNotifications />
 
             {/* Quick Stats */}
             <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-6'>

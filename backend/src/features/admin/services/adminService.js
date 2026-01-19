@@ -1,4 +1,5 @@
 import supabase, { supabaseAdmin } from '../../../shared/config/supabase.js';
+import { notificationService } from '../../../shared/services/notificationService.js';
 
 const adminService = {
   /**
@@ -485,8 +486,23 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'aprobado', comentarios);
+      // Obtener información del juego y desarrollador para enviar notificación
+      const { data: gameData, error: gameError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .select('id, desarrollador_id, nombre_juego')
+        .eq('id', data.id_juego)
+        .single();
+
+      if (!gameError && gameData) {
+        // Enviar notificación al desarrollador vía WebSocket
+        await notificationService.notifyGameReviewStatus(
+          gameData.desarrollador_id,
+          gameData.id,
+          gameData.nombre_juego,
+          'aprobado',
+          comentarios
+        );
+      }
 
       // Registrar en audit log
       await adminService.registrarAuditLog(
@@ -524,8 +540,23 @@ const adminService = {
 
       if (error) throw error;
 
-      // TODO: Implementar notificación al desarrollador (RA-004)
-      // await notificarDesarrollador(data.id_juego, 'rechazado', comentarios);
+      // Obtener información del juego y desarrollador para enviar notificación
+      const { data: gameData, error: gameError } = await supabaseAdmin
+        .from('aplicaciones_desarrolladores')
+        .select('id, desarrollador_id, nombre_juego')
+        .eq('id', data.id_juego)
+        .single();
+
+      if (!gameError && gameData) {
+        // Enviar notificación al desarrollador vía WebSocket
+        await notificationService.notifyGameReviewStatus(
+          gameData.desarrollador_id,
+          gameData.id,
+          gameData.nombre_juego,
+          'rechazado',
+          comentarios
+        );
+      }
 
       // Registrar en audit log
       await adminService.registrarAuditLog(
