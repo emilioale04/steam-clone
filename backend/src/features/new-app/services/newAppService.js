@@ -138,8 +138,7 @@ export const newAppService = {
         descripcion_corta: datosApp.descripcion_corta || null,
         descripcion_larga: datosApp.descripcion_larga || null,
         categoria_id: datosApp.categoria_id || null,
-        estado_revision: 'borrador',
-        pago_registro_completado: false, // Se actualizará cuando se confirme el pago
+        pago_registro_completado: true, // Se actualizará cuando se confirme el pago
         monto_pago_registro: 100.00,
       };
 
@@ -219,7 +218,23 @@ export const newAppService = {
         throw new Error('Error al crear la aplicación en la base de datos');
       }
 
-      // 6. Registrar auditoría
+      // 6. Crear registro de revisión automáticamente (RF-005)
+      const { data: revision, error: revisionError } = await supabaseAdmin
+        .from('revisiones_juegos')
+        .insert({
+          id_juego: nuevaApp.id,
+          estado: 'pendiente'
+        })
+        .select('*')
+        .single();
+
+      if (revisionError) {
+        console.error('[NEW_APP] Error al crear registro de revisión:', revisionError);
+      } else {
+        console.log('Registro de revisión creado:', revision.id, '- Estado:', revision.estado); 
+      }
+
+      // 7. Registrar auditoría
       await supabaseAdmin.from('auditoria_eventos').insert({
         usuario_id: desarrolladorId,
         tipo_usuario: 'desarrollador',
@@ -234,7 +249,7 @@ export const newAppService = {
         }
       });
 
-      // 7. Retornar aplicación creada
+      // 8. Retornar aplicación creada
       return {
         id: nuevaApp.id,
         app_id: nuevaApp.app_id,
@@ -245,11 +260,15 @@ export const newAppService = {
         pago_registro_completado: nuevaApp.pago_registro_completado,
         monto_pago_registro: nuevaApp.monto_pago_registro,
         created_at: nuevaApp.created_at,
+        revision: {
+          estado: revision?.estado || 'pendiente',
+          id: revision?.id || null
+        },
         archivos_subidos: {
           ejecutable: buildPublicUrl,
           portada: portadaPublicUrl
         },
-        mensaje: 'Aplicación creada exitosamente. Se requiere pago de $100 USD para activar el AppID.'
+        mensaje: 'Aplicación creada exitosamente y enviada a revisión. Se requiere pago de $100 USD para activar el AppID.'
       };
 
     } catch (error) {
@@ -321,7 +340,7 @@ export const newAppService = {
    * 
    * Validaciones:
    * - La aplicación debe pertenecer al desarrollador (C18)
-   * - Solo se puede editar si está en estado "borrador"
+   * - Solo se puede editar si está en estado "pendiente"
    * 
    * @param {string} appId - ID de la aplicación
    * @param {string} desarrolladorId - UUID del desarrollador autenticado
@@ -334,8 +353,8 @@ export const newAppService = {
       // 1. Verificar propiedad y estado (C18)
       const aplicacion = await this.obtenerAplicacion(appId, desarrolladorId);
 
-      if (aplicacion.estado_revision !== 'borrador') {
-        throw new Error('Solo se pueden editar aplicaciones en estado "borrador"');
+      if (aplicacion.estado_revision !== 'pendiente') {
+        throw new Error('Solo se pueden editar aplicaciones en estado "pendiente"');
       }
 
       // 2. Preparar datos de actualización
