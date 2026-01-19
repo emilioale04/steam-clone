@@ -34,6 +34,9 @@ import { gameKeysRoutes } from './src/features/game-keys/index.js';
 import { newAppRoutes } from './src/features/new-app/index.js';
 import { appItemsRoutes } from './src/features/app-items/index.js';
 
+// Import my-apps routes (Mis Aplicaciones - Steamworks Dashboard)
+import { myAppsRoutes } from './src/features/my-apps/index.js';
+
 // Import security middleware (Grupo 2 - Seguridad)
 import {
   securityHeaders,
@@ -102,6 +105,9 @@ app.use('/api/game-keys', gameKeysRoutes);
 // New App routes (Creación de Aplicaciones - RF-004)
 app.use('/api/new-app', newAppRoutes);
 app.use('/api/app-items', apiLimiter, appItemsRoutes);
+
+// My Apps routes (Mis Aplicaciones - Steamworks Dashboard)
+app.use('/api/my-apps', apiLimiter, myAppsRoutes);
 
 // Admin routes
 app.use('/api/admin', apiLimiter, adminRoutes);

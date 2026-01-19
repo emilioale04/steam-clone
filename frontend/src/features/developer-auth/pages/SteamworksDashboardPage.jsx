@@ -12,6 +12,7 @@ import { MFASetupModal } from '../components/MFASetupModal';
 import { MFAVerificationModal } from '../components/MFAVerificationModal';
 import { developerProfileService } from '../services/developerProfileService';
 import { NuevaAppPage } from '../../new-app/pages';
+import { MisAplicacionesPage } from '../../my-apps';
 import { AppItemsPage } from '../../app-items/pages/AppItemsPage';
 
 export const SteamworksDashboardPage = () => {
@@ -288,14 +289,14 @@ export const SteamworksDashboardPage = () => {
 
       case 'mis-aplicaciones':
         return (
-          <div className='p-8'>
-            <h2 className='text-3xl font-bold text-white mb-6'>
-              Mis Aplicaciones
-            </h2>
-            <div className='bg-[#1e2a38] border border-[#2a3f5f] rounded-lg p-6 text-center'>
-              <p className='text-gray-400'>No tienes aplicaciones aún</p>
-            </div>
-          </div>
+          <MisAplicacionesPage 
+            onEditStore={(app) => {
+              // Navegar a configuración de tienda con la aplicación seleccionada
+              console.log('[DASHBOARD] Editar tienda de:', app.app_id);
+              setActiveTab('configuracion-tienda');
+              // TODO: Pasar el app seleccionado al tab de configuración de tienda
+            }}
+          />
         );
 
       case 'nueva-aplicacion':
