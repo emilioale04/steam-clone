@@ -161,6 +161,28 @@ export const groupController = {
         }
     },
 
+    // Expulsar miembro del grupo
+    async kickMember(req, res) {
+        try {
+            const userId = req.user.id;
+            const { groupId, memberId } = req.params;
+            const ipAddress = obtenerIPDesdeRequest(req);
+
+            const result = await groupService.kickMember(userId, groupId, memberId, ipAddress);
+
+            res.json({
+                success: true,
+                message: result.message || 'Miembro expulsado exitosamente'
+            });
+        } catch (error) {
+            console.error('[COMMUNITY] Error kicking member:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al expulsar el miembro'
+            });
+        }
+    },
+
     // Gestionar solicitudes de unión
     async handleJoinRequest(req, res) {
         try {

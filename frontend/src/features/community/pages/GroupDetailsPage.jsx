@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, ChevronDown, ChevronUp, UserPlus, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Users, MessageSquare, Settings, Megaphone, Shield, Plus, Gamepad2, Pin, PinOff, ChevronDown, ChevronUp, UserPlus, CheckCircle, XCircle, MoreVertical } from 'lucide-react';
 import { useGroupDetails, useGroups } from '../hooks/useGroups';
 import { useAnnouncements } from '../hooks/useCommunity';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -31,6 +31,7 @@ export default function GroupDetailsPage() {
     const [isModeratorsExpanded, setIsModeratorsExpanded] = useState(true);
     const [isMembersExpanded, setIsMembersExpanded] = useState(true);
     const [isAspirantesExpanded, setIsAspirantesExpanded] = useState(true);
+    const [openMemberMenu, setOpenMemberMenu] = useState(null);
     const { 
         group, 
         members, 
@@ -60,6 +61,18 @@ export default function GroupDetailsPage() {
         };
         loadData();
     }, [fetchGroupDetails, fetchMembers, fetchPendingRequests, fetchAnnouncements]);
+
+    // Cerrar menú de miembro al hacer clic fuera
+    useEffect(() => {
+        const handleClickOutside = () => {
+            if (openMemberMenu) {
+                setOpenMemberMenu(null);
+            }
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [openMemberMenu]);
 
     const loadForums = async () => {
         try {
@@ -197,6 +210,22 @@ export default function GroupDetailsPage() {
         } catch (err) {
             console.error('Error changing role:', err);
             alert(err.message || 'Error al cambiar el rol');
+        }
+    };
+
+    const handleKickMember = async (memberId, memberUsername) => {
+        if (!confirm(`¿Estás seguro de que deseas expulsar a ${memberUsername} del grupo?`)) {
+            return;
+        }
+
+        try {
+            const { groupService } = await import('../services/groupService');
+            await groupService.kickMember(groupId, memberId);
+            alert(`${memberUsername} ha sido expulsado del grupo`);
+            setOpenMemberMenu(null);
+            await fetchMembers();
+        } catch (err) {
+            alert(err.message || 'Error al expulsar el miembro');
         }
     };
 
@@ -661,7 +690,7 @@ export default function GroupDetailsPage() {
                                     {isModeratorsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </button>
                                 {isModeratorsExpanded && (
-                                <div className="bg-[#2a475e] rounded-lg overflow-hidden">
+                                <div className="bg-[#2a475e] rounded-lg overflow-visible">
                                     <div className="divide-y divide-[#1b2838]">
                                         {members.filter(m => m.rol === 'Moderator' && (!searchMember || m.profiles?.username?.toLowerCase().includes(searchMember.toLowerCase()))).map((member) => (
                                             <div key={member.id} className="p-4 flex items-center justify-between hover:bg-[#3a576e] transition-colors">
@@ -682,14 +711,37 @@ export default function GroupDetailsPage() {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {isOwner ? (
-                                                        <select
-                                                            value={member.rol}
-                                                            onChange={(e) => handleRoleChange(member.profiles?.id, e.target.value)}
-                                                            className="px-3 py-1 text-sm font-semibold rounded bg-[#1b2838] text-white border border-gray-600 hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors"
-                                                        >
-                                                            <option value="Moderator">Moderador</option>
-                                                            <option value="Member">Miembro</option>
-                                                        </select>
+                                                        <>
+                                                            <select
+                                                                value={member.rol}
+                                                                onChange={(e) => handleRoleChange(member.profiles?.id, e.target.value)}
+                                                                className="px-3 py-1 text-sm font-semibold rounded bg-[#1b2838] text-white border border-gray-600 hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors"
+                                                            >
+                                                                <option value="Moderator">Moderador</option>
+                                                                <option value="Member">Miembro</option>
+                                                            </select>
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setOpenMemberMenu(openMemberMenu === member.id ? null : member.id);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-white hover:bg-[#1b2838] rounded transition-colors"
+                                                                >
+                                                                    <MoreVertical size={18} />
+                                                                </button>
+                                                                {openMemberMenu === member.id && (
+                                                                    <div className="absolute right-0 mt-2 w-48 bg-[#1b2838] rounded-lg shadow-xl border border-[#2a475e] z-[100]">
+                                                                        <button
+                                                                            onClick={() => handleKickMember(member.profiles?.id, member.profiles?.username)}
+                                                                            className="w-full px-4 py-2 text-left text-red-400 hover:bg-[#2a475e] transition-colors rounded-lg"
+                                                                        >
+                                                                            Expulsar moderador
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </>
                                                     ) : (
                                                         getRoleBadge(member.rol)
                                                     )}
@@ -716,7 +768,7 @@ export default function GroupDetailsPage() {
                                     {isMembersExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </button>
                                 {isMembersExpanded && (
-                                <div className="bg-[#2a475e] rounded-lg overflow-hidden">
+                                <div className="bg-[#2a475e] rounded-lg overflow-visible">
                                     <div className="divide-y divide-[#1b2838]">
                                         {members.filter(m => m.rol === 'Member' && (!searchMember || m.profiles?.username?.toLowerCase().includes(searchMember.toLowerCase()))).map((member) => (
                                             <div key={member.id} className="p-4 flex items-center justify-between hover:bg-[#3a576e] transition-colors">
@@ -736,15 +788,41 @@ export default function GroupDetailsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                    {isOwner ? (
-                                                        <select
-                                                            value={member.rol}
-                                                            onChange={(e) => handleRoleChange(member.profiles?.id, e.target.value)}
-                                                            className="px-3 py-1 text-sm font-semibold rounded bg-[#1b2838] text-white border border-gray-600 hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors"
-                                                        >
-                                                            <option value="Member">Miembro</option>
-                                                            <option value="Moderator">Moderador</option>
-                                                        </select>
+                                                    {isOwner || isModerator ? (
+                                                        <>
+                                                            {isOwner && (
+                                                                <select
+                                                                    value={member.rol}
+                                                                    onChange={(e) => handleRoleChange(member.profiles?.id, e.target.value)}
+                                                                    className="px-3 py-1 text-sm font-semibold rounded bg-[#1b2838] text-white border border-gray-600 hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors"
+                                                                >
+                                                                    <option value="Member">Miembro</option>
+                                                                    <option value="Moderator">Moderador</option>
+                                                                </select>
+                                                            )}
+                                                            {!isOwner && isModerator && getRoleBadge(member.rol)}
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setOpenMemberMenu(openMemberMenu === member.id ? null : member.id);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-white hover:bg-[#1b2838] rounded transition-colors"
+                                                                >
+                                                                    <MoreVertical size={18} />
+                                                                </button>
+                                                                {openMemberMenu === member.id && (
+                                                                    <div className="absolute right-0 mt-2 w-48 bg-[#1b2838] rounded-lg shadow-xl border border-[#2a475e] z-[100]">
+                                                                        <button
+                                                                            onClick={() => handleKickMember(member.profiles?.id, member.profiles?.username)}
+                                                                            className="w-full px-4 py-2 text-left text-red-400 hover:bg-[#2a475e] transition-colors rounded-lg"
+                                                                        >
+                                                                            Expulsar miembro
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </>
                                                     ) : (
                                                         getRoleBadge(member.rol)
                                                     )}

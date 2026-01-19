@@ -666,6 +666,72 @@ export const groupService = {
     },
 
     /**
+     * Expulsar miembro del grupo (solo Owner y Moderator)
+     */
+    async kickMember(requesterId, groupId, targetUserId, ipAddress = null) {
+        // Verificar permisos del solicitante
+        const { data: requester, error: requesterError } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', requesterId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (requesterError || !requester) {
+            throw new Error('No eres miembro de este grupo');
+        }
+
+        if (requester.rol !== 'Owner' && requester.rol !== 'Moderator') {
+            throw new Error('No tienes permisos para expulsar miembros');
+        }
+
+        // Obtener información del miembro objetivo
+        const { data: target, error: targetError } = await supabase
+            .from('miembros_grupo')
+            .select('rol')
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', targetUserId)
+            .eq('estado_membresia', 'activo')
+            .is('deleted_at', null)
+            .single();
+
+        if (targetError || !target) {
+            throw new Error('El usuario no es miembro activo de este grupo');
+        }
+
+        // No se puede expulsar al Owner
+        if (target.rol === 'Owner') {
+            throw new Error('No se puede expulsar al dueño del grupo');
+        }
+
+        // Moderadores solo pueden expulsar a Members (no a otros Moderadores ni al Owner)
+        if (requester.rol === 'Moderator' && target.rol === 'Moderator') {
+            throw new Error('Los moderadores no pueden expulsar a otros moderadores');
+        }
+
+        // No se puede expulsar a sí mismo
+        if (requesterId === targetUserId) {
+            throw new Error('No puedes expulsarte a ti mismo. Usa la opción "Salir del grupo"');
+        }
+
+        // Eliminar al miembro (soft delete)
+        const { error: deleteError } = await supabase
+            .from('miembros_grupo')
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id_grupo', groupId)
+            .eq('id_perfil', targetUserId);
+
+        if (deleteError) throw deleteError;
+
+        return { success: true, message: 'Miembro expulsado exitosamente' };
+    },
+
+    /**
      * Obtener solicitudes de unión pendientes (Owner y Moderator)
      */
     async getPendingRequests(userId, groupId) {

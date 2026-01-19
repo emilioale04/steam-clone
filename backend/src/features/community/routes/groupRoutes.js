@@ -43,6 +43,9 @@ router.put('/:groupId/members/:memberId/role', groupController.updateMemberRole)
 // Banear/desbanear miembro
 router.post('/:groupId/members/:memberId/ban', groupController.banMember);
 
+// Expulsar miembro
+router.delete('/:groupId/members/:memberId/kick', groupController.kickMember);
+
 // Invitar usuario
 router.post('/:groupId/invite', groupController.inviteUser);
 
