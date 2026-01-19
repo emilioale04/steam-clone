@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { MessageSquare, ThumbsUp, ThumbsDown, Send, Pencil, Trash2, X, Check } from 'lucide-react';
 import { ReviewModerator } from './ReviewModerator';
-import { useAuth, ROLES } from '../../auth'; // Import ROLES
+import { useAuth, ROLES } from '../../auth';
+import { reviewValidator } from '../../../shared/utils/validators';
 
 export const ReviewSection = ({ gameId }) => {
-    const { user, hasRole } = useAuth(); // Destructure hasRole
+    const { user, hasRole } = useAuth();
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
     const [newReview, setNewReview] = useState('');
     const [isRecommended, setIsRecommended] = useState(true);
+    const [error, setError] = useState('');
 
     // Initial demo data
     const DEMO_REVIEWS = [
@@ -33,14 +35,26 @@ export const ReviewSection = ({ gameId }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!newReview.trim()) return;
+        setError('');
+
+        if (!newReview.trim()) {
+            setError('La reseña no puede estar vacía');
+            return;
+        }
+
+        if (!reviewValidator.test(newReview)) {
+            setError(reviewValidator.message);
+            return;
+        }
+
+        const sanitizedContent = reviewValidator.clean(newReview);
 
         const review = {
             id: Date.now(),
             gameId: String(gameId),
             userId: user?.id || 'temp-id',
             user: user?.username || 'Anónimo',
-            content: newReview,
+            content: sanitizedContent,
             recommended: isRecommended,
             date: new Date().toISOString().split('T')[0],
         };
@@ -84,8 +98,17 @@ export const ReviewSection = ({ gameId }) => {
     };
 
     const saveEdit = (id) => {
+        if (!editContent.trim()) return;
+
+        if (!reviewValidator.test(editContent)) {
+            alert(reviewValidator.message);
+            return;
+        }
+
+        const sanitizedContent = reviewValidator.clean(editContent);
+
         setReviews(reviews.map(r =>
-            r.id === id ? { ...r, content: editContent } : r
+            r.id === id ? { ...r, content: sanitizedContent } : r
         ));
         setEditingId(null);
         setEditContent('');
@@ -106,10 +129,14 @@ export const ReviewSection = ({ gameId }) => {
                     <h4 className="text-lg font-medium text-[#66c0f4] mb-2">Escribe una Reseña</h4>
                     <textarea
                         value={newReview}
-                        onChange={(e) => setNewReview(e.target.value)}
-                        className="w-full bg-[#2a3f5a] text-white p-3 rounded border border-none focus:ring-1 focus:ring-[#66c0f4] outline-none min-h-[100px]"
+                        onChange={(e) => {
+                            setNewReview(e.target.value);
+                            if (error) setError('');
+                        }}
+                        className={`w-full bg-[#2a3f5a] text-white p-3 rounded border ${error ? 'border-red-500 ring-1 ring-red-500' : 'border-none'} focus:ring-1 focus:ring-[#66c0f4] outline-none min-h-[100px]`}
                         placeholder="¿Qué te pareció este juego?"
                     />
+                    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
                     <div className="flex items-center justify-between mt-3">
                         <div className="flex gap-4">
                             <button

@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, Tag, FileText, AlertCircle, Megaphone, MessageSquare, Star, Send, Trash2, Clock, Lock } from 'lucide-react';
 import { storeConfigService } from '../services/storeConfigService';
 import { developerAuthService } from '../../developer-auth/services/developerAuthService';
-import { reviewValidator } from '../../../shared/utils/validators';
+import { reviewValidator, descriptionValidator, announcementValidator } from '../../../shared/utils/validators';
 
 export const ConfiguracionTiendaPage = () => {
   // Estado para la aplicación seleccionada
@@ -154,14 +154,21 @@ export const ConfiguracionTiendaPage = () => {
       return;
     }
 
+    if (!descriptionValidator.test(descripcionLarga)) {
+      mostrarMensaje(descriptionValidator.message, 'error');
+      return;
+    }
+
+    const sanitizedDescription = descriptionValidator.clean(descripcionLarga);
+
     try {
       setLoadingDescripcion(true);
-      await storeConfigService.actualizarDescripcion(appSeleccionada, descripcionLarga);
+      await storeConfigService.actualizarDescripcion(appSeleccionada, sanitizedDescription);
       mostrarMensaje('Descripción actualizada correctamente', 'success');
       // Actualizar datos locales
       setAplicaciones(apps => apps.map(app =>
         app.id === appSeleccionada
-          ? { ...app, descripcion_larga: descripcionLarga }
+          ? { ...app, descripcion_larga: sanitizedDescription }
           : app
       ));
     } catch (error) {
@@ -240,9 +247,17 @@ export const ConfiguracionTiendaPage = () => {
       return;
     }
 
+    if (!announcementValidator.test(nuevoAnuncio.contenido)) {
+      mostrarMensaje(announcementValidator.message, 'error');
+      return;
+    }
+
+    const sanitizedContent = announcementValidator.clean(nuevoAnuncio.contenido);
+    const sanitizedAnuncio = { ...nuevoAnuncio, contenido: sanitizedContent };
+
     try {
       setLoadingCrearAnuncio(true);
-      await storeConfigService.crearAnuncio(appSeleccionada, nuevoAnuncio);
+      await storeConfigService.crearAnuncio(appSeleccionada, sanitizedAnuncio);
       mostrarMensaje('Anuncio publicado correctamente', 'success');
       setNuevoAnuncio({ titulo: '', contenido: '', tipo: 'noticia' });
       // Recargar anuncios
@@ -268,19 +283,19 @@ export const ConfiguracionTiendaPage = () => {
 
   const handleEnviarRespuesta = async (resenaId) => {
     const respuesta = respuestas[resenaId];
-    
+
     // Validar usando el validador de reseñas
     const validation = reviewValidator.test(respuesta);
-    
+
     if (!respuesta?.trim()) {
       setRespuestaErrors(prev => ({ ...prev, [resenaId]: 'Escribe una respuesta antes de enviar' }));
       return;
     }
 
     if (!validation) {
-      setRespuestaErrors(prev => ({ 
-        ...prev, 
-        [resenaId]: reviewValidator.message 
+      setRespuestaErrors(prev => ({
+        ...prev,
+        [resenaId]: reviewValidator.message
       }));
       return;
     }
@@ -767,11 +782,10 @@ export const ConfiguracionTiendaPage = () => {
                       </div>
                     </div>
                     <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        resena.recomendado
+                      className={`px-2 py-1 rounded text-xs font-medium ${resena.recomendado
                           ? 'bg-green-900/30 text-green-400 border border-green-500/30'
                           : 'bg-red-900/30 text-red-400 border border-red-500/30'
-                      }`}
+                        }`}
                     >
                       {resena.recomendado ? 'Recomendado' : 'No recomendado'}
                     </span>

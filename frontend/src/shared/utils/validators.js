@@ -74,6 +74,36 @@ export const reviewValidator = {
 };
 
 /**
+ * Validador de Descripción de Tienda
+ */
+export const descriptionValidator = {
+  minLength: 10,
+  maxLength: 2000,
+  dangerousPattern: reviewValidator.dangerousPattern,
+  test(text) {
+    if (!text || text.length < this.minLength || text.length > this.maxLength) return false;
+    return !this.dangerousPattern.test(text);
+  },
+  message: 'Descripción: 10-2000 caracteres sin scripts',
+  clean: reviewValidator.clean
+};
+
+/**
+ * Validador de Anuncios
+ */
+export const announcementValidator = {
+  minLength: 5,
+  maxLength: 1000,
+  dangerousPattern: reviewValidator.dangerousPattern,
+  test(text) {
+    if (!text || text.length < this.minLength || text.length > this.maxLength) return false;
+    return !this.dangerousPattern.test(text);
+  },
+  message: 'Anuncio: 5-1000 caracteres sin scripts',
+  clean: reviewValidator.clean
+};
+
+/**
  * Validador de búsqueda
  */
 export const searchValidator = {
@@ -98,6 +128,8 @@ export function validateField(fieldName, value) {
     username: usernameValidator,
     password: passwordValidator,
     review: reviewValidator,
+    description: descriptionValidator,
+    announcement: announcementValidator,
     search: searchValidator
   };
 
@@ -130,7 +162,7 @@ export function useFormValidation(initialState = {}) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setValues(prev => ({ ...prev, [name]: value }));
-    
+
     if (touched[name]) {
       const result = validate(name, value);
       setErrors(prev => ({
@@ -143,7 +175,7 @@ export function useFormValidation(initialState = {}) {
   const handleBlur = (e) => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
-    
+
     const result = validate(name, value);
     setErrors(prev => ({
       ...prev,

@@ -8,6 +8,7 @@ import { mockGameService } from '../features/inventory/services/mockGameService'
 import { PlayButton } from '../features/family';
 import { ReviewSection } from '../features/reviews';
 import { DevTestZone } from '../features/dev/components/DevTestZone';
+import NotificationBell from '../shared/components/NotificationBell';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -143,10 +144,10 @@ export const HomePage = () => {
                   className="bg-[#316282] text-white pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-56"
                 />
               </form>
-              
+
               {/* Notification Bell */}
               <NotificationBell />
-              
+
               <button className="relative p-2 hover:bg-[#2a475e] rounded-lg transition-colors">
                 <ShoppingCart className="text-white" size={22} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
