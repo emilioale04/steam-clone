@@ -1,6 +1,9 @@
 import supabase from '../../../shared/config/supabase.js';
 import { TRADE_LIMITS, isValidUUID } from '../config/priceConfig.js';
 import { privacyService } from './privacyService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('TradeService');
 
 export const tradeService = {
 	/**
@@ -115,7 +118,7 @@ export const tradeService = {
 				message: 'Oferta de intercambio creada exitosamente',
 			};
 		} catch (error) {
-			console.error('Error en postTrade:', error);
+			logger.error('Error en postTrade:', { error });
 			throw error;
 		}
 	},
@@ -134,7 +137,7 @@ export const tradeService = {
 
 			return 'Intercambio exitoso';
 		} catch (error) {
-			console.error('Error accepting trade:', error);
+			logger.error('Error accepting trade:', { error });
 			throw error;
 		}
 	},
@@ -145,7 +148,7 @@ export const tradeService = {
 		});
 
 		if (error) {
-			console.error('Error de Supabase:', error.message);
+			logger.error('Error de Supabase:', { message: error.message });
 			throw error;
 		}
 
@@ -181,7 +184,7 @@ export const tradeService = {
 
 			return 'Intercambio cancelado, se liberaron todos los objetos';
 		} catch (error) {
-			console.error('Error al cancelar el trade:', error);
+			logger.error('Error al cancelar el trade:', { error });
 			throw error;
 		}
 	},
@@ -264,13 +267,13 @@ export const tradeOfferService = {
 			});
 
 			if (error) {
-				console.error('Error detallado:', error);
+				logger.error('Error detallado:', { error });
 				throw error;
 			}
 
 			return 'Oferta enviada';
 		} catch (error) {
-			console.error('Error en postTradeOffer:', error);
+			logger.error('Error en postTradeOffer:', { error });
 			throw error;
 		}
 	},
@@ -287,7 +290,7 @@ export const tradeOfferService = {
 			if (error) throw error;
 			return data;
 		} catch (error) {
-			console.error('Error getting trade offer by item ID:', error);
+			logger.error('Error getting trade offer by item ID:', { error });
 			throw error;
 		}
 	},
@@ -302,7 +305,7 @@ export const tradeOfferService = {
 
 			return 'Oferta rechazada';
 		} catch (error) {
-			console.error('Error rejecting trade offer:', error.message);
+			logger.error('Error rejecting trade offer:', { message: error.message });
 			throw error;
 		}
 	},
@@ -319,7 +322,7 @@ export const tradeOfferService = {
 
 			return 'Oferta cancelada, el objeto ha sido liberado';
 		} catch (error) {
-			console.error('Error en el proceso de cancelación:', error.message);
+			logger.error('Error en el proceso de cancelación:', { message: error.message });
 			throw error;
 		}
 	},
@@ -379,7 +382,7 @@ export const tradeOfferService = {
 				} : null
 			}));
 		} catch (error) {
-			console.error('Error getting user offers:', error);
+			logger.error('Error getting user offers:', { error });
 			throw error;
 		}
 	},

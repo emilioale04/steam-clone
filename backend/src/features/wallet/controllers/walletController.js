@@ -1,5 +1,8 @@
 import { walletService } from '../services/walletService.js';
 import { limitedAccountService } from '../../../shared/services/limitedAccountService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('WalletController');
 
 export const walletController = {
     /**
@@ -18,7 +21,7 @@ export const walletController = {
                 }
             });
         } catch (error) {
-            console.error('Error al obtener balance:', error);
+            logger.error('Error al obtener balance:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Error al obtener el balance'
@@ -40,7 +43,7 @@ export const walletController = {
                 data: accountStatus
             });
         } catch (error) {
-            console.error('Error al obtener estado de cuenta:', error);
+            logger.error('Error al obtener estado de cuenta:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Error al obtener el estado de la cuenta'
@@ -90,7 +93,7 @@ export const walletController = {
                 }
             });
         } catch (error) {
-            console.error('Error en recarga de billetera:', error);
+            logger.error('Error en recarga de billetera:', { error });
             
             // Determinar código de estado según el error
             let statusCode = 500;
@@ -176,7 +179,7 @@ export const walletController = {
                 }
             });
         } catch (error) {
-            console.error('Error en pago:', error);
+            logger.error('Error en pago:', { error });
             
             let statusCode = 500;
             if (error.message.includes('Fondos insuficientes')) {
@@ -224,7 +227,7 @@ export const walletController = {
                 }
             });
         } catch (error) {
-            console.error('Error al obtener historial:', error);
+            logger.error('Error al obtener historial:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Error al obtener el historial de transacciones'

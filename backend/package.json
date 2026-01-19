@@ -28,7 +28,8 @@
     "helmet": "^8.1.0",
     "multer": "^2.0.2",
     "qrcode": "^1.5.4",
-    "speakeasy": "^2.0.0"
+    "speakeasy": "^2.0.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.2.0",

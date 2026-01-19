@@ -1,4 +1,7 @@
 import { privacyService } from '../services/privacyService.js';
+import { createLogger } from '../../../shared/utils/logger.js';
+
+const logger = createLogger('PrivacyController');
 
 export const privacyController = {
     /**
@@ -23,7 +26,7 @@ export const privacyController = {
                 data: settings
             });
         } catch (error) {
-            console.error('Error en getPrivacySettings:', error);
+            logger.error('Error en getPrivacySettings:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Error al obtener configuración de privacidad'
@@ -69,7 +72,7 @@ export const privacyController = {
                 data: settings
             });
         } catch (error) {
-            console.error('Error en updatePrivacySettings:', error);
+            logger.error('Error en updatePrivacySettings:', { error });
             
             // Si es error de validación, devolver 400
             if (error.message.includes('inválido') || error.message.includes('Valores permitidos')) {
@@ -102,7 +105,7 @@ export const privacyController = {
                 data: result
             });
         } catch (error) {
-            console.error('Error en checkInventoryAccess:', error);
+            logger.error('Error en checkInventoryAccess:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -133,7 +136,7 @@ export const privacyController = {
                 data: result
             });
         } catch (error) {
-            console.error('Error en checkTradeAccess:', error);
+            logger.error('Error en checkTradeAccess:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -164,7 +167,7 @@ export const privacyController = {
                 data: result
             });
         } catch (error) {
-            console.error('Error en checkMarketplaceAccess:', error);
+            logger.error('Error en checkMarketplaceAccess:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message
@@ -201,7 +204,7 @@ export const privacyController = {
                 }
             });
         } catch (error) {
-            console.error('Error en getProfilePrivacyInfo:', error);
+            logger.error('Error en getProfilePrivacyInfo:', { error });
             res.status(500).json({
                 success: false,
                 message: error.message
