@@ -119,6 +119,48 @@ export const getAuditLogs = async (limit = 50, offset = 0) => {
   return data.data;
 };
 
+export const getLogsAdmin = async (limit = 50, offset = 0) => {
+  const response = await fetch(`${API_URL}/logs-admin?limit=${limit}&offset=${offset}`, {
+    headers: getHeaders()
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'Error al obtener logs de admin');
+  }
+  
+  return data.data;
+};
+
+export const getLogsDesarrolladores = async (limit = 50, offset = 0) => {
+  const response = await fetch(`${API_URL}/logs-desarrolladores?limit=${limit}&offset=${offset}`, {
+    headers: getHeaders()
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'Error al obtener logs de desarrolladores');
+  }
+  
+  return data.data;
+};
+
+export const getLogsComunidad = async (limit = 50, offset = 0) => {
+  const response = await fetch(`${API_URL}/logs-comunidad?limit=${limit}&offset=${offset}`, {
+    headers: getHeaders()
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'Error al obtener logs de comunidad');
+  }
+  
+  return data.data;
+};
+
 // Bloqueo de Países
 export const getBloqueoPaises = async () => {
   const response = await fetch(`${API_URL}/bloqueos-paises`, {
@@ -195,6 +237,20 @@ export const getRevisionesJuegos = async (estado = null) => {
   
   if (!response.ok) {
     throw new Error(data.message || 'Error al obtener revisiones');
+  }
+  
+  return data.data;
+};
+
+export const getInfoJuegoRevision = async (idJuego) => {
+  const response = await fetch(`${API_URL}/revisiones-juegos/info/${idJuego}`, {
+    headers: getHeaders()
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'Error al obtener información del juego');
   }
   
   return data.data;

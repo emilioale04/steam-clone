@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
+import { notificationService } from '../services/notificationService';
 
 // Usar WSS en producción, WS en desarrollo
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -76,15 +77,46 @@ export function useNotifications() {
                         setUnreadCount(data.count || 0);
                     } else if (data.type === 'group_invitation') {
                         // Nueva invitación
-                        setNotifications(prev => [{
-                            id: Date.now(),
-                            id_grupo: data.group.id,
-                            tipo: 'invitacion',
-                            created_at: data.timestamp,
-                            grupos: data.group,
-                            inviter: data.inviter
-                        }, ...prev]);
-                        setUnreadCount(prev => prev + 1);
+                        setNotifications(prev => {
+                            const updated = [{
+                                id: Date.now(),
+                                id_grupo: data.group.id,
+                                tipo: 'invitacion',
+                                created_at: data.timestamp,
+                                grupos: data.group,
+                                inviter: data.inviter,
+                                leido: false
+                            }, ...prev];
+                            
+                            // Recalcular unreadCount
+                            setUnreadCount(updated.filter(n => !n.leido).length);
+                            
+                            return updated;
+                        });
+                    } else if (data.type === 'group_announcement') {
+                        // Nuevo anuncio en grupo - usar el ID de la BD si existe
+                        const notificationId = data.notificationId || Date.now();
+                        setNotifications(prev => {
+                            // Evitar duplicados
+                            if (prev.some(n => n.id === notificationId)) {
+                                return prev;
+                            }
+                            const updated = [{
+                                id: notificationId,
+                                id_grupo: data.group.id,
+                                tipo: 'group_announcement',
+                                created_at: data.timestamp,
+                                grupos: data.group,
+                                author: data.author,
+                                announcement: data.announcement,
+                                leido: false
+                            }, ...prev];
+                            
+                            // Recalcular unreadCount
+                            setUnreadCount(updated.filter(n => !n.leido).length);
+                            
+                            return updated;
+                        });
                     } else if (data.type === 'request_approved') {
                         // Solicitud aprobada
                         alert(`¡Tu solicitud para unirte a "${data.group.nombre}" ha sido aprobada!`);
@@ -125,9 +157,82 @@ export function useNotifications() {
         }
     }, []);
 
+    // Cargar notificaciones desde BD
+    const loadNotifications = useCallback(async () => {
+        if (!user?.id) return;
+        
+        try {
+            const response = await notificationService.getNotifications();
+            const dbNotifications = response.data || [];
+            
+            // Transformar notificaciones de BD al formato esperado
+            const formattedNotifications = dbNotifications.map(notif => {
+                if (notif.tipo === 'group_announcement') {
+                    return {
+                        id: notif.id,
+                        id_grupo: notif.datos_adicionales?.groupId,
+                        tipo: 'group_announcement',
+                        created_at: notif.created_at,
+                        grupos: {
+                            id: notif.datos_adicionales?.groupId,
+                            nombre: notif.datos_adicionales?.groupName,
+                            avatar_url: notif.datos_adicionales?.groupAvatar
+                        },
+                        author: {
+                            id: notif.datos_adicionales?.authorId,
+                            username: notif.datos_adicionales?.authorUsername
+                        },
+                        announcement: {
+                            id: notif.datos_adicionales?.announcementId,
+                            titulo: notif.datos_adicionales?.announcementTitulo,
+                            contenido: notif.datos_adicionales?.announcementContenido?.substring(0, 100)
+                        },
+                        leido: notif.leido
+                    };
+                }
+                return notif;
+            });
+
+            // Mezclar con notificaciones existentes, evitando duplicados
+            setNotifications(prev => {
+                const existingIds = new Set(prev.map(n => n.id));
+                const newNotifications = formattedNotifications.filter(n => !existingIds.has(n.id));
+                const merged = [...prev, ...newNotifications];
+                
+                // Calcular unreadCount basado en el estado final
+                const unread = merged.filter(n => !n.leido).length;
+                setUnreadCount(unread);
+                
+                return merged;
+            });
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Error loading from DB:', error);
+        }
+    }, [user]);
+
     const removeNotification = useCallback((notificationId) => {
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
         setUnreadCount(prev => Math.max(0, prev - 1));
+    }, []);
+
+    const markAsRead = useCallback(async (notificationId) => {
+        try {
+            await notificationService.markAsRead(notificationId);
+            setNotifications(prev => prev.filter(n => n.id !== notificationId));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Error marking as read:', error);
+        }
+    }, []);
+
+    const markAllAsRead = useCallback(async () => {
+        try {
+            await notificationService.markAllAsRead();
+            setNotifications([]);
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Error marking all as read:', error);
+        }
     }, []);
 
     const clearAll = useCallback(() => {
@@ -137,6 +242,7 @@ export function useNotifications() {
 
     useEffect(() => {
         if (user?.id) {
+            loadNotifications(); // Cargar notificaciones de BD
             connect();
         } else {
             disconnect();
@@ -152,6 +258,8 @@ export function useNotifications() {
         unreadCount,
         connected,
         removeNotification,
+        markAsRead,
+        markAllAsRead,
         clearAll
     };
 }

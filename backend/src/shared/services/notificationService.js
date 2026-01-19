@@ -305,6 +305,140 @@ class NotificationService {
             console.error('[WS] Error notificando aprobación:', error);
         }
     }
+
+    /**
+     * Notificar a todos los miembros del grupo sobre un nuevo anuncio
+     */
+    async notifyGroupAnnouncement(groupId, announcementId, authorId) {
+        try {
+            // Obtener información del grupo
+            const { data: group } = await supabase
+                .from('grupos')
+                .select('id, nombre, avatar_url')
+                .eq('id', groupId)
+                .single();
+
+            // Obtener información del autor
+            const { data: author } = await supabase
+                .from('profiles')
+                .select('id, username')
+                .eq('id', authorId)
+                .single();
+
+            // Obtener el anuncio
+            const { data: announcement } = await supabase
+                .from('anuncios_grupo')
+                .select('id, titulo, contenido')
+                .eq('id', announcementId)
+                .single();
+
+            // Obtener todos los miembros activos del grupo
+            const { data: members } = await supabase
+                .from('miembros_grupo')
+                .select('id_perfil')
+                .eq('id_grupo', groupId)
+                .eq('estado_membresia', 'activo')
+                .is('deleted_at', null);
+
+            if (group && author && announcement && members) {
+                const notificationData = {
+                    type: 'group_announcement',
+                    group: group,
+                    author: author,
+                    announcement: {
+                        id: announcement.id,
+                        titulo: announcement.titulo,
+                        contenido: announcement.contenido.substring(0, 100) // Primeros 100 caracteres
+                    },
+                    timestamp: new Date().toISOString()
+                };
+
+                // Guardar y enviar notificación a cada miembro (excepto al autor)
+                const notificationPromises = members
+                    .filter(member => member.id_perfil !== authorId)
+                    .map(async (member) => {
+                        try {
+                            // Guardar en base de datos
+                            const { data: savedNotification, error: notifError } = await supabase
+                                .from('notificaciones')
+                                .insert({
+                                    id_usuario: member.id_perfil,
+                                    tipo: 'group_announcement',
+                                    titulo: `Nuevo anuncio en ${group.nombre}`,
+                                    mensaje: `${author.username}: ${announcement.titulo}`,
+                                    datos_adicionales: {
+                                        groupId: group.id,
+                                        groupName: group.nombre,
+                                        groupAvatar: group.avatar_url,
+                                        announcementId: announcement.id,
+                                        announcementTitulo: announcement.titulo,
+                                        announcementContenido: announcement.contenido,
+                                        authorId: author.id,
+                                        authorUsername: author.username
+                                    },
+                                    leido: false
+                                })
+                                .select()
+                                .single();
+
+                            if (notifError) {
+                                console.error(`[WS] Error guardando notificación para ${member.id_perfil}:`, notifError);
+                            }
+
+                            // Enviar por WebSocket solo si el usuario está conectado
+                            if (savedNotification && this.clients.has(member.id_perfil)) {
+                                const wsData = {
+                                    ...notificationData,
+                                    notificationId: savedNotification.id // Incluir el ID de la BD
+                                };
+                                await this.sendNotification(member.id_perfil, wsData);
+                                console.log(`[WS] Notificación enviada a ${member.id_perfil}: ${savedNotification.id}`);
+                            }
+                        } catch (err) {
+                            console.error(`[WS] Error procesando notificación para ${member.id_perfil}:`, err);
+                        }
+                    });
+
+                await Promise.allSettled(notificationPromises);
+                console.log(`[WS] Notificación de anuncio enviada a ${notificationPromises.length} miembros del grupo ${groupId}`);
+            }
+        } catch (error) {
+            console.error('[WS] Error notificando anuncio de grupo:', error);
+        }
+    }
+
+    /**
+     * Notificar al desarrollador sobre aprobación de juego
+     */
+    async notifyGameApproval(desarrolladorId, gameId, gameName, comentarios = '') {
+        try {
+            const notificationData = {
+                type: 'game_approved',
+                gameId: gameId,
+                gameName: gameName,
+                comentarios: comentarios,
+                timestamp: new Date().toISOString()
+            };
+
+            // NOTA: Los desarrolladores NO están en la tabla profiles, están solo en auth.users
+            // Por lo tanto, NO podemos guardar en la tabla notificaciones (tiene FK a profiles)
+            // Solo enviamos por WebSocket si está conectado
+
+            // Enviar por WebSocket si el desarrollador está conectado
+            const isConnected = this.clients.has(desarrolladorId);
+            if (isConnected) {
+                await this.sendNotification(desarrolladorId, notificationData);
+            }
+
+            return { 
+                success: true, // Consideramos éxito porque no hubo error
+                sent: isConnected,
+                notificationId: null // No hay ID porque no se guardó en BD
+            };
+        } catch (error) {
+            return { success: false, sent: false, error: error.message };
+        }
+    }
 }
 
 export const notificationService = new NotificationService();

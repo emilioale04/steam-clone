@@ -17,10 +17,12 @@
     "@yusifaliyevpro/countries": "^2.2.2",
     "lucide-react": "^0.562.0",
     "prop-types": "^15.8.1",
+    "nodemailer": "^7.0.12",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.12.0",
     "tailwindcss": "^4.1.18",
+    "winston": "^3.19.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {

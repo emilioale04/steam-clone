@@ -1,10 +1,62 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { 
+    registrarCrearForo,
+    registrarEliminarForo,
+    registrarCrearHilo,
+    registrarEliminarHilo,
+    registrarCrearComentario,
+    registrarEditarComentario,
+    registrarEliminarComentario
+} from '../utils/auditLogger.js';
+
+/**
+ * Helper: Verificar si un usuario está baneado del grupo
+ */
+async function checkUserBanStatus(userId, groupId) {
+    if (!userId) return { isBanned: false };
+
+    const { data: member } = await supabase
+        .from('miembros_grupo')
+        .select('estado_membresia, fecha_fin_baneo')
+        .eq('id_grupo', groupId)
+        .eq('id_perfil', userId)
+        .is('deleted_at', null)
+        .single();
+
+    if (!member) return { isBanned: false };
+
+    // Verificar si el baneo ha expirado
+    if (member.estado_membresia === 'baneado' && member.fecha_fin_baneo) {
+        const banEndDate = new Date(member.fecha_fin_baneo);
+        const now = new Date();
+        
+        if (now >= banEndDate) {
+            // Baneo expirado, actualizar
+            await supabase
+                .from('miembros_grupo')
+                .update({
+                    estado_membresia: 'activo',
+                    fecha_fin_baneo: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', userId);
+            
+            return { isBanned: false };
+        }
+    }
+
+    return { 
+        isBanned: member.estado_membresia === 'baneado',
+        member 
+    };
+}
 
 export const forumService = {
     /**
      * RG-002 - Crear un nuevo hilo en el foro del grupo
      */
-    async createThread(userId, groupId, threadData) {
+    async createThread(userId, groupId, threadData, ipAddress = null) {
         // Verificar que el usuario es miembro activo del grupo
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -50,13 +102,16 @@ export const forumService = {
 
         if (threadError) throw threadError;
 
+        // Registrar log de auditoría
+        await registrarCrearHilo(userId, groupId, thread.id, threadData.titulo, ipAddress);
+
         return thread;
     },
 
     /**
      * RG-002 - Crear un comentario en un hilo
      */
-    async createComment(userId, threadId, contenido, parentCommentId = null) {
+    async createComment(userId, threadId, contenido, parentCommentId = null, ipAddress = null) {
         // Obtener información del hilo y su foro/grupo
         const { data: hilo, error: hiloError } = await supabase
             .from('hilos')
@@ -127,6 +182,9 @@ export const forumService = {
 
         if (commentError) throw commentError;
 
+        // Registrar log de auditoría
+        await registrarCrearComentario(userId, hilo.foros.id_grupo, comment.id, threadId, ipAddress);
+
         return comment;
     },
 
@@ -189,7 +247,7 @@ export const forumService = {
     /**
      * RG-002 - Eliminar hilo (Owner, Moderator o autor del hilo)
      */
-    async deleteThread(userId, threadId) {
+    async deleteThread(userId, threadId, ipAddress = null) {
         // Obtener información del hilo
         const { data: hilo, error: hiloError } = await supabase
             .from('hilos')
@@ -236,13 +294,16 @@ export const forumService = {
             .update({ deleted_at: new Date().toISOString() })
             .eq('id', threadId);
 
+        // Registrar log de auditoría
+        await registrarEliminarHilo(userId, hilo.foros.id_grupo, threadId, ipAddress);
+
         return { success: true };
     },
 
     /**
      * RG-002 - Eliminar comentario (Owner y Moderator)
      */
-    async deleteComment(userId, commentId) {
+    async deleteComment(userId, commentId, ipAddress = null) {
         // Obtener información del comentario y su grupo
         const { data: comment, error: commentError } = await supabase
             .from('comentarios')
@@ -293,17 +354,20 @@ export const forumService = {
             })
             .eq('id', commentId);
 
+        // Registrar log de auditoría
+        await registrarEliminarComentario(userId, comment.hilos.foros.id_grupo, commentId, ipAddress);
+
         return { success: true };
     },
 
     /**
      * Editar comentario (solo autor)
      */
-    async editComment(userId, commentId, newContent) {
+    async editComment(userId, commentId, newContent, ipAddress = null) {
         // Verificar que es el autor
         const { data: comment, error: commentError } = await supabase
             .from('comentarios')
-            .select('id_autor')
+            .select('id_autor, hilos(foros(id_grupo))')
             .eq('id', commentId)
             .is('deleted_at', null)
             .single();
@@ -325,6 +389,9 @@ export const forumService = {
                 updated_at: new Date().toISOString()
             })
             .eq('id', commentId);
+
+        // Registrar log de auditoría
+        await registrarEditarComentario(userId, comment.hilos.foros.id_grupo, commentId, ipAddress);
 
         return { success: true };
     },
@@ -356,11 +423,18 @@ export const forumService = {
             .from('grupos')
             .select('visibilidad')
             .eq('id', groupId)
+            .eq('estado', 'activo')
             .is('deleted_at', null)
             .single();
 
         if (!grupo) {
             throw new Error('Grupo no encontrado');
+        }
+
+        // Verificar si el usuario está baneado (incluso en grupos Open)
+        const { isBanned } = await checkUserBanStatus(userId, groupId);
+        if (isBanned) {
+            throw new Error('Has sido baneado de este grupo');
         }
 
         // Si no es Open, verificar membresía
@@ -472,6 +546,14 @@ export const forumService = {
             throw new Error('Hilo no encontrado');
         }
 
+        const groupId = thread.foros.id_grupo;
+
+        // Verificar si el usuario está baneado (incluso en grupos Open)
+        const { isBanned } = await checkUserBanStatus(userId, groupId);
+        if (isBanned) {
+            throw new Error('Has sido baneado de este grupo');
+        }
+
         // Verificar acceso
         if (thread.foros.grupos.visibilidad !== 'Open') {
             if (!userId) {
@@ -551,6 +633,7 @@ export const forumService = {
             .from('grupos')
             .select('visibilidad')
             .eq('id', groupId)
+            .eq('estado', 'activo')
             .is('deleted_at', null)
             .single();
 
@@ -558,8 +641,18 @@ export const forumService = {
             throw new Error('Grupo no encontrado');
         }
 
-        // Si el grupo no es público, verificar membresía
-        if (grupo.visibilidad !== 'Open' && userId) {
+        // Verificar si el usuario está baneado (incluso en grupos Open)
+        const { isBanned } = await checkUserBanStatus(userId, groupId);
+        if (isBanned) {
+            throw new Error('Has sido baneado de este grupo');
+        }
+
+        // Si el grupo no es Open, verificar membresía
+        if (grupo.visibilidad !== 'Open') {
+            if (!userId) {
+                throw new Error('Debes iniciar sesión para ver este grupo');
+            }
+            
             const { data: member } = await supabase
                 .from('miembros_grupo')
                 .select('id')
@@ -612,8 +705,8 @@ export const forumService = {
     /**
      * Crear un nuevo foro en un grupo (solo Owner)
      */
-    async createForum(userId, groupId, forumData) {
-        // Verificar que el usuario es Owner del grupo
+    async createForum(userId, groupId, forumData, ipAddress = null) {
+        // Verificar que el usuario es miembro del grupo
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
             .select('rol')
@@ -627,9 +720,7 @@ export const forumService = {
             throw new Error('No eres miembro de este grupo');
         }
 
-        if (member.rol !== 'Owner') {
-            throw new Error('Solo el dueño del grupo puede crear foros');
-        }
+        // Cualquier miembro puede crear foros
 
         // Crear el foro
         const { data: foro, error: foroError } = await supabase
@@ -644,6 +735,9 @@ export const forumService = {
             .single();
 
         if (foroError) throw foroError;
+
+        // Registrar log de auditoría
+        await registrarCrearForo(userId, groupId, foro.id, forumData.titulo, ipAddress);
 
         return foro;
     },

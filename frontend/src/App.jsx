@@ -41,7 +41,6 @@ import { MarketplacePage } from './features/inventory/pages/MarketplacePage';
 
 // Community
 import { 
-  CommunityPage,
   CommunityExplorerPage,
   ChatPage,
   CreateGroupPage,
@@ -140,11 +139,7 @@ function App() {
       
       <Route
         path="/community"
-        element={
-          <ProtectedRoute>
-            <CommunityPage />
-          </ProtectedRoute>
-        }
+        element={<CommunityExplorerPage />}
       />
       
       <Route

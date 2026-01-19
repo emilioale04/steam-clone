@@ -40,7 +40,28 @@ export const FormularioGenerarLlaves = ({
             min="1"
             max={llavesDisponibles}
             value={cantidad}
-            onChange={(e) => onCantidadChange(Math.min(parseInt(e.target.value) || 1, llavesDisponibles))}
+            onChange={(e) => {
+              const valor = e.target.value;
+              
+              // Permitir campo vacío mientras edita
+              if (valor === '') {
+                onCantidadChange('');
+                return;
+              }
+              
+              const num = parseInt(valor);
+              // Solo actualizar si el valor es válido y está dentro del rango
+              if (!isNaN(num) && num >= 1 && num <= llavesDisponibles) {
+                onCantidadChange(num);
+              }
+              // Si está fuera de rango, no hace nada (no actualiza)
+            }}
+            onBlur={(e) => {
+              // Al salir del campo, si está vacío o inválido, poner 1
+              if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                onCantidadChange(1);
+              }
+            }}
             className="w-full bg-[#2a3f5f] border border-[#3d5a80] text-white px-4 py-2 rounded focus:border-[#66c0f4] focus:outline-none mb-4"
             disabled={loading}
           />

@@ -521,11 +521,11 @@ const ReplyEditor = ({ currentUser, onSubmit }) => {
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center">
             <span className="text-xs text-white font-medium">
-              {currentUser?.username?.charAt(0) || 'G'}
+              {(currentUser?.user_metadata?.username || currentUser?.email || 'G').charAt(0).toUpperCase()}
             </span>
           </div>
           <span className="text-gray-400 text-sm">
-            Posting as <span className="text-white">{currentUser?.username || 'Guest_User'}</span>
+            Posting as <span className="text-white">{currentUser?.user_metadata?.username || (currentUser?.email ? currentUser.email.split('@')[0] : 'Guest')}</span>
           </span>
         </div>
         
@@ -623,8 +623,8 @@ const GroupThreadPage = () => {
     const newPost = {
       id: `post-${Date.now()}`,
       author: {
-        username: currentUser.username,
-        avatar_url: null,
+        username: currentUser?.user_metadata?.username || (currentUser?.email ? currentUser.email.split('@')[0] : 'Guest'),
+        avatar_url: currentUser?.user_metadata?.avatar_url || null,
         level: 1,
         class: 'Newbie',
         badges: [],
