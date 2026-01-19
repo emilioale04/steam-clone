@@ -13,6 +13,7 @@ export const LoginPage = () => {
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [geoBlockedError, setGeoBlockedError] = useState(false);
 
   useEffect(() => {
     // Check if user just verified their email
@@ -26,6 +27,7 @@ export const LoginPage = () => {
       setEmailNotVerifiedError(false);
       setResendSuccess(false);
       setUnverifiedEmail('');
+      setGeoBlockedError(false);
       await login(email, password);
       navigate('/');
     } catch (err) {
@@ -33,6 +35,8 @@ export const LoginPage = () => {
       if (err.message.includes('verificar') || err.message.includes('EMAIL_NOT_VERIFIED') || err.code === 'EMAIL_NOT_VERIFIED') {
         setEmailNotVerifiedError(true);
         setUnverifiedEmail(email);
+      } else if (err.code === 'GEO_BLOCKED') {
+        setGeoBlockedError(true);
       }
       console.error('Login failed:', err);
     }
@@ -91,7 +95,21 @@ export const LoginPage = () => {
         </div>
       )}
       
-      <LoginForm onSubmit={handleLogin} error={emailNotVerifiedError ? null : error} />
+      {geoBlockedError && (
+        <div style={styles.warningMessage}>
+          <svg style={styles.warningIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div style={{ flex: 1 }}>
+            <strong>Acceso restringido</strong>
+            <p style={{ margin: '0.5rem 0' }}>
+              El acceso desde tu país no está permitido.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <LoginForm onSubmit={handleLogin} error={emailNotVerifiedError || geoBlockedError ? null : error} />
       <p style={{ textAlign: 'center' }}>
         <Link to="/forgot-password">Forgot password?</Link>
       </p>
