@@ -5,6 +5,9 @@
  */
 
 import { developerAuthService } from '../services/developerAuthService.js';
+import supabase from '../../../shared/config/supabase.js';
+import { sessionService } from '../../../shared/services/sessionService.js';
+import mfaService from '../../mfa/services/mfaService.js';
 
 /**
  * Extrae metadatos de la request para auditor√≠a
@@ -112,11 +115,20 @@ export const developerAuthController = {
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/',
       });
+      if (resultado.mfaRequired) {
+        return res.status(200).json({
+          success: true,
+          requiresMFA: true,
+          userId: resultado.user?.id,
+          email: resultado.user?.email,
+          mensaje: 'Se requiere verificaci¢n MFA para completar el login',
+        });
+      }
 
       res.status(200).json({
         success: true,
         data: resultado,
-        mensaje: 'Inicio de sesi√≥n exitoso',
+        mensaje: 'Inicio de sesi¢n exitoso',
       });
     } catch (error) {
       // Manejar error de email no verificado
@@ -137,6 +149,120 @@ export const developerAuthController = {
         mensaje: error.message,
       });
     }
+  },
+
+  /**
+   * POST /api/desarrolladores/auth/verify-mfa-login
+   * Verifica MFA y completa el login de desarrollador
+   */
+  async verifyMFALogin(req, res) {
+    try {
+      const { codigo, token } = req.body;
+      const mfaCode = codigo || token;
+
+      if (!mfaCode) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Codigo MFA requerido',
+        });
+      }
+
+      const authToken =
+        (req.cookies && req.cookies.session_token) ||
+        req.headers.authorization?.split(' ')[1];
+
+      if (!authToken) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Token de sesion no proporcionado',
+        });
+      }
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser(authToken);
+
+      if (userError || !user) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Token invalido o expirado',
+        });
+      }
+
+      const verified = await mfaService.verifyTOTP(
+        user.id,
+        mfaCode,
+        'developer',
+      );
+
+      if (!verified) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Codigo MFA invalido',
+        });
+      }
+
+      const sesion = await sessionService.validarSesion(authToken);
+      if (!sesion) {
+        return res.status(401).json({
+          success: false,
+          mensaje: 'Sesion invalida o expirada',
+        });
+      }
+
+      await sessionService.marcarMFAVerificado(sesion.id);
+
+      const desarrollador = await developerAuthService.obtenerDesarrolladorPorId(
+        user.id,
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          user,
+          desarrollador,
+        },
+        mensaje: 'MFA verificado y login completado',
+      });
+    } catch (error) {
+      res.status(401).json({
+        success: false,
+        mensaje: error.message || 'Error al verificar MFA',
+      });
+    }
+  },
+
+  /**
+   * GET /api/desarrolladores/auth/validate-session
+   * Valida sesion actual de desarrollador
+   */
+  async validateSession(req, res) {
+    try {
+      if (req.sesion && req.desarrollador?.mfa_habilitado) {
+        if (!req.sesion.mfa_verificado) {
+          return res.status(403).json({
+            success: false,
+            mfaRequired: true,
+            mensaje: 'MFA requerido para continuar',
+          });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          desarrolladorId: req.desarrollador?.id,
+        },
+      });
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        mensaje: error.message || 'Sesion invalida',
+      });
+    }
+  },
+
   },
 
   /**

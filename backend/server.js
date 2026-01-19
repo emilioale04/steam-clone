@@ -121,6 +121,7 @@ import {
 import {
   apiLimiter,
   criticalRateLimiter,
+  steamworksApiLimiter,
 } from './src/shared/middleware/rateLimiter.js';
 import { sanitizeBodyMiddleware } from './src/shared/utils/sanitization.js';
 
@@ -251,10 +252,20 @@ app.use(sanitizeBodyMiddleware);
 app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
+app.use(
+  '/api/desarrolladores/auth',
+  geoValidationMiddleware,
+  steamworksApiLimiter,
+  developerAuthRoutes,
+);
 
 // Developer profile routes (Steamworks - gestión de perfil)
-app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
+app.use(
+  '/api/desarrolladores/perfil',
+  geoValidationMiddleware,
+  steamworksApiLimiter,
+  developerProfileRoutes,
+);
 
 // Game Keys routes (Santiago - Gestión de Llaves de Juego)
 app.use('/api/game-keys', gameKeysRoutes);
@@ -461,10 +472,10 @@ app.get('/api/featured', (req, res) => {
 app.use('/api/auth', geoValidationMiddleware, apiLimiter, authRoutes);
 
 // Developer auth routes (Steamworks - desarrolladores)
-app.use('/api/desarrolladores/auth', geoValidationMiddleware, apiLimiter, developerAuthRoutes);
+app.use('/api/desarrolladores/auth', geoValidationMiddleware, steamworksApiLimiter, developerAuthRoutes);
 
 // Developer profile routes (Steamworks - gestión de perfil)
-app.use('/api/desarrolladores/perfil', geoValidationMiddleware, apiLimiter, developerProfileRoutes);
+app.use('/api/desarrolladores/perfil', geoValidationMiddleware, steamworksApiLimiter, developerProfileRoutes);
 
 // Aplicar geoValidationMiddleware y Rate Limiting a rutas críticas
 app.use('/api/trade', geoValidationMiddleware, criticalRateLimiter, tradeRoutes);

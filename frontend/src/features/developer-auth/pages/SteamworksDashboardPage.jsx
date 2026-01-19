@@ -44,6 +44,12 @@ export const SteamworksDashboardPage = () => {
   const [loadingBancaria, setLoadingBancaria] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showMFASetupPrompt, setShowMFASetupPrompt] = useState(false);
+  const [mfaPromptMessage, setMfaPromptMessage] = useState('');
+
+  const isMFAEnabled = Boolean(
+    estadoMFA?.mfaEnabled ?? estadoMFA?.mfa_habilitado,
+  );
 
   // Cargar datos del perfil cuando cambia el desarrollador
   useEffect(() => {
@@ -71,6 +77,13 @@ export const SteamworksDashboardPage = () => {
 
     cargarEstadoMFA();
   }, []);
+
+  useEffect(() => {
+    if (isMFAEnabled) {
+      setShowMFASetupPrompt(false);
+      setMfaPromptMessage('');
+    }
+  }, [isMFAEnabled]);
 
   // RF-003: Validación de 2 minutos desde última modificación (MODO PRUEBA)
   const canEditProfile = () => {
@@ -110,9 +123,10 @@ export const SteamworksDashboardPage = () => {
       return;
     }
 
-    if (!estadoMFA?.mfaEnabled) {
-      setErrorMessage('Debes habilitar MFA antes de editar tu perfil');
-      setTimeout(() => setErrorMessage(''), 5000);
+    if (!isMFAEnabled) {
+      setMfaPromptMessage('Debes habilitar MFA antes de editar tu perfil');
+      setShowMFASetupPrompt(true);
+      setErrorMessage('');
       return;
     }
 
@@ -129,12 +143,12 @@ export const SteamworksDashboardPage = () => {
       setTimeout(() => setErrorMessage(''), 5000);
       return;
     }
-
-    if (!estadoMFA?.mfaEnabled) {
-      setErrorMessage(
-        'Debes habilitar MFA antes de editar información bancaria',
+    if (!isMFAEnabled) {
+      setMfaPromptMessage(
+        'Debes habilitar MFA antes de editar informacion bancaria',
       );
-      setTimeout(() => setErrorMessage(''), 5000);
+      setShowMFASetupPrompt(true);
+      setErrorMessage('');
       return;
     }
 
@@ -367,6 +381,21 @@ export const SteamworksDashboardPage = () => {
                   <span className='mr-2'>✓</span>
                   {successMessage}
                 </p>
+              </div>
+            )}
+
+            {showMFASetupPrompt && (
+              <div className='bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
+                <p className='text-yellow-400'>{mfaPromptMessage}</p>
+                <button
+                  onClick={() => {
+                    setShowMFASetupPrompt(false);
+                    setShowMFASetup(true);
+                  }}
+                  className='px-4 py-2 bg-[#66c0f4] text-white rounded hover:bg-[#5bb1e3] transition-colors font-medium'
+                >
+                  Configurar MFA
+                </button>
               </div>
             )}
 

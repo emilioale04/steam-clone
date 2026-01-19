@@ -31,10 +31,28 @@ export const developerAuthService = {
       credentials: 'include',
       body: JSON.stringify({ email, password }),
     });
-
     const data = await response.json();
     if (!response.ok)
-      throw new Error(data.mensaje || 'Error en el inicio de sesi√≥n');
+      throw new Error(data.mensaje || 'Error en el inicio de sesi¢n');
+    return data;
+  },
+
+  /**
+   * Verificar MFA durante login
+   */
+  async verifyMFALogin(codigo) {
+    const response = await fetch(`${API_URL}/verify-mfa-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ codigo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      const err = new Error(data.mensaje || 'C¢digo MFA inv†lido');
+      throw err;
+    }
     return data;
   },
 
@@ -75,6 +93,22 @@ export const developerAuthService = {
     const data = await response.json();
     if (!response.ok)
       throw new Error(data.mensaje || 'Error al obtener aplicaciones');
+    return data;
+  },
+
+  /**
+   * Validar sesi¢n actual
+   */
+  async validateSession() {
+    const response = await fetch(`${API_URL}/validate-session`, {
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const err = new Error(data.mensaje || 'Sesi¢n inv†lida');
+      err.mfaRequired = data.mfaRequired;
+      throw err;
+    }
     return data;
   },
 

@@ -85,6 +85,9 @@ export const requireDesarrollador = async (req, res, next) => {
       });
     }
 
+    // Adjuntar sesion al request
+    req.sesion = sesionValida;
+
     // Verificar que sea desarrollador activo (C18) - usando supabaseAdmin
     const { data: desarrollador, error: devError } = await supabaseAdmin
       .from('desarrolladores')

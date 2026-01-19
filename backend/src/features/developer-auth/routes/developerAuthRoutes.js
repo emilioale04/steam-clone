@@ -23,6 +23,9 @@ router.post('/registro', registerLimiter, developerAuthController.registro);
 // Inicio de sesión (RF-002) con rate limiting estricto
 router.post('/login', loginLimiter, developerAuthController.login);
 
+// Verificar MFA y completar login
+router.post('/verify-mfa-login', developerAuthController.verifyMFALogin);
+
 // Cierre de sesión
 router.post('/logout', developerAuthController.logout);
 
@@ -38,6 +41,13 @@ router.get('/perfil', developerAuthController.obtenerPerfil);
 
 // Verificar si es desarrollador válido
 router.get('/verificar', developerAuthController.verificarDesarrollador);
+
+// Validar sesion activa
+router.get(
+  '/validate-session',
+  requireDesarrollador,
+  developerAuthController.validateSession,
+);
 
 // Recuperación de contraseña con rate limiting
 router.post(

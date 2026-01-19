@@ -627,6 +627,37 @@ export const developerAuthService = {
   },
 
   /**
+   * Obtener desarrollador por ID (para MFA login)
+   */
+  async obtenerDesarrolladorPorId(userId) {
+    const { data: desarrollador, error: devError } = await supabaseAdmin
+      .from('desarrolladores')
+      .select('*')
+      .eq('id', userId)
+      .eq('cuenta_activa', true)
+      .single();
+
+    if (devError || !desarrollador) {
+      throw new Error('Desarrollador no encontrado');
+    }
+
+    const datosDescifrados = decryptBankData({
+      cuenta_bancaria: desarrollador.numero_cuenta,
+      titular_banco: desarrollador.titular_cuenta,
+      nombre_banco: desarrollador.banco,
+      nif_cif: desarrollador.nif_cif,
+    });
+
+    return {
+      ...desarrollador,
+      numero_cuenta: datosDescifrados.cuenta_bancaria,
+      titular_cuenta: datosDescifrados.titular_banco,
+      banco: datosDescifrados.nombre_banco,
+      nif_cif: datosDescifrados.nif_cif,
+    };
+  },
+
+  /**
    * Verificar si un usuario es desarrollador válido
    */
   async verificarRolDesarrollador(userId) {

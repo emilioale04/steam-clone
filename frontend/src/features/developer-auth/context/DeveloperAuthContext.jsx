@@ -12,19 +12,47 @@ export const DeveloperAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [hadSession, setHadSession] = useState(false);
 
   useEffect(() => {
     verificarSesion();
   }, []);
+  useEffect(() => {
+    if (!desarrollador) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        await developerAuthService.validateSession();
+      } catch {
+        setUser(null);
+        setDesarrollador(null);
+        if (hadSession) {
+          setSessionExpired(true);
+        }
+        setHadSession(false);
+      }
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [desarrollador, hadSession]);
+
 
   const verificarSesion = async () => {
     try {
+      await developerAuthService.validateSession();
       const data = await developerAuthService.obtenerPerfil();
       setUser(data.data.user);
       setDesarrollador(data.data.desarrollador);
+      setHadSession(true);
+      setSessionExpired(false);
     } catch {
       setUser(null);
       setDesarrollador(null);
+      if (hadSession) {
+        setSessionExpired(true);
+      }
+      setHadSession(false);
     } finally {
       setLoading(false);
     }
@@ -47,8 +75,14 @@ export const DeveloperAuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await developerAuthService.login(email, password);
+      const requiresMFA = data.requiresMFA || data.data?.mfaRequired;
+      if (requiresMFA) {
+        return data;
+      }
       setUser(data.data.user);
       setDesarrollador(data.data.desarrollador);
+      setHadSession(true);
+      setSessionExpired(false);
       return data;
     } catch (err) {
       setError(err.message);
@@ -62,6 +96,8 @@ export const DeveloperAuthProvider = ({ children }) => {
       await developerAuthService.logout();
       setUser(null);
       setDesarrollador(null);
+      setHadSession(false);
+      setSessionExpired(false);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -73,6 +109,7 @@ export const DeveloperAuthProvider = ({ children }) => {
       const data = await developerAuthService.obtenerPerfil();
       setUser(data.data.user);
       setDesarrollador(data.data.desarrollador);
+      setHadSession(true);
       return data;
     } catch (err) {
       console.error('Error al refrescar desarrollador:', err);
@@ -91,6 +128,7 @@ export const DeveloperAuthProvider = ({ children }) => {
         login,
         logout,
         refreshDesarrollador,
+        sessionExpired,
         isAuthenticated: !!desarrollador,
         esDesarrollador: !!desarrollador,
       }}

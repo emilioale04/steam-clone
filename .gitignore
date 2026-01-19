@@ -51,3 +51,4 @@ SteamWorks_indications.md
 sonar-project.properties
 eslint.config.js
 eslint-report.html
+backend/src/__tests__/steamworks.fuzz.test.js

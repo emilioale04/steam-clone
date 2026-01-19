@@ -77,6 +77,20 @@ export const apiLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter para Steamworks (auth/perfil)
+ * 300 requests por 15 minutos para evitar cortes por polling de sesión
+ */
+export const steamworksApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: {
+    success: false,
+    message: 'Límite de solicitudes excedido. Intente nuevamente más tarde'
+  },
+  statusCode: 429
+});
+
+/**
  * Rate limiter para acciones críticas
  * 10 acciones por hora
  */

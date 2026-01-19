@@ -7,7 +7,7 @@ import { Navigate } from 'react-router-dom';
 import { useDeveloperAuth } from '../hooks/useDeveloperAuth';
 
 export const ProtectedDeveloperRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useDeveloperAuth();
+  const { isAuthenticated, loading, sessionExpired } = useDeveloperAuth();
 
   if (loading) {
     return (
@@ -18,6 +18,10 @@ export const ProtectedDeveloperRoute = ({ children }) => {
         </div>
       </div>
     );
+  }
+
+  if (sessionExpired) {
+    return <Navigate to="/steamworks/login?session=expired" replace />;
   }
 
   if (!isAuthenticated) {
