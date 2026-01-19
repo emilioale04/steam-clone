@@ -1,10 +1,59 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { notificationService } from '../../../shared/services/notificationService.js';
+import { 
+    registrarCrearAnuncio,
+    registrarFijarAnuncio,
+    registrarDesfijarAnuncio
+} from '../utils/auditLogger.js';
+
+/**
+ * Helper: Verificar si un usuario está baneado del grupo
+ */
+async function checkUserBanStatus(userId, groupId) {
+    if (!userId) return { isBanned: false };
+
+    const { data: member } = await supabase
+        .from('miembros_grupo')
+        .select('estado_membresia, fecha_fin_baneo')
+        .eq('id_grupo', groupId)
+        .eq('id_perfil', userId)
+        .is('deleted_at', null)
+        .single();
+
+    if (!member) return { isBanned: false };
+
+    // Verificar si el baneo ha expirado
+    if (member.estado_membresia === 'baneado' && member.fecha_fin_baneo) {
+        const banEndDate = new Date(member.fecha_fin_baneo);
+        const now = new Date();
+        
+        if (now >= banEndDate) {
+            // Baneo expirado, actualizar
+            await supabase
+                .from('miembros_grupo')
+                .update({
+                    estado_membresia: 'activo',
+                    fecha_fin_baneo: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id_grupo', groupId)
+                .eq('id_perfil', userId);
+            
+            return { isBanned: false };
+        }
+    }
+
+    return { 
+        isBanned: member.estado_membresia === 'baneado',
+        member 
+    };
+}
 
 export const announcementService = {
     /**
      * RG-007 - Crear anuncio (Owner y Moderator)
      */
-    async createAnnouncement(userId, groupId, announcementData) {
+    async createAnnouncement(userId, groupId, announcementData, ipAddress = null) {
         // Verificar permisos
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -50,8 +99,11 @@ export const announcementService = {
 
         if (announcementError) throw announcementError;
 
-        // TODO: Aquí se debería enviar notificaciones a todos los miembros
-        // Por ahora solo retornamos el anuncio creado
+        // Registrar log de auditoría
+        await registrarCrearAnuncio(userId, groupId, announcement.id, announcementData.fijado || false, ipAddress);
+
+        // Enviar notificaciones a todos los miembros del grupo
+        await notificationService.notifyGroupAnnouncement(groupId, announcement.id, userId);
         
         return announcement;
     },
@@ -59,7 +111,7 @@ export const announcementService = {
     /**
      * Editar anuncio (Owner y Moderator)
      */
-    async updateAnnouncement(userId, announcementId, updateData) {
+    async updateAnnouncement(userId, announcementId, updateData, ipAddress = null) {
         // Obtener el anuncio y verificar permisos
         const { data: announcement, error: announcementError } = await supabase
             .from('anuncios_grupo')
@@ -123,6 +175,13 @@ export const announcementService = {
             .single();
 
         if (updateError) throw updateError;
+
+        // Registrar logs de auditoría para fijar/desfijar
+        if (updateData.fijado === true) {
+            await registrarFijarAnuncio(userId, announcement.id_grupo, announcementId, ipAddress);
+        } else if (updateData.fijado === false) {
+            await registrarDesfijarAnuncio(userId, announcement.id_grupo, announcementId, ipAddress);
+        }
 
         return updated;
     },
@@ -197,11 +256,18 @@ export const announcementService = {
             .from('grupos')
             .select('visibilidad')
             .eq('id', groupId)
+            .eq('estado', 'activo')
             .is('deleted_at', null)
             .single();
 
         if (!grupo) {
             throw new Error('Grupo no encontrado');
+        }
+
+        // Verificar si el usuario está baneado (incluso en grupos Open)
+        const { isBanned } = await checkUserBanStatus(userId, groupId);
+        if (isBanned) {
+            throw new Error('Has sido baneado de este grupo');
         }
 
         // Si no es Open, verificar membresía

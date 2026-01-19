@@ -19,7 +19,7 @@ export const requireGroupMember = (roleRequired = null) => {
             // Verificar membresía
             const { data: member, error } = await supabase
                 .from('miembros_grupo')
-                .select('rol, estado_membresia')
+                .select('rol, estado_membresia, fecha_fin_baneo')
                 .eq('id_grupo', groupId)
                 .eq('id_perfil', userId)
                 .is('deleted_at', null)
@@ -32,10 +32,42 @@ export const requireGroupMember = (roleRequired = null) => {
                 });
             }
 
+            // Verificar si el baneo ha expirado y actualizar automáticamente
+            if (member.estado_membresia === 'baneado' && member.fecha_fin_baneo) {
+                const banEndDate = new Date(member.fecha_fin_baneo);
+                const now = new Date();
+                
+                if (now >= banEndDate) {
+                    console.log('[BAN CHECK] ✅ Baneo expirado, restaurando estado activo');
+                    // El baneo ha expirado, restaurar estado activo
+                    const { error: updateError } = await supabase
+                        .from('miembros_grupo')
+                        .update({
+                            estado_membresia: 'activo',
+                            fecha_fin_baneo: null,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id_grupo', groupId)
+                        .eq('id_perfil', userId);
+                    
+                    if (updateError) {
+                        console.error('[BAN CHECK] ❌ Error al actualizar:', updateError);
+                    } else {
+                        console.log('[BAN CHECK] ✅ Estado actualizado correctamente');
+                    }
+                    
+                    member.estado_membresia = 'activo';
+                } else {
+                    console.log('[BAN CHECK] ⏳ Baneo aún activo');
+                }
+            }
+
             if (member.estado_membresia !== 'activo') {
                 return res.status(403).json({
                     success: false,
-                    message: 'Tu membresía no está activa en este grupo'
+                    message: member.estado_membresia === 'baneado' 
+                        ? 'Has sido baneado de este grupo' 
+                        : 'Tu membresía no está activa en este grupo'
                 });
             }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Shield, Eye, Users, Lock, RefreshCw, ShoppingBag, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Eye, Users, Lock, RefreshCw, ShoppingBag, Check, AlertCircle, Loader2, UserX } from 'lucide-react';
 import { privacyService, PRIVACY_LEVELS, PRIVACY_LABELS, PRIVACY_DESCRIPTIONS } from '../services/privacyService';
+import { consentService } from '../../community/services/consentService';
 
 /**
  * Componente de configuración de privacidad del perfil
@@ -17,10 +18,14 @@ export const PrivacySettings = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [pendingChanges, setPendingChanges] = useState({});
+    const [groupConsent, setGroupConsent] = useState(null);
+    const [loadingConsent, setLoadingConsent] = useState(false);
+    const [revokingConsent, setRevokingConsent] = useState(false);
 
     // Cargar configuración actual
     useEffect(() => {
         loadSettings();
+        loadGroupConsent();
     }, []);
 
     const loadSettings = async () => {
@@ -35,6 +40,54 @@ export const PrivacySettings = () => {
             console.error('Error loading privacy settings:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadGroupConsent = async () => {
+        try {
+            setLoadingConsent(true);
+            const response = await consentService.getConsent();
+            setGroupConsent(response.data);
+        } catch (err) {
+            console.error('Error loading group consent:', err);
+        } finally {
+            setLoadingConsent(false);
+        }
+    };
+
+    const handleRevokeConsent = async () => {
+        if (!confirm('¿Estás seguro de que deseas revocar el consentimiento? Esto te removerá de todos los grupos y no podrás unirte a nuevos grupos hasta que vuelvas a otorgar el consentimiento.')) {
+            return;
+        }
+
+        try {
+            setRevokingConsent(true);
+            setError(null);
+            await consentService.revokeConsent();
+            setSuccess('Consentimiento revocado exitosamente. Has sido removido de todos los grupos.');
+            await loadGroupConsent();
+            
+            setTimeout(() => setSuccess(null), 5000);
+        } catch (err) {
+            setError(err.message || 'Error al revocar el consentimiento');
+        } finally {
+            setRevokingConsent(false);
+        }
+    };
+
+    const handleGrantConsent = async () => {
+        try {
+            setLoadingConsent(true);
+            setError(null);
+            await consentService.grantConsent();
+            setSuccess('Consentimiento otorgado exitosamente. Ahora puedes unirte a grupos.');
+            await loadGroupConsent();
+            
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err) {
+            setError(err.message || 'Error al otorgar el consentimiento');
+        } finally {
+            setLoadingConsent(false);
         }
     };
 
@@ -156,6 +209,101 @@ export const PrivacySettings = () => {
 
             {/* Secciones de privacidad */}
             <div className="space-y-6">
+                {/* Consentimiento de Grupos */}
+                <div className="bg-[#1b2838] rounded-lg p-4">
+                    <div className="flex items-start gap-3 mb-4">
+                        <div className="p-2">
+                            <Users className="text-gray-400" size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-white font-medium mb-1">Consentimiento de Grupos</h3>
+                            <p className="text-gray-400 text-sm mb-3">
+                                Gestiona tu consentimiento para compartir datos personales en grupos de la comunidad (LOPDP Art. 7)
+                            </p>
+                            
+                            {loadingConsent ? (
+                                <div className="flex items-center gap-2 text-gray-400">
+                                    <Loader2 className="animate-spin" size={16} />
+                                    <span className="text-sm">Cargando estado...</span>
+                                </div>
+                            ) : groupConsent && groupConsent.estado_consentimiento ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-green-400 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                                        <Check size={18} className="flex-shrink-0" />
+                                        <div>
+                                            <p className="font-medium">Consentimiento Activo</p>
+                                            <p className="text-xs text-gray-400">
+                                                Otorgado el {new Date(groupConsent.fecha_consentimiento).toLocaleDateString('es-ES', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-[#2a475e]/30 rounded-lg p-3 border border-gray-600/30">
+                                        <p className="text-gray-300 text-sm mb-3 flex items-start gap-2">
+                                            <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-gray-400" />
+                                            <span>
+                                                Al revocar el consentimiento, serás removido automáticamente de todos los grupos 
+                                                y no podrás unirte a nuevos grupos hasta que vuelvas a otorgar el consentimiento.
+                                            </span>
+                                        </p>
+                                        <button
+                                            onClick={handleRevokeConsent}
+                                            disabled={revokingConsent}
+                                            className="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium"
+                                        >
+                                            {revokingConsent ? (
+                                                <>
+                                                    <Loader2 className="animate-spin" size={16} />
+                                                    Revocando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UserX size={16} />
+                                                    Revocar Consentimiento
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                                        <AlertCircle size={18} className="flex-shrink-0" />
+                                        <div>
+                                            <p className="font-medium">Consentimiento No Otorgado</p>
+                                            <p className="text-xs text-gray-400">
+                                                No puedes unirte a grupos sin otorgar consentimiento
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <button
+                                        onClick={handleGrantConsent}
+                                        disabled={loadingConsent}
+                                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium"
+                                    >
+                                        {loadingConsent ? (
+                                            <>
+                                                <Loader2 className="animate-spin" size={16} />
+                                                Otorgando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check size={16} />
+                                                Otorgar Consentimiento
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Inventario */}
                 <PrivacySection
                     icon={<Eye size={20} />}

@@ -30,6 +30,9 @@ import registerCommunityRoutes from './src/features/community/index.js';
 // Import game keys routes (Grupo 2 - Gestión de Llaves)
 import { gameKeysRoutes } from './src/features/game-keys/index.js';
 
+// Import notification routes
+import notificationRoutes from './src/shared/routes/notificationRoutes.js';
+
 
 // Import pricing routes (Grupo 2 - Gestión de Precios)
 import { pricingRoutes } from './src/features/pricing/index.js';
@@ -126,6 +129,9 @@ app.use('/api/admin', apiLimiter, adminRoutes);
 
 // MFA routes
 app.use('/api/mfa', apiLimiter, mfaRoutes);
+
+// Notification routes
+app.use('/api/notifications', apiLimiter, notificationRoutes);
 
 // Community routes
 registerCommunityRoutes(app);
