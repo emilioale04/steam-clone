@@ -13,8 +13,8 @@ async function testConnection() {
     // Consultar aplicaciones de desarrolladores
     const { data: apps, error: appsError } = await supabase
       .from('aplicaciones_desarrolladores')
-      .select('id, app_id, nombre_juego, precio_base_usd, estado_revision, updated_at')
-      .limit(10);
+      .select('id, app_id, nombre_juego, precio_base_usd, estado_revision, updated_at, descuento')
+      .limit(30);
 
     if (appsError) {
       console.error('❌ Error al consultar aplicaciones:', appsError.message);
@@ -42,7 +42,7 @@ async function testConnection() {
     const { data: devs, error: devsError } = await supabase
       .from('desarrolladores')
       .select('id, nombre_legal, pais, cuenta_activa')
-      .limit(5);
+      .limit(30);
 
     if (!devsError && devs.length > 0) {
       console.log('\n👨‍💻 Desarrolladores registrados:');

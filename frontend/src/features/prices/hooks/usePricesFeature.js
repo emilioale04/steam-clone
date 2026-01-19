@@ -35,10 +35,13 @@ export function usePricesFeature() {
     const game = apps.find(app => app.id === selectedGameId);
     setSelectedGame(game || null);
     setPrice(game ? game.precio_base_usd : '');
-    // Limpiar mensajes al cambiar de juego
+  }, [selectedGameId, apps]);
+
+  // Limpiar mensajes SOLO cuando cambia el juego seleccionado (no cuando cambian apps)
+  useEffect(() => {
     setError(null);
     setSuccess(null);
-  }, [selectedGameId, apps]);
+  }, [selectedGameId]);
 
   const handleUpdatePrice = async (mfaCode) => {
     if (!selectedGameId || !price) {
@@ -55,14 +58,17 @@ export function usePricesFeature() {
       const result = await updateAppPrice(selectedGameId, price, mfaCode);
       setSuccess(`✅ ¡Precio actualizado exitosamente a $${Number(price).toFixed(2)} USD!`);
       
-      // Actualizar el precio en la lista local
-      setApps(prevApps => 
-        prevApps.map(app => 
-          app.id === selectedGameId 
-            ? { ...app, precio_base_usd: Number(price), updated_at: new Date().toISOString() }
-            : app
-        )
-      );
+      // Actualizar el precio en la lista local después de 3 segundos
+      setTimeout(() => {
+        setApps(prevApps => 
+          prevApps.map(app => 
+            app.id === selectedGameId 
+              ? { ...app, precio_base_usd: Number(price), updated_at: new Date().toISOString(), can_update_price: false }
+              : app
+          )
+        );
+        setSuccess(null); // Limpiar mensaje después de actualizar
+      }, 3000);
     } catch (err) {
       const errorMsg = err.message || 'Error al actualizar el precio';
       setError(errorMsg);

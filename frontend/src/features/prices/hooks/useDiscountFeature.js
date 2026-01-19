@@ -35,10 +35,13 @@ export function useDiscountFeature() {
     const game = apps.find(app => app.id === selectedGameId);
     setSelectedGame(game || null);
     setDiscount(game ? (game.descuento || 0) : '');
-    // Limpiar mensajes al cambiar de juego
+  }, [selectedGameId, apps]);
+
+  // Limpiar mensajes SOLO cuando cambia el juego seleccionado (no cuando cambian apps)
+  useEffect(() => {
     setError(null);
     setSuccess(null);
-  }, [selectedGameId, apps]);
+  }, [selectedGameId]);
 
   const handleUpdateDiscount = async (mfaCode) => {
     if (!selectedGameId) {
@@ -62,14 +65,17 @@ export function useDiscountFeature() {
       const result = await updateAppDiscount(selectedGameId, discountValue, mfaCode);
       setSuccess(`✅ ¡Descuento actualizado exitosamente a ${(discountValue * 100).toFixed(0)}%!`);
       
-      // Actualizar el descuento en la lista local
-      setApps(prevApps => 
-        prevApps.map(app => 
-          app.id === selectedGameId 
-            ? { ...app, descuento: discountValue }
-            : app
-        )
-      );
+      // Actualizar el descuento en la lista local después de 3 segundos
+      setTimeout(() => {
+        setApps(prevApps => 
+          prevApps.map(app => 
+            app.id === selectedGameId 
+              ? { ...app, descuento: discountValue }
+              : app
+          )
+        );
+        setSuccess(null); // Limpiar mensaje después de actualizar
+      }, 3000);
     } catch (err) {
       const errorMsg = err.message || 'Error al actualizar el descuento';
       setError(errorMsg);

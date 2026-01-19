@@ -95,6 +95,7 @@ const pricingService = {
           nombre_juego,
           descripcion_corta,
           precio_base_usd,
+          descuento,
           estado_revision,
           updated_at,
           created_at
@@ -120,6 +121,7 @@ const pricingService = {
           nombre_juego: app.nombre_juego,
           descripcion_corta: app.descripcion_corta,
           precio_base_usd: app.precio_base_usd,
+          descuento: app.descuento || 0,
           estado_revision: app.estado_revision,
           updated_at: app.updated_at,
           // Información de restricción de 30 días
@@ -160,11 +162,11 @@ const pricingService = {
         return { success: false, error: 'Aplicación no encontrada' };
       }
 
-      // Validación de propiedad (C18)
+      // Validación de propiedad
       if (app.desarrollador_id !== developerId) {
         return { 
           success: false, 
-          error: 'No tienes permiso para acceder a esta aplicación (C18)' 
+          error: 'No tienes permiso para acceder a esta aplicación' 
         };
       }
 
