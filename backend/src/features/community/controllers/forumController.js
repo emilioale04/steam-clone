@@ -1,4 +1,5 @@
 import { forumService } from '../services/forumService.js';
+import { obtenerIPDesdeRequest } from '../utils/auditLogger.js';
 
 export const forumController = {
     // RG-002 - Crear hilo
@@ -7,8 +8,9 @@ export const forumController = {
             const userId = req.user.id;
             const { groupId } = req.params;
             const threadData = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const thread = await forumService.createThread(userId, groupId, threadData);
+            const thread = await forumService.createThread(userId, groupId, threadData, ipAddress);
 
             res.status(201).json({
                 success: true,
@@ -30,8 +32,9 @@ export const forumController = {
             const userId = req.user.id;
             const { threadId } = req.params;
             const { contenido, id_comentario_padre } = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const comment = await forumService.createComment(userId, threadId, contenido, id_comentario_padre);
+            const comment = await forumService.createComment(userId, threadId, contenido, id_comentario_padre, ipAddress);
 
             res.status(201).json({
                 success: true,
@@ -75,8 +78,9 @@ export const forumController = {
         try {
             const userId = req.user.id;
             const { threadId } = req.params;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await forumService.deleteThread(userId, threadId);
+            await forumService.deleteThread(userId, threadId, ipAddress);
 
             res.json({
                 success: true,
@@ -96,8 +100,9 @@ export const forumController = {
         try {
             const userId = req.user.id;
             const { commentId } = req.params;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await forumService.deleteComment(userId, commentId);
+            await forumService.deleteComment(userId, commentId, ipAddress);
 
             res.json({
                 success: true,
@@ -118,8 +123,9 @@ export const forumController = {
             const userId = req.user.id;
             const { commentId } = req.params;
             const { contenido } = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await forumService.editComment(userId, commentId, contenido);
+            await forumService.editComment(userId, commentId, contenido, ipAddress);
 
             res.json({
                 success: true,
@@ -249,8 +255,9 @@ export const forumController = {
             const userId = req.user.id;
             const { groupId } = req.params;
             const forumData = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const forum = await forumService.createForum(userId, groupId, forumData);
+            const forum = await forumService.createForum(userId, groupId, forumData, ipAddress);
 
             res.status(201).json({
                 success: true,

@@ -6,7 +6,12 @@ import {
     registrarEliminarGrupo, 
     registrarActualizarGrupo,
     registrarBanearUsuario,
-    registrarDesbanearUsuario
+    registrarDesbanearUsuario,
+    registrarAgregarMiembro,
+    registrarExpulsarMiembro,
+    registrarCambiarRangoMiembro,
+    registrarModificarReglas,
+    registrarConfigurarMetadatos
 } from '../utils/auditLogger.js';
 
 /**
@@ -187,7 +192,18 @@ export const groupService = {
 
         if (updateError) throw updateError;
 
-        // Registrar log de auditoría
+        // Registrar logs de auditoría específicos
+        if (updateData.reglas !== undefined) {
+            await registrarModificarReglas(userId, groupId, ipAddress);
+        }
+
+        // Configurar metadatos (nombre, descripción, avatar, visibilidad)
+        const metadataFields = ['nombre', 'descripcion', 'avatar_url', 'visibilidad'].filter(f => updateData[f] !== undefined);
+        if (metadataFields.length > 0) {
+            await registrarConfigurarMetadatos(userId, groupId, metadataFields, ipAddress);
+        }
+
+        // Registrar log general de actualización
         await registrarActualizarGrupo(
             userId,
             groupId,
@@ -259,7 +275,7 @@ export const groupService = {
     /**
      * RG-001c - Unirse a un grupo
      */
-    async joinGroup(userId, groupId) {
+    async joinGroup(userId, groupId, ipAddress = null) {
         // Verificar consentimiento activo
         const hasConsent = await consentService.hasActiveConsent(userId);
         if (!hasConsent) {
@@ -347,6 +363,10 @@ export const groupService = {
 
                 if (joinError) throw joinError;
             }
+
+            // Registrar log de auditoría
+            await registrarAgregarMiembro(userId, groupId, userId, 'Member', ipAddress);
+
             return { success: true, status: 'joined' };
         } else if (grupo.visibilidad === 'Restricted' || grupo.visibilidad === 'Closed') {
             // Verificar si tiene invitación pendiente
@@ -392,6 +412,9 @@ export const groupService = {
                             fecha_union: new Date().toISOString()
                         });
                 }
+
+                // Registrar log de auditoría
+                await registrarAgregarMiembro(userId, groupId, userId, 'Member', ipAddress);
 
                 return { success: true, status: 'joined' };
             }
@@ -581,7 +604,7 @@ export const groupService = {
     /**
      * RG-006 - Cambiar rol de un miembro (solo Owner)
      */
-    async updateMemberRole(requesterId, groupId, targetUserId, newRole) {
+    async updateMemberRole(requesterId, groupId, targetUserId, newRole, ipAddress = null) {
         // Verificar que el requester es Owner
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -617,6 +640,9 @@ export const groupService = {
             .is('deleted_at', null);
 
         if (updateError) throw updateError;
+
+        // Registrar log de auditoría
+        await registrarCambiarRangoMiembro(requesterId, groupId, targetUserId, newRole, ipAddress);
 
         return { success: true };
     },
@@ -778,6 +804,9 @@ export const groupService = {
 
         if (deleteError) throw deleteError;
 
+        // Registrar log de auditoría
+        await registrarExpulsarMiembro(requesterId, groupId, targetUserId, target.rol, ipAddress);
+
         return { success: true, message: 'Miembro expulsado exitosamente' };
     },
 
@@ -850,7 +879,7 @@ export const groupService = {
     /**
      * Aprobar/rechazar solicitud de unión (Owner y Moderator)
      */
-    async handleJoinRequest(requesterId, groupId, requestId, approve) {
+    async handleJoinRequest(requesterId, groupId, requestId, approve, ipAddress = null) {
         // Verificar permisos
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -940,6 +969,9 @@ export const groupService = {
                     throw new Error('Error al agregar el miembro al grupo');
                 }
             }
+
+            // Registrar log de auditoría
+            await registrarAgregarMiembro(requesterId, groupId, request.id_usuario_origen, 'Member', ipAddress);
         }
 
         return { success: true };

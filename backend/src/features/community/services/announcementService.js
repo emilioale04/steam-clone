@@ -1,5 +1,10 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { notificationService } from '../../../shared/services/notificationService.js';
+import { 
+    registrarCrearAnuncio,
+    registrarFijarAnuncio,
+    registrarDesfijarAnuncio
+} from '../utils/auditLogger.js';
 
 /**
  * Helper: Verificar si un usuario está baneado del grupo
@@ -48,7 +53,7 @@ export const announcementService = {
     /**
      * RG-007 - Crear anuncio (Owner y Moderator)
      */
-    async createAnnouncement(userId, groupId, announcementData) {
+    async createAnnouncement(userId, groupId, announcementData, ipAddress = null) {
         // Verificar permisos
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -94,6 +99,9 @@ export const announcementService = {
 
         if (announcementError) throw announcementError;
 
+        // Registrar log de auditoría
+        await registrarCrearAnuncio(userId, groupId, announcement.id, announcementData.fijado || false, ipAddress);
+
         // Enviar notificaciones a todos los miembros del grupo
         await notificationService.notifyGroupAnnouncement(groupId, announcement.id, userId);
         
@@ -103,7 +111,7 @@ export const announcementService = {
     /**
      * Editar anuncio (Owner y Moderator)
      */
-    async updateAnnouncement(userId, announcementId, updateData) {
+    async updateAnnouncement(userId, announcementId, updateData, ipAddress = null) {
         // Obtener el anuncio y verificar permisos
         const { data: announcement, error: announcementError } = await supabase
             .from('anuncios_grupo')
@@ -167,6 +175,13 @@ export const announcementService = {
             .single();
 
         if (updateError) throw updateError;
+
+        // Registrar logs de auditoría para fijar/desfijar
+        if (updateData.fijado === true) {
+            await registrarFijarAnuncio(userId, announcement.id_grupo, announcementId, ipAddress);
+        } else if (updateData.fijado === false) {
+            await registrarDesfijarAnuncio(userId, announcement.id_grupo, announcementId, ipAddress);
+        }
 
         return updated;
     },

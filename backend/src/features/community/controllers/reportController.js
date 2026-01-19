@@ -1,4 +1,5 @@
 import { reportService } from '../services/reportService.js';
+import { obtenerIPDesdeRequest } from '../utils/auditLogger.js';
 
 export const reportController = {
     // Obtener reportes del grupo
@@ -72,8 +73,9 @@ export const reportController = {
             const userId = req.user.id;
             const { groupId } = req.params;
             const reportData = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const report = await reportService.createReport(userId, groupId, reportData);
+            const report = await reportService.createReport(userId, groupId, reportData, ipAddress);
 
             res.status(201).json({
                 success: true,
@@ -94,8 +96,9 @@ export const reportController = {
         try {
             const userId = req.user.id;
             const { groupId, userId: bannedUserId } = req.params;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const result = await reportService.revokeBan(userId, groupId, bannedUserId);
+            const result = await reportService.revokeBan(userId, groupId, bannedUserId, ipAddress);
 
             res.json({
                 success: true,

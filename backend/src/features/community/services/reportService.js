@@ -1,4 +1,11 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { 
+    registrarRevocarBaneo,
+    registrarReportarForo,
+    registrarReportarHilo,
+    registrarReportarComentario,
+    obtenerIPDesdeRequest
+} from '../utils/auditLogger.js';
 
 export const reportService = {
     /**
@@ -257,7 +264,7 @@ export const reportService = {
     /**
      * Crear un nuevo reporte
      */
-    async createReport(reporterId, groupId, reportData) {
+    async createReport(reporterId, groupId, reportData, ipAddress = null) {
         const { targetId, targetType, reason, contentId, contentPreview } = reportData;
 
         // Verificar que el reportero es miembro del grupo
@@ -324,13 +331,22 @@ export const reportService = {
 
         if (createError) throw createError;
 
+        // Registrar log según el tipo de reporte
+        if (targetType === 'foro') {
+            await registrarReportarForo(reporterId, groupId, contentId, reason, ipAddress);
+        } else if (targetType === 'hilo') {
+            await registrarReportarHilo(reporterId, groupId, contentId, reason, ipAddress);
+        } else if (targetType === 'comentario') {
+            await registrarReportarComentario(reporterId, groupId, contentId, reason, ipAddress);
+        }
+
         return newReport;
     },
 
     /**
      * Revocar baneo de un usuario
      */
-    async revokeBan(requesterId, groupId, userId) {
+    async revokeBan(requesterId, groupId, userId, ipAddress = null) {
         // Verificar permisos del solicitante
         const { data: requester, error: requesterError } = await supabase
             .from('miembros_grupo')
@@ -377,6 +393,9 @@ export const reportService = {
             .eq('id_perfil', userId);
 
         if (updateError) throw updateError;
+
+        // Registrar log de auditoría
+        await registrarRevocarBaneo(requesterId, groupId, userId, ipAddress);
 
         return { 
             success: true, 

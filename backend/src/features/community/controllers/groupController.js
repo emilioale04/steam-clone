@@ -76,8 +76,9 @@ export const groupController = {
         try {
             const userId = req.user.id;
             const { groupId } = req.params;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            const result = await groupService.joinGroup(userId, groupId);
+            const result = await groupService.joinGroup(userId, groupId, ipAddress);
 
             res.json({
                 success: true,
@@ -122,8 +123,9 @@ export const groupController = {
             const userId = req.user.id;
             const { groupId, memberId } = req.params;
             const { rol } = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await groupService.updateMemberRole(userId, groupId, memberId, rol);
+            await groupService.updateMemberRole(userId, groupId, memberId, rol, ipAddress);
 
             res.json({
                 success: true,
@@ -189,8 +191,9 @@ export const groupController = {
             const userId = req.user.id;
             const { groupId, requestId } = req.params;
             const { approve } = req.body;
+            const ipAddress = obtenerIPDesdeRequest(req);
 
-            await groupService.handleJoinRequest(userId, groupId, requestId, approve);
+            await groupService.handleJoinRequest(userId, groupId, requestId, approve, ipAddress);
 
             res.json({
                 success: true,

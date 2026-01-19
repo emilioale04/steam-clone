@@ -21,24 +21,43 @@ export const ACCIONES_COMUNIDAD = {
     
     // Foros
     CREAR_FORO: 'crear_foro',
+    EDITAR_FORO: 'editar_foro',
     CERRAR_FORO: 'cerrar_foro',
     ELIMINAR_FORO: 'eliminar_foro',
     
     // Hilos y Comentarios
     CREAR_HILO: 'crear_hilo',
+    EDITAR_HILO: 'editar_hilo',
     ELIMINAR_HILO: 'eliminar_hilo',
     CREAR_COMENTARIO: 'crear_comentario',
+    EDITAR_COMENTARIO: 'editar_comentario',
     ELIMINAR_COMENTARIO: 'eliminar_comentario',
     
     // Moderación
     BANEAR_USUARIO: 'banear_usuario',
     DESBANEAR_USUARIO: 'desbanear_usuario',
     CAMBIAR_ROL: 'cambiar_rol',
+    REVOCAR_BANEO: 'revocar_baneo',
     
     // Anuncios
     CREAR_ANUNCIO: 'crear_anuncio',
     FIJAR_ANUNCIO: 'fijar_anuncio',
+    DESFIJAR_ANUNCIO: 'desfijar_anuncio',
     ELIMINAR_ANUNCIO: 'eliminar_anuncio',
+    
+    // Miembros
+    AGREGAR_MIEMBRO: 'agregar_miembro',
+    EXPULSAR_MIEMBRO: 'expulsar_miembro',
+    CAMBIAR_RANGO_MIEMBRO: 'cambiar_rango_miembro',
+    
+    // Reportes
+    REPORTAR_FORO: 'reportar_foro',
+    REPORTAR_HILO: 'reportar_hilo',
+    REPORTAR_COMENTARIO: 'reportar_comentario',
+    
+    // Configuración
+    MODIFICAR_REGLAS: 'modificar_reglas',
+    CONFIGURAR_METADATOS: 'configurar_metadatos',
 };
 
 /**
@@ -195,6 +214,374 @@ export async function registrarDesbanearUsuario(moderadorId, grupoId, usuarioId,
         recurso: `grupo:${grupoId}`,
         detalles: {
             usuario_desbaneado: usuarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra revocación de baneo
+ */
+export async function registrarRevocarBaneo(moderadorId, grupoId, usuarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.REVOCAR_BANEO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_id: usuarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra agregar miembro
+ */
+export async function registrarAgregarMiembro(moderadorId, grupoId, usuarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.AGREGAR_MIEMBRO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_agregado: usuarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra expulsar miembro
+ */
+export async function registrarExpulsarMiembro(moderadorId, grupoId, usuarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.EXPULSAR_MIEMBRO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_expulsado: usuarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra cambio de rango de miembro
+ */
+export async function registrarCambiarRangoMiembro(moderadorId, grupoId, usuarioId, rolAnterior, rolNuevo, ipAddress) {
+    return registrarLogComunidad({
+        userId: moderadorId,
+        accion: ACCIONES_COMUNIDAD.CAMBIAR_RANGO_MIEMBRO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            usuario_id: usuarioId,
+            rol_anterior: rolAnterior,
+            rol_nuevo: rolNuevo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra creación de anuncio
+ */
+export async function registrarCrearAnuncio(userId, grupoId, anuncioId, titulo, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.CREAR_ANUNCIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            anuncio_id: anuncioId,
+            titulo: titulo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra fijar anuncio
+ */
+export async function registrarFijarAnuncio(userId, grupoId, anuncioId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.FIJAR_ANUNCIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            anuncio_id: anuncioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra desfijar anuncio
+ */
+export async function registrarDesfijarAnuncio(userId, grupoId, anuncioId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.DESFIJAR_ANUNCIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            anuncio_id: anuncioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra reporte de foro
+ */
+export async function registrarReportarForo(reporterId, grupoId, foroId, motivo, ipAddress) {
+    return registrarLogComunidad({
+        userId: reporterId,
+        accion: ACCIONES_COMUNIDAD.REPORTAR_FORO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            foro_id: foroId,
+            motivo: motivo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra reporte de hilo
+ */
+export async function registrarReportarHilo(reporterId, grupoId, hiloId, motivo, ipAddress) {
+    return registrarLogComunidad({
+        userId: reporterId,
+        accion: ACCIONES_COMUNIDAD.REPORTAR_HILO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            hilo_id: hiloId,
+            motivo: motivo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra reporte de comentario
+ */
+export async function registrarReportarComentario(reporterId, grupoId, comentarioId, motivo, ipAddress) {
+    return registrarLogComunidad({
+        userId: reporterId,
+        accion: ACCIONES_COMUNIDAD.REPORTAR_COMENTARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            comentario_id: comentarioId,
+            motivo: motivo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra modificación de reglas
+ */
+export async function registrarModificarReglas(userId, grupoId, reglasActualizadas, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.MODIFICAR_REGLAS,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            reglas: reglasActualizadas,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra configuración de metadatos
+ */
+export async function registrarConfigurarMetadatos(userId, grupoId, metadatos, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.CONFIGURAR_METADATOS,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            metadatos: metadatos,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra creación de foro
+ */
+export async function registrarCrearForo(userId, grupoId, foroId, nombre, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.CREAR_FORO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            foro_id: foroId,
+            nombre: nombre,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra edición de foro
+ */
+export async function registrarEditarForo(userId, grupoId, foroId, cambios, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.EDITAR_FORO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            foro_id: foroId,
+            cambios: cambios,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra eliminación de foro
+ */
+export async function registrarEliminarForo(userId, grupoId, foroId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.ELIMINAR_FORO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            foro_id: foroId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra creación de hilo
+ */
+export async function registrarCrearHilo(userId, grupoId, hiloId, titulo, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.CREAR_HILO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            hilo_id: hiloId,
+            titulo: titulo,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra edición de hilo
+ */
+export async function registrarEditarHilo(userId, grupoId, hiloId, cambios, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.EDITAR_HILO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            hilo_id: hiloId,
+            cambios: cambios,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra eliminación de hilo
+ */
+export async function registrarEliminarHilo(userId, grupoId, hiloId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.ELIMINAR_HILO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            hilo_id: hiloId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra creación de comentario
+ */
+export async function registrarCrearComentario(userId, grupoId, comentarioId, hiloId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.CREAR_COMENTARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            comentario_id: comentarioId,
+            hilo_id: hiloId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra edición de comentario
+ */
+export async function registrarEditarComentario(userId, grupoId, comentarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.EDITAR_COMENTARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            comentario_id: comentarioId,
+            timestamp: new Date().toISOString()
+        },
+        ipAddress,
+        resultado: RESULTADOS.EXITOSO
+    });
+}
+
+/**
+ * Registra eliminación de comentario
+ */
+export async function registrarEliminarComentario(userId, grupoId, comentarioId, ipAddress) {
+    return registrarLogComunidad({
+        userId,
+        accion: ACCIONES_COMUNIDAD.ELIMINAR_COMENTARIO,
+        recurso: `grupo:${grupoId}`,
+        detalles: {
+            comentario_id: comentarioId,
             timestamp: new Date().toISOString()
         },
         ipAddress,

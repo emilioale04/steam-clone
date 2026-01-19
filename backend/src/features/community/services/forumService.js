@@ -1,4 +1,13 @@
 import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
+import { 
+    registrarCrearForo,
+    registrarEliminarForo,
+    registrarCrearHilo,
+    registrarEliminarHilo,
+    registrarCrearComentario,
+    registrarEditarComentario,
+    registrarEliminarComentario
+} from '../utils/auditLogger.js';
 
 /**
  * Helper: Verificar si un usuario está baneado del grupo
@@ -47,7 +56,7 @@ export const forumService = {
     /**
      * RG-002 - Crear un nuevo hilo en el foro del grupo
      */
-    async createThread(userId, groupId, threadData) {
+    async createThread(userId, groupId, threadData, ipAddress = null) {
         // Verificar que el usuario es miembro activo del grupo
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -93,13 +102,16 @@ export const forumService = {
 
         if (threadError) throw threadError;
 
+        // Registrar log de auditoría
+        await registrarCrearHilo(userId, groupId, thread.id, threadData.titulo, ipAddress);
+
         return thread;
     },
 
     /**
      * RG-002 - Crear un comentario en un hilo
      */
-    async createComment(userId, threadId, contenido, parentCommentId = null) {
+    async createComment(userId, threadId, contenido, parentCommentId = null, ipAddress = null) {
         // Obtener información del hilo y su foro/grupo
         const { data: hilo, error: hiloError } = await supabase
             .from('hilos')
@@ -170,6 +182,9 @@ export const forumService = {
 
         if (commentError) throw commentError;
 
+        // Registrar log de auditoría
+        await registrarCrearComentario(userId, hilo.foros.id_grupo, comment.id, threadId, ipAddress);
+
         return comment;
     },
 
@@ -232,7 +247,7 @@ export const forumService = {
     /**
      * RG-002 - Eliminar hilo (Owner, Moderator o autor del hilo)
      */
-    async deleteThread(userId, threadId) {
+    async deleteThread(userId, threadId, ipAddress = null) {
         // Obtener información del hilo
         const { data: hilo, error: hiloError } = await supabase
             .from('hilos')
@@ -279,13 +294,16 @@ export const forumService = {
             .update({ deleted_at: new Date().toISOString() })
             .eq('id', threadId);
 
+        // Registrar log de auditoría
+        await registrarEliminarHilo(userId, hilo.foros.id_grupo, threadId, ipAddress);
+
         return { success: true };
     },
 
     /**
      * RG-002 - Eliminar comentario (Owner y Moderator)
      */
-    async deleteComment(userId, commentId) {
+    async deleteComment(userId, commentId, ipAddress = null) {
         // Obtener información del comentario y su grupo
         const { data: comment, error: commentError } = await supabase
             .from('comentarios')
@@ -336,17 +354,20 @@ export const forumService = {
             })
             .eq('id', commentId);
 
+        // Registrar log de auditoría
+        await registrarEliminarComentario(userId, comment.hilos.foros.id_grupo, commentId, ipAddress);
+
         return { success: true };
     },
 
     /**
      * Editar comentario (solo autor)
      */
-    async editComment(userId, commentId, newContent) {
+    async editComment(userId, commentId, newContent, ipAddress = null) {
         // Verificar que es el autor
         const { data: comment, error: commentError } = await supabase
             .from('comentarios')
-            .select('id_autor')
+            .select('id_autor, hilos(foros(id_grupo))')
             .eq('id', commentId)
             .is('deleted_at', null)
             .single();
@@ -368,6 +389,9 @@ export const forumService = {
                 updated_at: new Date().toISOString()
             })
             .eq('id', commentId);
+
+        // Registrar log de auditoría
+        await registrarEditarComentario(userId, comment.hilos.foros.id_grupo, commentId, ipAddress);
 
         return { success: true };
     },
@@ -681,7 +705,7 @@ export const forumService = {
     /**
      * Crear un nuevo foro en un grupo (solo Owner)
      */
-    async createForum(userId, groupId, forumData) {
+    async createForum(userId, groupId, forumData, ipAddress = null) {
         // Verificar que el usuario es miembro del grupo
         const { data: member, error: memberError } = await supabase
             .from('miembros_grupo')
@@ -711,6 +735,9 @@ export const forumService = {
             .single();
 
         if (foroError) throw foroError;
+
+        // Registrar log de auditoría
+        await registrarCrearForo(userId, groupId, foro.id, forumData.titulo, ipAddress);
 
         return foro;
     },
