@@ -1,0 +1,70 @@
+-- ============================================================
+-- 1. LIMPIEZA PREVIA (Para evitar errores si se corre 2 veces)
+-- ============================================================
+DROP TRIGGER IF EXISTS tr_audit_juegos ON public.aplicaciones_desarrolladores;
+DROP TRIGGER IF EXISTS tr_audit_claves ON public.claves_juegos;
+DROP TRIGGER IF EXISTS tr_audit_wallet_tx ON public.wallet_transactions;
+
+-- ============================================================
+-- 2. AUDITORÍA DE DESARROLLADORES (Juegos y Claves)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_audit_desarrolladores()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.logs_auditoria_desarrolladores (
+        desarrollador_id,
+        accion,
+        recurso,
+        detalles,
+        resultado
+    )
+    VALUES (
+        -- CORRECCIÓN 1: Si auth.uid() es nulo (ej. ejecución manual), 
+        -- usa el ID del propio registro para no perder la trazabilidad.
+        COALESCE(auth.uid(), CASE WHEN TG_OP = 'DELETE' THEN OLD.desarrollador_id ELSE NEW.desarrollador_id END),
+        TG_OP, -- 'INSERT', 'UPDATE' o 'DELETE'
+        TG_TABLE_NAME,
+        jsonb_build_object(
+            -- CORRECCIÓN 2: Uso de CASE WHEN en lugar de IF
+            'old_data', CASE WHEN TG_OP = 'DELETE' OR TG_OP = 'UPDATE' THEN to_jsonb(OLD) ELSE NULL END,
+            'new_data', CASE WHEN TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN to_jsonb(NEW) ELSE NULL END
+        ),
+        'exitoso'
+    );
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER; -- SECURITY DEFINER asegura que se ejecute con permisos de admin
+
+-- Conexión de Triggers a las tablas
+CREATE TRIGGER tr_audit_juegos
+AFTER INSERT OR UPDATE OR DELETE ON public.aplicaciones_desarrolladores
+FOR EACH ROW EXECUTE FUNCTION public.fn_audit_desarrolladores();
+
+CREATE TRIGGER tr_audit_claves
+AFTER INSERT OR UPDATE OR DELETE ON public.claves_juegos
+FOR EACH ROW EXECUTE FUNCTION public.fn_audit_desarrolladores();
+
+-- ============================================================
+-- 3. AUDITORÍA DE BILLETERA (Wallet)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_audit_wallet()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.audit_logs (user_id, action, payload)
+    VALUES (
+        -- Fallback de seguridad: Si no hay usuario logueado, intenta sacar el dueño de la wallet
+        COALESCE(auth.uid(), NEW.profile_id, OLD.profile_id), 
+        TG_OP || ' WALLET_TRANSACTION',
+        jsonb_build_object(
+            'id', COALESCE(NEW.id, OLD.id), 
+            'amount', NEW.amount, 
+            'type', NEW.transaction_type -- Asegúrate que tu columna se llame así en la DB
+        )
+    );
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER tr_audit_wallet_tx
+AFTER INSERT OR UPDATE ON public.wallet_transactions
+FOR EACH ROW EXECUTE FUNCTION public.fn_audit_wallet();
