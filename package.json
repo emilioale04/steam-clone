@@ -24,7 +24,7 @@
     "dotenv": "^17.2.3",
     "express-validator": "^7.3.1",
     "ws": "^8.19.0",
-    "xss-clean": "^0.1.4"
+    "xss-clean": "^0.1.4",
     "nodemailer": "^7.0.12",
     "winston": "^3.19.0"
   }

@@ -36,8 +36,7 @@ export const authService = {
         trade_privacy: 'public',
         marketplace_privacy: 'public',
         created_at: new Date().toISOString(),
-        acepta_lopdp: true, 
-        fecha_consentimiento: new Date().toISOString()
+        // Remove non-existent columns to match Supabase schema
       });
 
     if (profileError) {

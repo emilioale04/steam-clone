@@ -59,13 +59,9 @@ import {
   ParameterValidator,
   SQLInjectionDetector,
 } from './src/shared/utils/preparedStatements.js';
-import {
-  sanitizeHTML,
-  removeScriptTags,
-  validateContent,
-  encodeHTML,
-  xssProtectionMiddleware,
-} from './src/shared/middleware/xssProtection.js';
+import { xssProtectionMiddleware } from './src/shared/middleware/xssProtection.js';
+
+
 
 // Import auth routes
 import { authRoutes } from './src/features/auth/index.js';
@@ -170,14 +166,15 @@ app.use(
 );
 
 // Cookie parser for httpOnly cookies
-import cookieParser from 'cookie-parser';
+
 app.use(cookieParser());
 
 // Body parsing
 app.use(express.json());
 
 // 🛡️ XSS Protection Middleware
-app.use(xssProtectionMiddleware);
+app.use(xssProtectionMiddleware());
+
 
 // --- RUTAS CON VALIDACIÓN Y REGEX ---
 
@@ -234,7 +231,7 @@ app.post('/api/reviews', [
     .isLength({ min: 10 }).withMessage('La reseña debe tener al menos 10 caracteres')
 ], validateRequest, (req, res) => {
   // Limpiar el contenido de posibles scripts
-  const comentarioLimpio = removeScriptTags(req.body.comment);
+  //const comentarioLimpio = removeScriptTags(req.body.comment);
   res.json({ 
     success: true, 
     message: "Reseña guardada de forma segura",

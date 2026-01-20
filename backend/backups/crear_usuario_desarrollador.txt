@@ -1,0 +1,26 @@
+Ejecuta el siguiente comando en tu terminal para enviar la solicitud de registro al Backend
+# Definición del cuerpo de la solicitud (JSON) y Ejecución del Request
+$body = @{ 
+    email = 'marcelo.studio2@gmail.com'; 
+    password = 'Dev_Pass2_2026!'; 
+    nombre_legal = 'Alex Dev'; 
+    pais = 'EC'; 
+    telefono = '0999999999'; 
+    direccion = 'Quito'; 
+    acepto_terminos = $true; 
+    acepto_politica_privacidad = $true 
+} | ConvertTo-Json; Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/desarrolladores/auth/registro' -ContentType 'application/json' -Body $body
+
+Validación de Integridad (SQL)
+Dado que el entorno de desarrollo no envía correos reales, utiliza esta sentencia en el SQL Editor de Supabase para confirmar la cuenta manualmente y habilitar el acceso.
+
+-- Confirmación manual del correo electrónico para habilitar login
+UPDATE auth.users
+SET 
+    email_confirmed_at = now(),
+    updated_at = now()
+WHERE email = 'marcelo.studio@gmail.com';
+
+SELECT * FROM public.logs_auditoria_desarrolladores 
+ORDER BY timestamp DESC 
+LIMIT 5;
