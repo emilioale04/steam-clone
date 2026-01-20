@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, ArrowLeft, Search, Gamepad2 } from 'lucide-react';
+import { Users, ArrowLeft, Search, Gamepad2, ChevronDown } from 'lucide-react';
 import { useGroups } from '../hooks/useGroups';
 import GroupCard from '../components/GroupCard';
 import CreateGroupModal from '../components/CreateGroupModal';
@@ -9,7 +9,40 @@ export const CommunityPage = () => {
   const [activeTab, setActiveTab] = useState('my-groups'); // 'my-groups' o 'discover'
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('popularity'); // 'popularity', 'newest', 'alphabetical'
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const { groups, loading, error, fetchMyGroups, searchGroups, createGroup } = useGroups();
+
+  // Opciones de ordenamiento
+  const sortOptions = [
+    { value: 'popularity', label: 'Popularidad' },
+    { value: 'newest', label: 'Más recientes' },
+    { value: 'alphabetical', label: 'A-Z' }
+  ];
+
+  // Ordenar grupos en el cliente
+  const sortedGroups = useMemo(() => {
+    if (!groups || groups.length === 0) return [];
+    
+    const groupsToSort = groups.map(g => g.grupos || g);
+    
+    return [...groupsToSort].sort((a, b) => {
+      switch (sortBy) {
+        case 'popularity':
+          return (b.member_count || 0) - (a.member_count || 0);
+        case 'newest':
+          const dateA = new Date(a.fecha_creacion || a.created_at || 0);
+          const dateB = new Date(b.fecha_creacion || b.created_at || 0);
+          return dateB - dateA;
+        case 'alphabetical':
+          const nameA = (a.nombre || a.name || '').toLowerCase();
+          const nameB = (b.nombre || b.name || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        default:
+          return 0;
+      }
+    });
+  }, [groups, sortBy]);
 
   useEffect(() => {
     if (activeTab === 'my-groups') {
@@ -18,6 +51,18 @@ export const CommunityPage = () => {
       searchGroups('');
     }
   }, [activeTab, fetchMyGroups, searchGroups]);
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isSortDropdownOpen && !e.target.closest('.sort-dropdown')) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isSortDropdownOpen]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -106,28 +151,70 @@ export const CommunityPage = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar and Sort */}
         {activeTab === 'discover' && (
-          <form onSubmit={handleSearch} className="mb-6">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar grupos..."
-                  className="w-full bg-[#316282] text-white pl-10 pr-4 py-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400"
-                />
+          <div className="mb-6 space-y-4">
+            <form onSubmit={handleSearch}>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar grupos..."
+                    className="w-full bg-[#316282] text-white pl-10 pr-4 py-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-semibold"
+                >
+                  Buscar
+                </button>
               </div>
-              <button
-                type="submit"
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-semibold"
-              >
-                Buscar
-              </button>
+            </form>
+            
+            {/* Sort Dropdown */}
+            <div className="flex justify-end">
+              <div className="relative sort-dropdown">
+                <button
+                  onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                  className="flex items-center gap-2 bg-[#2a475e] hover:bg-[#3a5a7e] text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <span className="text-gray-400 text-sm">Ordenar por:</span>
+                  <span className="font-medium">
+                    {sortOptions.find(opt => opt.value === sortBy)?.label}
+                  </span>
+                  <ChevronDown 
+                    size={18} 
+                    className={`text-gray-400 transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} 
+                  />
+                </button>
+                
+                {isSortDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-[#1b2838] border border-[#2a475e] rounded-lg shadow-xl z-10 overflow-hidden">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value);
+                          setIsSortDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 hover:bg-[#2a475e] transition-colors ${
+                          sortBy === option.value 
+                            ? 'text-blue-400 bg-[#2a475e]/50' 
+                            : 'text-white'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </form>
+          </div>
         )}
 
         {/* Error State */}
@@ -163,13 +250,13 @@ export const CommunityPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {groups.map((group) => {
-                  // Extraer datos del grupo según estructura
-                  const groupData = group.grupos || group;
-                  return (
-                    <GroupCard key={groupData.id} group={groupData} />
-                  );
-                })}
+                {(activeTab === 'discover' ? sortedGroups : groups.map(g => g.grupos || g)).map((groupData) => (
+                  <GroupCard 
+                    key={groupData.id} 
+                    group={groupData} 
+                    showMemberBadge={activeTab === 'discover'}
+                  />
+                ))}
               </div>
             )}
           </>

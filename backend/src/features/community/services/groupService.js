@@ -1258,7 +1258,7 @@ export const groupService = {
 
         if (error) throw error;
 
-        // Agregar conteo de miembros a cada grupo
+        // Agregar conteo de miembros y verificar membresía a cada grupo
         const groupsWithCounts = await Promise.all(
             (grupos || []).map(async (grupo) => {
                 const { count } = await supabase
@@ -1268,9 +1268,24 @@ export const groupService = {
                     .eq('estado_membresia', 'activo')
                     .is('deleted_at', null);
 
+                // Verificar si el usuario actual es miembro
+                let is_member = false;
+                if (userId) {
+                    const { data: membership } = await supabase
+                        .from('miembros_grupo')
+                        .select('id')
+                        .eq('id_grupo', grupo.id)
+                        .eq('id_perfil', userId)
+                        .eq('estado_membresia', 'activo')
+                        .is('deleted_at', null)
+                        .single();
+                    is_member = !!membership;
+                }
+
                 return {
                     ...grupo,
-                    member_count: count || 0
+                    member_count: count || 0,
+                    is_member
                 };
             })
         );

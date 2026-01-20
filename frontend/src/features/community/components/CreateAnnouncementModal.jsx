@@ -40,8 +40,9 @@ export default function CreateAnnouncementModal({ isOpen, onClose, onSubmit, loa
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#1b2838] rounded-lg w-full max-w-2xl">
-                <div className="flex items-center justify-between p-6 border-b border-[#2a475e]">
+            <div className="bg-[#1b2838] rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+                {/* Header Fijo */}
+                <div className="flex items-center justify-between p-6 border-b border-[#2a475e] shrink-0">
                     <h2 className="text-2xl font-bold text-white">Crear Anuncio</h2>
                     <button
                         onClick={onClose}
@@ -52,78 +53,82 @@ export default function CreateAnnouncementModal({ isOpen, onClose, onSubmit, loa
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label htmlFor="titulo" className="block text-sm font-medium text-gray-300 mb-2">
-                            Título *
-                        </label>
-                        <input
-                            type="text"
-                            id="titulo"
-                            value={titulo}
-                            onChange={(e) => setTitulo(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                            placeholder="Título del anuncio"
-                            maxLength={100}
-                            required
-                            disabled={loading}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">{titulo.length}/100</p>
-                    </div>
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                    {/* Body Scrollable */}
+                    <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                        <div>
+                            <label htmlFor="titulo" className="block text-sm font-medium text-gray-300 mb-2">
+                                Título *
+                            </label>
+                            <input
+                                type="text"
+                                id="titulo"
+                                value={titulo}
+                                onChange={(e) => setTitulo(e.target.value)}
+                                className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                                placeholder="Título del anuncio"
+                                maxLength={100}
+                                required
+                                disabled={loading}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">{titulo.length}/100</p>
+                        </div>
 
-                    <div>
-                        <label htmlFor="contenido" className="block text-sm font-medium text-gray-300 mb-2">
-                            Contenido *
-                        </label>
-                        <textarea
-                            id="contenido"
-                            value={contenido}
-                            onChange={(e) => setContenido(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 min-h-[150px]"
-                            placeholder="Escribe el contenido del anuncio..."
-                            maxLength={1000}
-                            required
-                            disabled={loading}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">{contenido.length}/1000</p>
-                    </div>
+                        <div>
+                            <label htmlFor="contenido" className="block text-sm font-medium text-gray-300 mb-2">
+                                Contenido *
+                            </label>
+                            <textarea
+                                id="contenido"
+                                value={contenido}
+                                onChange={(e) => setContenido(e.target.value)}
+                                className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 min-h-[120px]"
+                                placeholder="Escribe el contenido del anuncio..."
+                                maxLength={1000}
+                                required
+                                disabled={loading}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">{contenido.length}/1000</p>
+                        </div>
 
-                    <div>
-                        <label htmlFor="fechaHora" className="block text-sm font-medium text-gray-300 mb-2">
-                            Fecha y Hora *
-                        </label>
-                        <input
-                            type="datetime-local"
-                            id="fechaHora"
-                            value={fechaHora}
-                            onChange={(e) => setFechaHora(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white focus:outline-none focus:border-blue-500"
-                            required
-                            disabled={loading}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            El anuncio expirará automáticamente en esta fecha
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 p-4 bg-[#2a475e] rounded border border-[#3a576e]">
-                        <input
-                            type="checkbox"
-                            id="fijado"
-                            checked={fijado}
-                            onChange={(e) => setFijado(e.target.checked)}
-                            className="w-5 h-5 bg-[#1b2838] border border-[#3a576e] rounded focus:ring-2 focus:ring-blue-500"
-                            disabled={loading}
-                        />
-                        <label htmlFor="fijado" className="text-sm text-gray-300 flex-1">
-                            <span className="font-semibold text-white">Fijar en la parte superior del grupo</span>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Solo puede haber un anuncio fijado a la vez. Se mostrará en la parte superior hasta que expire.
+                        <div>
+                            <label htmlFor="fechaHora" className="block text-sm font-medium text-gray-300 mb-2">
+                                Fecha y Hora *
+                            </label>
+                            <input
+                                type="datetime-local"
+                                id="fechaHora"
+                                value={fechaHora}
+                                onChange={(e) => setFechaHora(e.target.value)}
+                                className="w-full px-4 py-2 bg-[#2a475e] border border-[#3a576e] rounded text-white focus:outline-none focus:border-blue-500"
+                                required
+                                disabled={loading}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                El anuncio expirará automáticamente en esta fecha
                             </p>
-                        </label>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-4 bg-[#2a475e] rounded border border-[#3a576e]">
+                            <input
+                                type="checkbox"
+                                id="fijado"
+                                checked={fijado}
+                                onChange={(e) => setFijado(e.target.checked)}
+                                className="w-5 h-5 bg-[#1b2838] border border-[#3a576e] rounded focus:ring-2 focus:ring-blue-500"
+                                disabled={loading}
+                            />
+                            <label htmlFor="fijado" className="text-sm text-gray-300 flex-1">
+                                <span className="font-semibold text-white">Fijar en la parte superior del grupo</span>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Solo puede haber un anuncio fijado a la vez. Se mostrará en la parte superior hasta que expire.
+                                </p>
+                            </label>
+                        </div>
                     </div>
 
-                    <div className="flex gap-3 pt-4">
+                    {/* Footer Fijo */}
+                    <div className="flex gap-3 p-6 border-t border-[#2a475e] shrink-0">
                         <button
                             type="button"
                             onClick={onClose}
