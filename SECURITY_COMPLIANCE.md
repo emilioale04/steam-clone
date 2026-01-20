@@ -165,6 +165,10 @@ Este documento mapea la implementación de los requisitos funcionales, no funcio
 - ✅ Audit Log: Operaciones CRUD registradas
 - ✅ **SQL Injection Prevention**: Supabase Query Builder (parametrizado automáticamente)
 - ✅ **Input Sanitization**: Validación de nombre y descripción
+- ✅ **URL Validation**: URLs de imágenes sanitizadas con `sanitizeImageURL()`
+  - Bloquea esquemas peligrosos: `javascript:`, `data:`, `vbscript:`, `file:`
+  - Solo permite: `http://` y `https://`
+  - Previene XSS mediante URLs maliciosas
 - ✅ Soft Delete: No se eliminan físicamente, solo se marcan como inactivas
 
 **Mitigación STRIDE (A3, A4, A6, A7, A9, A10):**
@@ -233,11 +237,16 @@ Este documento mapea la implementación de los requisitos funcionales, no funcio
 - Backend: `backend/src/shared/config/supabase.js`
   - Configuración de conexión segura
   - Service Role Key en variables de entorno
+- Backend: `backend/src/shared/utils/sanitization.js`
+  - `sanitizeString()` - Sanitización anti-XSS
+  - `sanitizeImageURL()` - Validación de URLs de imágenes
+  - `sanitizeBodyMiddleware` - Middleware global de sanitización
 
 **Cumplimiento LOPDP:**
 - ✅ Datos personales encriptados en tránsito y reposo
 - ✅ Mínima exposición de información sensible
 - ✅ Logs de producción redactan emails/datos sensibles
+- ✅ URLs de imágenes validadas y sanitizadas contra XSS
 
 ---
 

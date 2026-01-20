@@ -15,20 +15,20 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit }) {
     const visibilityOptions = [
         {
             value: 'Open',
-            label: 'Public',
-            description: 'Anyone can view and join the group instantly without approval.',
+            label: 'Público',
+            description: 'Cualquiera puede ver y unirse al grupo instantáneamente sin aprobación.',
             icon: Globe
         },
         {
             value: 'Restricted',
-            label: 'Restricted',
-            description: 'Anyone can view, but users must apply and be approved to join.',
+            label: 'Restringido',
+            description: 'Cualquiera puede ver, pero los usuarios deben solicitar y ser aprobados para unirse.',
             icon: ShieldCheck
         },
         {
             value: 'Closed',
-            label: 'Closed',
-            description: 'Group is hidden. Membership is by invitation only.',
+            label: 'Cerrado',
+            description: 'El grupo está oculto. La membresía es solo por invitación.',
             icon: Lock
         }
     ];
@@ -145,10 +145,10 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit }) {
                         {/* Privacy Settings - Card Selection */}
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Privacy Settings
+                                Configuración de Privacidad
                             </label>
                             <p className="text-xs text-gray-500 mb-4">
-                                Control who can see and join your group.
+                                Controla quién puede ver y unirse a tu grupo.
                             </p>
                             
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

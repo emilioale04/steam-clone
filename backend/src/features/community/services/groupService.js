@@ -2,6 +2,7 @@ import { supabaseAdmin as supabase } from '../../../shared/config/supabase.js';
 import { notificationService } from '../../../shared/services/notificationService.js';
 import { consentService } from './consentService.js';
 import { permissionService, PERMISOS } from './permissionService.js';
+import { sanitizeImageURL } from '../../../shared/utils/sanitization.js';
 import { 
     registrarCrearGrupo, 
     registrarEliminarGrupo, 
@@ -98,13 +99,22 @@ export const groupService = {
             throw new Error('Visibilidad inválida. Debe ser: Open, Restricted o Closed');
         }
 
+        // Validar y sanitizar avatar_url si se proporciona
+        let avatarUrl = null;
+        if (groupData.avatar_url) {
+            avatarUrl = sanitizeImageURL(groupData.avatar_url);
+            if (avatarUrl === null) {
+                throw new Error('URL de avatar inválida o insegura');
+            }
+        }
+
         // Crear el grupo
         const { data: grupo, error: groupError } = await supabase
             .from('grupos')
             .insert({
                 nombre: groupData.nombre,
                 descripcion: groupData.descripcion || '',
-                avatar_url: groupData.avatar_url || null,
+                avatar_url: avatarUrl,
                 visibilidad: groupData.visibilidad,
                 id_creador: userId,
                 fecha_creacion: new Date().toISOString(),
@@ -165,6 +175,15 @@ export const groupService = {
             if (!validVisibilities.includes(updateData.visibilidad)) {
                 throw new Error('Visibilidad inválida');
             }
+        }
+
+        // Validar y sanitizar avatar_url si se proporciona
+        if (updateData.avatar_url !== undefined && updateData.avatar_url !== null) {
+            const sanitizedUrl = sanitizeImageURL(updateData.avatar_url);
+            if (sanitizedUrl === null) {
+                throw new Error('URL de avatar inválida o insegura');
+            }
+            updateData.avatar_url = sanitizedUrl;
         }
 
         // Actualizar el grupo

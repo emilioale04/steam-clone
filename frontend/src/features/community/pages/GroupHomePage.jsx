@@ -280,12 +280,12 @@ export const GroupHomePage = () => {
                 {groupData.visibilidad === 'Open' || groupData.visibilidad === 'public' ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border bg-green-500/10 border-green-500 text-green-400">
                     <Globe size={12} />
-                    Open
+                    Público
                   </span>
                 ) : groupData.visibilidad === 'Closed' || groupData.visibilidad === 'Restricted' ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border bg-red-500/10 border-red-500 text-red-400">
                     <Lock size={12} />
-                    {groupData.visibilidad === 'Restricted' ? 'Restricted' : 'Closed'}
+                    {groupData.visibilidad === 'Restricted' ? 'Restringido' : 'Cerrado'}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border bg-gray-500/10 border-gray-500 text-gray-300">

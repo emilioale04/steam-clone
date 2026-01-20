@@ -31,6 +31,48 @@ export function sanitizeEmail(email) {
 }
 
 /**
+ * Valida y sanitiza URLs de imágenes
+ * Previene XSS a través de data URIs, javascript:, vbscript:, etc.
+ * 
+ * @param {string} url - URL a validar
+ * @returns {string|null} - URL sanitizada o null si es inválida
+ */
+export function sanitizeImageURL(url) {
+  if (!url || typeof url !== 'string') return null;
+  
+  const trimmedUrl = url.trim();
+  
+  // Permitir solo URLs con esquemas seguros
+  const safeSchemes = ['http://', 'https://'];
+  const hasSafeScheme = safeSchemes.some(scheme => 
+    trimmedUrl.toLowerCase().startsWith(scheme)
+  );
+  
+  if (!hasSafeScheme) {
+    console.warn('[SECURITY] URL rechazada - esquema no seguro:', trimmedUrl.substring(0, 50));
+    return null;
+  }
+  
+  // Bloquear esquemas peligrosos (case-insensitive)
+  const dangerousSchemes = [
+    'javascript:',
+    'data:',
+    'vbscript:',
+    'file:',
+    'about:'
+  ];
+  
+  const lowerUrl = trimmedUrl.toLowerCase();
+  if (dangerousSchemes.some(scheme => lowerUrl.includes(scheme))) {
+    console.warn('[SECURITY] URL bloqueada - contiene esquema peligroso:', trimmedUrl.substring(0, 50));
+    return null;
+  }
+  
+  // Aplicar sanitización estándar
+  return sanitizeString(trimmedUrl);
+}
+
+/**
  * Lista de campos que NO deben ser sanitizados
  * Incluye contraseñas, tokens y datos sensibles que serán cifrados
  * 

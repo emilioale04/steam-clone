@@ -45,7 +45,7 @@ export default function GroupCard({ group, showMemberBadge = false }) {
                     <div className="absolute top-2 right-2">
                         <span className="px-2 py-1 text-xs font-bold uppercase rounded bg-cyan-500/90 text-white flex items-center gap-1">
                             <Check size={12} />
-                            JOINED
+                            UNIDO
                         </span>
                     </div>
                 )}

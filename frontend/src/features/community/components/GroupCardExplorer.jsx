@@ -23,7 +23,7 @@ const GroupCardExplorer = ({ group, onJoin, isMember = false, isPending = false 
     // Si ya es miembro
     if (isMember || group.type === 'MEMBER') {
       return { 
-        text: 'Joined', 
+        text: 'Unido', 
         style: 'bg-gray-600 text-gray-300 cursor-default',
         icon: <Check size={14} />,
         disabled: true 
@@ -33,7 +33,7 @@ const GroupCardExplorer = ({ group, onJoin, isMember = false, isPending = false 
     // Si tiene solicitud pendiente
     if (isPending) {
       return { 
-        text: 'Pending', 
+        text: 'Pendiente', 
         style: 'bg-yellow-700 text-yellow-200 cursor-default',
         icon: <Clock size={14} />,
         disabled: true 
@@ -44,28 +44,28 @@ const GroupCardExplorer = ({ group, onJoin, isMember = false, isPending = false 
     switch (group.type) {
       case 'PUBLIC':
         return { 
-          text: 'Join', 
+          text: 'Unirse', 
           style: 'bg-green-600 hover:bg-green-500 text-white',
           icon: null,
           disabled: false 
         };
       case 'RESTRICTED':
         return { 
-          text: 'Apply', 
+          text: 'Solicitar', 
           style: 'bg-yellow-600 hover:bg-yellow-500 text-white',
           icon: null,
           disabled: false 
         };
       case 'PRIVATE':
         return { 
-          text: 'Invite Only', 
+          text: 'Solo Invitación', 
           style: 'bg-gray-600 text-gray-400 cursor-not-allowed',
           icon: <Lock size={14} />,
           disabled: true 
         };
       default:
         return { 
-          text: 'Join', 
+          text: 'Unirse', 
           style: 'bg-[#3a5070] hover:bg-[#4a6080] text-white',
           icon: null,
           disabled: false 
@@ -101,7 +101,7 @@ const GroupCardExplorer = ({ group, onJoin, isMember = false, isPending = false 
         {/* Badge */}
         <div className="absolute top-3 right-3">
           <span className={`px-2 py-1 text-xs font-bold uppercase rounded ${badgeStyle}`}>
-            {group.type === 'MEMBER' ? 'JOINED' : group.type}
+            {group.type === 'MEMBER' ? 'UNIDO' : group.type}
           </span>
         </div>
 
@@ -126,7 +126,7 @@ const GroupCardExplorer = ({ group, onJoin, isMember = false, isPending = false 
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#2a3f5f]/50">
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <Users size={14} />
-            <span>{group.memberCount} Members</span>
+            <span>{group.memberCount} miembros</span>
           </div>
           
           <button 

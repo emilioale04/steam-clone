@@ -489,15 +489,15 @@ export default function GroupDetailsPage() {
                                 {/* Visibility Badge */}
                                 {group.visibilidad === 'Open' ? (
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border bg-green-500/20 border-green-500 text-green-400">
-                                        Open
+                                        Público
                                     </span>
                                 ) : group.visibilidad === 'Restricted' ? (
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border bg-yellow-500/20 border-yellow-500 text-yellow-400">
-                                        Restricted
+                                        Restringido
                                     </span>
                                 ) : (
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border bg-red-500/20 border-red-500 text-red-400">
-                                        Closed
+                                        Cerrado
                                     </span>
                                 )}
                             </div>
